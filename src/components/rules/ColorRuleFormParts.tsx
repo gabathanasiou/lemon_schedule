@@ -93,17 +93,17 @@ export function RuleOverrideSection({
   const { CREM_LABEL, CREM_TEXT } = sizes;
   return (
     <div>
-      <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block`}>Override</span>
+      <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider border-b border-[color:var(--ui-border)] pb-1.5 mb-3 block`}>Override</span>
       <div className="flex gap-1.5 mb-4">
         <button
           onClick={() => setOverrideType('single')}
-          className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'single' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+          className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'single' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-card-bg)]'}`}
         >
           Single Color
         </button>
         <button
           onClick={() => setOverrideType('matrix')}
-          className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'matrix' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+          className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'matrix' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-card-bg)]'}`}
         >
           Custom Matrix
         </button>
@@ -112,14 +112,14 @@ export function RuleOverrideSection({
       {overrideType === 'single' ? (
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className={`${CREM_LABEL} text-zinc-400`}>BG:</span>
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)]`}>BG:</span>
             <ColorField value={singleBg} onChange={setSingleBg} hexVariant="sm" swatchClass={IS_COARSE ? 'w-12 h-12' : ''} defaultValue={getNoteBannerColors(palette).background} />
           </div>
           <div className="flex items-center gap-2">
-            <span className={`${CREM_LABEL} text-zinc-400`}>Text:</span>
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)]`}>Text:</span>
             <ColorField value={singleText} onChange={setSingleText} hexVariant="sm" swatchClass={IS_COARSE ? 'w-12 h-12' : ''} defaultValue={getNoteBannerColors(palette).color} />
           </div>
-          <div className="w-10 h-10 rounded border border-zinc-700 flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
+          <div className="w-10 h-10 rounded border border-[color:var(--ui-card-border)] flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
             Aa
           </div>
         </div>
@@ -131,7 +131,7 @@ export function RuleOverrideSection({
                 <th className="w-14" />
                 {ieOptions.map(ie => (
                   <th key={ie} className="px-0.5 pb-1 text-center min-w-[80px]">
-                    <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-zinc-500 uppercase tracking-wider`}>{ie}</span>
+                    <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>{ie}</span>
                   </th>
                 ))}
               </tr>
@@ -140,7 +140,7 @@ export function RuleOverrideSection({
               {dnOptions.map(dn => (
                 <tr key={dn}>
                   <td className="pr-2 py-0.5 align-middle text-right">
-                    <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-zinc-500 uppercase tracking-wider`}>{dn}</span>
+                    <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>{dn}</span>
                   </td>
                   {ieOptions.map(ie => {
                     const idx = findEntryIdx(matrixColors, ie, dn);
@@ -149,7 +149,7 @@ export function RuleOverrideSection({
                       <td key={ie} className="px-0.5 py-0.5">
                         <button
                           onClick={() => openCellEdit(ie, dn)}
-                          className={`w-full ${IS_COARSE ? 'h-12' : 'h-10'} rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${IS_COARSE ? 'text-[10px]' : 'text-[8px]'} font-semibold cursor-pointer`}
+                          className={`w-full ${IS_COARSE ? 'h-12' : 'h-10'} rounded border border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-border-strong)] transition-colors flex items-center justify-center ${IS_COARSE ? 'text-[10px]' : 'text-[8px]'} font-semibold cursor-pointer`}
                           style={{ background: entry.background, color: entry.text }}
                         >
                           <span className="text-center leading-tight px-0.5">{ie}<br />{dn}</span>
@@ -193,14 +193,14 @@ export function MatrixCellEditor({ cellEdit, setCellEdit, cellBg, setCellBg, cel
     >
       <div className={CREM_CELL_BODY}>
         <div className="flex items-center justify-between">
-          <span className={`${CREM_TEXT} text-zinc-300`}>Background</span>
+          <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>Background</span>
           <ColorField value={cellBg} onChange={setCellBg} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).background} />
         </div>
         <div className="flex items-center justify-between">
-          <span className={`${CREM_TEXT} text-zinc-300`}>Text Color</span>
+          <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>Text Color</span>
           <ColorField value={cellText} onChange={setCellText} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).color} />
         </div>
-        <div className="w-full h-10 rounded border border-zinc-700 flex items-center justify-center text-sm font-bold" style={{ background: cellBg, color: cellText }}>
+        <div className="w-full h-10 rounded border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold" style={{ background: cellBg, color: cellText }}>
           Aa
         </div>
       </div>

@@ -24,8 +24,8 @@ import { X, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
  *  the whole field tree (type menu, cast chips, date picker) on each form
  *  change. */
 const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string; labelClass?: string }> = ({ label, children, className, labelClass = '' }) => (
-  <div className={`border border-zinc-700 rounded-lg p-3 space-y-3 ${className ?? ''}`}>
-    <span className={`${labelClass} text-zinc-500 uppercase font-semibold tracking-wider block`}>{label}</span>
+  <div className={`border border-[color:var(--ui-border-strong)] rounded-lg p-3 space-y-3 ${className ?? ''}`}>
+    <span className={`${labelClass} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider block`}>{label}</span>
     {children}
   </div>
 );
@@ -117,7 +117,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       className="text-xs"
       displayMode="id"
       anchoredKeys={anchoredKeys}
-      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
+      renderItem={(item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
     />
   );
 
@@ -136,7 +136,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       type="time"
       value={value || ''}
       onChange={e => setter(e.target.value)}
-      className={`${sizes.CREM_TEXT} px-2 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
+      className={`${sizes.CREM_TEXT} px-2 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] outline-none focus:border-[color:var(--ui-input-focus-border)]`}
     />
   );
 
@@ -151,10 +151,10 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
     <div className="space-y-4" data-rule-editor>
       {!bare && (
         <div className="flex items-center justify-between">
-          <span className={`${CREM_LABEL} text-zinc-300 uppercase font-semibold tracking-wider`}>
+          <span className={`${CREM_LABEL} text-[color:var(--ui-text)] uppercase font-semibold tracking-wider`}>
             {initial ? 'Edit Rule' : 'Add Rule'}
           </span>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 transition-colors p-0.5">
+          <button onClick={onClose} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] transition-colors p-0.5">
             <X className={XSZ} />
           </button>
         </div>
@@ -173,7 +173,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
               <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
               <span className="truncate">{selectedMeta.label}</span>
             </span>
-            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
           </button>
         }
       >
@@ -196,11 +196,11 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       {form.type === 'CAST_CONFLICT' ? (
         <div className="space-y-2">
           <div>
-            <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</label>
+            <label className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</label>
             {castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), 'e.g. 1, 2')}
           </div>
           <div>
-            <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</label>
+            <label className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</label>
             {castField(form.conflictCastIds, v => setForm(f => ({ ...f, conflictCastIds: v })), 'e.g. 3, 4')}
           </div>
         </div>
@@ -227,7 +227,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
             )}
           </div>
           {form.datesMode === 'all' && form.type !== 'DATE_RESTRICTION' ? (
-            <p className={`${CREM_LABEL} text-zinc-500 italic`}>Applies every day.</p>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>Applies every day.</p>
           ) : (
             <DateField
               multi
@@ -250,7 +250,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
             step={0.5}
             value={form.maxHours}
             onChange={e => setForm(f => ({ ...f, maxHours: e.target.value }))}
-            className={`${sizes.CREM_TEXT} w-24 px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
+            className={`${sizes.CREM_TEXT} w-24 px-2.5 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] outline-none focus:border-[color:var(--ui-input-focus-border)]`}
           />
         </FieldBox>
       )}
@@ -266,8 +266,8 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
                 onClick={() => setForm(f => ({ ...f, windowMode: wm.mode }))}
                 className={`px-2 py-1.5 rounded text-[10px] font-semibold transition-colors text-left border ${
                   form.windowMode === wm.mode
-                    ? 'bg-zinc-700 text-white border-zinc-600'
-                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border-zinc-800'
+                    ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)] border-[color:var(--ui-border-strong)]'
+                    : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] border-[color:var(--ui-border)]'
                 }`}
               >
                 {wm.label}
@@ -277,24 +277,24 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
           {form.windowMode === 'range' && (
             <div className="flex items-center gap-2">
               {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'range', windowStart: v })))}
-              <span className={`${CREM_LABEL} text-zinc-500`}>to</span>
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)]`}>to</span>
               {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'range', windowEnd: v })))}
             </div>
           )}
           {form.windowMode === 'after' && (
             <div className="flex items-center gap-2">
-              <span className={`${CREM_LABEL} text-zinc-500 w-10`}>From</span>
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] w-10`}>From</span>
               {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'after', windowStart: v })))}
             </div>
           )}
           {form.windowMode === 'before' && (
             <div className="flex items-center gap-2">
-              <span className={`${CREM_LABEL} text-zinc-500 w-10`}>Until</span>
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] w-10`}>Until</span>
               {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'before', windowEnd: v })))}
             </div>
           )}
           {form.windowMode === 'allday' && (
-            <p className={`${CREM_LABEL} text-zinc-500 italic`}>Available the entire day — no time restriction.</p>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>Available the entire day — no time restriction.</p>
           )}
         </FieldBox>
       )}

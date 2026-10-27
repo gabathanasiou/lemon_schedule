@@ -10,12 +10,12 @@ import { getAlign } from '../../lib/ribbonUtils';
 /* Kit `Button` recipes preserving the toolbar's dark-bordered look while
    letting the kit's coarse sizing (padding/font) drive the size — no fixed
    heights/fonts, so the designer toolbar scales with the global coarse knob. */
-const BTN = 'rounded !bg-zinc-800 !border !border-zinc-700 !disabled:opacity-30 flex items-center transition-colors';
-const BTN_LABEL = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
-const BTN_LABEL_DANGER = `${BTN} !text-zinc-300 hover:!bg-red-950/50`;
-const BTN_MOVE = `${BTN} !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
-const BTN_CHANGE = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
-const BTN_X = 'rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
+const BTN = 'rounded !bg-[var(--ui-input-bg)] !border !border-[color:var(--ui-card-border)] !disabled:opacity-30 flex items-center transition-colors';
+const BTN_LABEL = `${BTN} !text-[color:var(--ui-text)] hover:!bg-[var(--ui-item-active-bg)]`;
+const BTN_LABEL_DANGER = `${BTN} !text-[color:var(--ui-text)] hover:!bg-[var(--ui-danger-hover-bg)]`;
+const BTN_MOVE = `${BTN} !text-[color:var(--ui-text-muted)] hover:!bg-[var(--ui-item-active-bg)] !disabled:opacity-25`;
+const BTN_CHANGE = `${BTN} !text-[color:var(--ui-text)] hover:!bg-[var(--ui-item-active-bg)]`;
+const BTN_X = 'rounded !border !border-[color:var(--ui-card-border)] !bg-[var(--ui-input-bg)] !text-[color:var(--ui-text-muted)] hover:!bg-[var(--ui-item-active-bg)] hover:!text-[color:var(--ui-input-text)] !disabled:opacity-25 flex items-center justify-center transition-colors';
 
 /**
  * Live number input for toolbar numeric fields — see `src/components/
@@ -69,10 +69,10 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
   } = props;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none min-w-max" onClick={e => e.stopPropagation()}>
+    <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-lg mb-4 divide-y divide-[color:var(--ui-border)] select-none min-w-max" onClick={e => e.stopPropagation()}>
       {/* Structure */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-        <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
+        <span className="text-[9px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider shrink-0 w-16">Structure</span>
         <Tooltip content="Add Column After">
           <Button theme="dark" onClick={() => selCell && onAddColumn(selCell.ci)} disabled={readOnly || !selCell}
             data-presence-anchor="ribbons:tb:add-column"
@@ -134,14 +134,14 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
       </div>
       {/* Cell */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-        <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Cell</span>
+        <span className="text-[9px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider shrink-0 w-16">Cell</span>
         <Tooltip content="Change Field">
           <Button theme="dark"
             onClick={onOpenFieldMenu}
             disabled={readOnly || !selCell}
             className={BTN_CHANGE}>
             <ArrowRightLeft className="w-3 h-3" /> Change
-            <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] ml-0.5" />
           </Button>
         </Tooltip>
         <ToolbarDivider dark />
@@ -172,7 +172,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
       </div>
       {/* Cell Style */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-        <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Style</span>
+        <span className="text-[9px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider shrink-0 w-16">Style</span>
         {(['left', 'center', 'right'] as const).map(a => {
           const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
           const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
@@ -182,7 +182,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
               <Button theme="dark" variant="tab" active={active}
                 onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
                 disabled={readOnly || !selCell}
-                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
+                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-[color:var(--ui-text-muted)] hover:!bg-[var(--ui-input-bg)]'}`}>
                 <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
@@ -200,7 +200,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
               <Button theme="dark" variant="tab" active={active}
                 onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
                 disabled={readOnly || !selCell}
-                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
+                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-[color:var(--ui-text-muted)] hover:!bg-[var(--ui-input-bg)]'}`}>
                 <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
@@ -218,7 +218,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                 <Button theme="dark" variant="tab" active={active}
                   onClick={() => selCell && !active && setOverflow(selId!, mode)}
                   disabled={readOnly || !selCell}
-                  className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
+                  className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-[color:var(--ui-text-muted)] hover:!bg-[var(--ui-input-bg)]'}`}>
                   <Icon className="w-3 h-3 shrink-0" />
                 </Button>
               </Tooltip>
@@ -259,7 +259,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           </div>
         )}
         <ToolbarDivider dark />
-        <span className="text-[10px] text-zinc-500 shrink-0">Size</span>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Size</span>
         <Tooltip content="Cell text size offset (px) vs the design master — −8…+8">
           <LiveNumberInput
             value={selCell?.cell.textSizeOffset ?? 0}
@@ -287,8 +287,8 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
       </div>
       {/* Layout */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-        <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Layout</span>
-        <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+        <span className="text-[9px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider shrink-0 w-16">Layout</span>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Pad V</span>
         <Tooltip content="Vertical Cell Padding (px)">
           <LiveNumberInput
             value={cellPaddingV}
@@ -301,7 +301,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
-        <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Pad H</span>
         <Tooltip content="Horizontal Cell Padding (px)">
           <LiveNumberInput
             value={cellPaddingH}
@@ -315,7 +315,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           />
         </Tooltip>
         <ToolbarDivider dark />
-        <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Edge</span>
         <Tooltip content="Edge Padding (px)">
           <LiveNumberInput
             value={edgePadding}
@@ -329,7 +329,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           />
         </Tooltip>
         <ToolbarDivider dark />
-        <span className="text-[10px] text-zinc-500 shrink-0">Master Size</span>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Master Size</span>
         <Tooltip content="Master text size (px) for the whole ribbon — cells scale with it">
           <LiveNumberInput
             value={textSize}

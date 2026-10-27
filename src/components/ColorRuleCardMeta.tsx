@@ -19,8 +19,8 @@ export function getCatIcon(project: Project, cat: string): React.ReactNode {
   const custom = (project.customCategories || []).find(c => c.key === cat);
   if (custom) {
     const Icon = getCustomIcon(custom.icon || 'Tag');
-    return <Icon className="w-3 h-3 shrink-0 text-zinc-500" />;
+    return <Icon className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />;
   }
   const Icon = CAT_ICONS[cat] || null;
-  return Icon ? <Icon className="w-3 h-3 shrink-0 text-zinc-500" /> : null;
+  return Icon ? <Icon className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" /> : null;
 }

@@ -43,11 +43,11 @@ export default function DesignTab({ subTab, onSubTabChange, onReportPrint, poppe
         subTab === 'colors' ? (
           <ColorsTab headerTarget={portalTarget} />
         ) : subTab === 'designer' ? (
-          <div className="flex-1 flex overflow-hidden bg-zinc-950 min-h-0">
+          <div className="flex-1 flex overflow-hidden bg-[var(--ui-modal-header-base)] min-h-0">
             <ReportDesigner headerTarget={portalTarget} onPrint={onReportPrint} />
           </div>
         ) : (
-          <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab headerTarget={portalTarget} /></div>
+          <div className="flex-1 flex overflow-hidden bg-[var(--ui-modal-header-base)]"><RibbonTab headerTarget={portalTarget} /></div>
         )
       )}
     </div>

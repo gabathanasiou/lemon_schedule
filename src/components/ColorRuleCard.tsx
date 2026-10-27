@@ -29,14 +29,14 @@ export default function ColorRuleCard({ project, rule, onToggle, onEdit, onDupli
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start gap-2 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-600/70 transition-colors group"
+      className="flex items-start gap-2 p-3 rounded-lg bg-[var(--ui-card-bg)] border border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-border-strong)] transition-colors group"
     >
-      <button {...attributes} {...listeners} className="text-zinc-600 hover:text-zinc-400 mt-0.5 cursor-grab active:cursor-grabbing shrink-0">
+      <button {...attributes} {...listeners} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-muted)] mt-0.5 cursor-grab active:cursor-grabbing shrink-0">
         <GripVertical className="w-3.5 h-3.5" />
       </button>
       <button onClick={() => onToggle(rule.id)} className="cursor-pointer mt-0.5 shrink-0">
-        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${rule.enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-          {rule.enabled && <Check className="w-3 h-3 text-zinc-200" />}
+        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${rule.enabled ? 'bg-[var(--ui-text-faint)] border-[color:var(--ui-border-strong)]' : 'border-[color:var(--ui-border-strong)]'}`}>
+          {rule.enabled && <Check className="w-3 h-3 text-[color:var(--ui-input-text)]" />}
         </span>
       </button>
       <div className="flex-1 min-w-0" onClick={() => onEdit(rule)} style={{ cursor: 'pointer' }}>
@@ -49,18 +49,18 @@ export default function ColorRuleCard({ project, rule, onToggle, onEdit, onDupli
             return (
               <div key={i} className="flex items-center gap-1 text-xs leading-snug">
                 {getCatIcon(project, c.category)}
-                <span className="font-medium text-zinc-300">{catLabel} <span className="text-zinc-500">=</span></span>
-                <span className="text-zinc-200 truncate">
+                <span className="font-medium text-[color:var(--ui-text)]">{catLabel} <span className="text-[color:var(--ui-text-faint)]">=</span></span>
+                <span className="text-[color:var(--ui-input-text)] truncate">
                   {isCast ? `${c.elementId}. ${elName}` : elName}
                 </span>
                 {isLast && (
                   <span className="flex items-center gap-1 ml-2 shrink-0">
                     {rule.override.type === 'single' ? (
-                      <span className="w-3 h-3 rounded-sm border border-zinc-600 shrink-0" style={{ background: rule.override.background }} />
+                      <span className="w-3 h-3 rounded-sm border border-[color:var(--ui-border-strong)] shrink-0" style={{ background: rule.override.background }} />
                     ) : (
-                      <span className="text-[9px] text-zinc-500">M</span>
+                      <span className="text-[9px] text-[color:var(--ui-text-faint)]">M</span>
                     )}
-                    <span className="text-[9px] text-zinc-500 capitalize">{rule.override.type}</span>
+                    <span className="text-[9px] text-[color:var(--ui-text-faint)] capitalize">{rule.override.type}</span>
                   </span>
                 )}
               </div>
@@ -71,13 +71,13 @@ export default function ColorRuleCard({ project, rule, onToggle, onEdit, onDupli
       <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate(rule); }}
-          className="text-zinc-600 hover:text-zinc-300 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
+          className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors opacity-0 group-hover:opacity-100 p-1.5"
         >
           <Copy className={SECO} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(rule.id); }}
-          className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
+          className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] transition-colors opacity-0 group-hover:opacity-100 p-1.5"
         >
           <X className={SECO} />
         </button>

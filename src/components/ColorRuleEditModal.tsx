@@ -196,17 +196,17 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
       <div className={CREM_BODY} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
         {/* Enabled toggle */}
         <button onClick={() => setEnabled(!enabled)} className="flex items-center gap-3 cursor-pointer">
-          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-            {enabled && <Check className="w-3 h-3 text-zinc-200" />}
+          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${enabled ? 'bg-[var(--ui-text-faint)] border-[color:var(--ui-border-strong)]' : 'border-[color:var(--ui-border-strong)]'}`}>
+            {enabled && <Check className="w-3 h-3 text-[color:var(--ui-input-text)]" />}
           </span>
-          <span className={`${CREM_TEXT} text-zinc-300`}>Enabled</span>
+          <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>Enabled</span>
         </button>
 
         {/* Conditions */}
         <div>
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Conditions (AND)</span>
-            <button onClick={addCondition} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1`} style={{ padding: 0, background: 'none', border: 'none' }}>
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider`}>Conditions (AND)</span>
+            <button onClick={addCondition} className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] font-medium flex items-center gap-1`} style={{ padding: 0, background: 'none', border: 'none' }}>
               <Plus className={XSZ} /> Add
             </button>
           </div>
@@ -238,7 +238,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
             })}
           </div>
           {conditions.length === 0 && (
-            <p className={`${CREM_LABEL} text-zinc-600 italic mt-2`}>No conditions - rule will match all scenes.</p>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic mt-2`}>No conditions - rule will match all scenes.</p>
           )}
         </div>
 

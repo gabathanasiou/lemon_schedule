@@ -89,7 +89,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
           <span className={cn('text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded', meta.badge)}>
             {meta.short}
           </span>
-          <span className="text-sm font-medium truncate text-zinc-900">
+          <span className="text-sm font-medium truncate text-[color:var(--ui-text-strong)]">
             {desc}
           </span>
         </div>
@@ -99,7 +99,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
           </span>
         )}
       </div>
-      <ChevronRight className="w-4 h-4 shrink-0 text-zinc-300" />
+      <ChevronRight className="w-4 h-4 shrink-0 text-[color:var(--ui-text-disabled)]" />
     </button>
   );
 };

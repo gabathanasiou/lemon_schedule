@@ -22,7 +22,7 @@ interface RibbonContextMenuProps {
   removeColumn: (ci: number) => void;
 }
 
-const AFFIX_INPUT_CLS = 'flex-1 min-w-0 px-1.5 py-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
+const AFFIX_INPUT_CLS = 'flex-1 min-w-0 px-1.5 py-1.5 text-[10px] bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] rounded text-[color:var(--ui-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]';
 
 /** Ribbon designer cell menu — the kit ContextMenu (shared morph / positioning /
  *  keyboard / close-on-outside) with the field list as items, Clear/Delete in the
@@ -65,17 +65,17 @@ export default function RibbonContextMenu({
       </div>
 
       {(showAffix || showText) && (
-        <div className="w-52 shrink-0 mt-1 pt-1.5 border-t border-zinc-800 px-0.5">
+        <div className="w-52 shrink-0 mt-1 pt-1.5 border-t border-[color:var(--ui-border)] px-0.5">
           {showAffix ? (
             <div className="flex items-center gap-1">
-              <span className="text-[9px] text-zinc-500 shrink-0">Pfx</span>
+              <span className="text-[9px] text-[color:var(--ui-text-faint)] shrink-0">Pfx</span>
               <input
                 value={selCell.cell.prefix || ''}
                 onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
                 placeholder=""
                 className={AFFIX_INPUT_CLS}
               />
-              <span className="text-[9px] text-zinc-500 shrink-0">Sfx</span>
+              <span className="text-[9px] text-[color:var(--ui-text-faint)] shrink-0">Sfx</span>
               <input
                 value={selCell.cell.suffix || ''}
                 onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}

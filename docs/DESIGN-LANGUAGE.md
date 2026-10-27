@@ -160,8 +160,11 @@ light neutral scope). **The manager family is too**: `managerShell` pages,
 recipes, Link Manager, Crew Links and the Element View panel/sections — chip pickers use
 the token trigger (`DD_TOKEN_TRIGGER_CLASS`). **The Calendar page is light-scoped too**
 (`CalendarTab` root): month grid, day/event cells, boneyard sidebar, Day Types and
-Production Dates. The app `Modal` shim pins `theme="dark"` (302), so a light page scope
-never flips an overlay — modals stay dark until light modals land.
+Production Dates. **Rules is a light scope** (page, rule cards, Rule editor) and the
+**Design sub-tabs pin `mode="dark"`** (Ribbon Designer + its toolbar/palette/preview,
+Colors, and the rule/colour forms) — a dark editor stays dark even under a light host.
+The app `Modal` shim pins `theme="dark"` (302), so a light page scope never flips an
+overlay — modals stay dark until light modals land.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

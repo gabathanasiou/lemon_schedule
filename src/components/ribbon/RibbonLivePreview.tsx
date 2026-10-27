@@ -27,11 +27,11 @@ export default function RibbonLivePreview({
   cellPaddingV, cellPaddingH, textSize, edgePadding,
 }: RibbonLivePreviewProps) {
   return (
-    <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800">
+    <section ref={previewSectionRef} className="bg-[var(--ui-panel-bg)] rounded-lg border border-[color:var(--ui-border)]">
       <div className="flex items-center gap-2 mb-3 px-5 pt-5">
-        <Eye className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Live Preview</span>
-        <span className="ml-auto text-[9px] text-zinc-600">Sample data · {rows.length} rows · {rows.reduce((s, r) => s + r.cells.length, 0)} cells</span>
+        <Eye className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
+        <span className="text-[10px] font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Live Preview</span>
+        <span className="ml-auto text-[9px] text-[color:var(--ui-text-faint)]">Sample data · {rows.length} rows · {rows.reduce((s, r) => s + r.cells.length, 0)} cells</span>
       </div>
 
       <div style={{

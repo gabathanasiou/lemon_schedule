@@ -8,6 +8,7 @@ import { SceneColorEntry, SceneColorPalette, ColorRule } from '../types';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown, Copy } from 'lucide-react';
 import Modal from './Modal';
 import ColorField from './ColorField';
@@ -324,14 +325,14 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
+    <ThemeScope mode="dark" surface="neutral" className="flex-1 flex flex-col bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       <input ref={importRef} type="file" accept=".json" onChange={handleFileChosen} className="hidden" />
 
       {headerTarget && createPortal(
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen} width="w-44" trigger={
           <Button theme="dark">
-            <span className="text-xs font-semibold text-zinc-400">Edit</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
+            <span className="text-xs font-semibold text-[color:var(--ui-text-muted)]">Edit</span>
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
           </Button>
         }>
           <DropdownItem onClick={handleExport} icon={<Download className="w-3.5 h-3.5" />}>
@@ -357,14 +358,14 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         >
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Background</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
               <ColorField value={editBg} onChange={setEditBg} size="lg" />
             </div>
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Text Color</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
               <ColorField value={editText} onChange={setEditText} size="lg" />
             </div>
-            <div className="w-full h-10 rounded border border-zinc-700 flex items-center justify-center text-sm font-bold" style={{ background: editBg, color: editText }}>
+            <div className="w-full h-10 rounded border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold" style={{ background: editBg, color: editText }}>
               Aa
             </div>
           </div>
@@ -374,21 +375,21 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       {/* Body — `inert` when view-only (S2): the whole editing pane is
           non-interactive (clicks, focus, keyboard) without looking broken;
           the header's View-only eye carries the explanation. */}
-      <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-zinc-950 space-y-5" inert={locked || undefined}>
+      <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-[var(--ui-modal-header-base)] space-y-5" inert={locked || undefined}>
 
         {/* Scene Color Matrix Section */}
         {/* Color Rules Section */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+        <section className="bg-[var(--ui-panel-bg)] rounded-lg border border-[color:var(--ui-border)] p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Wand2 className={`${SEC_ICO} text-zinc-500`} />
-            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Color Rules</span>
+            <Wand2 className={`${SEC_ICO} text-[color:var(--ui-text-faint)]`} />
+            <span className={`${SEC_TXT} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>Color Rules</span>
             <div className="flex-1" />
-            <button onClick={() => setEditRule(null)} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+            <button onClick={() => setEditRule(null)} className="h-6 px-2 text-[10px] font-medium rounded bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-active-bg)] flex items-center gap-1 transition-colors">
               <Plus className="w-3 h-3" /> New Rule
             </button>
           </div>
           {colorRules.length === 0 ? (
-            <p className="text-[10px] text-zinc-500 italic py-3 leading-relaxed">Override strip colors based on scene conditions. For example, make all Stills Unit scenes blue, or flag Hero Costume scenes with a custom color.</p>
+            <p className="text-[10px] text-[color:var(--ui-text-faint)] italic py-3 leading-relaxed">Override strip colors based on scene conditions. For example, make all Stills Unit scenes blue, or flag Hero Costume scenes with a custom color.</p>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={colorRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
@@ -404,16 +405,16 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           )}
         </section>
 
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+        <section className="bg-[var(--ui-panel-bg)] rounded-lg border border-[color:var(--ui-border)] p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Palette className={`${SEC_ICO} text-zinc-500`} />
-            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Scene Strip Colors</span>
+            <Palette className={`${SEC_ICO} text-[color:var(--ui-text-faint)]`} />
+            <span className={`${SEC_TXT} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>Scene Strip Colors</span>
             <div className="flex-1" />
-            <button onClick={handleReset} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+            <button onClick={handleReset} className="h-6 px-2 text-[10px] font-medium rounded bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-active-bg)] flex items-center gap-1 transition-colors">
               <RotateCcw className="w-3 h-3" /> Reset
             </button>
           </div>
-          <p className="text-[10px] text-zinc-500 leading-relaxed mb-4 max-w-md">Click any cell to change its color. Rename row/column labels inline. Add or delete rows and columns using the buttons below.</p>
+          <p className="text-[10px] text-[color:var(--ui-text-faint)] leading-relaxed mb-4 max-w-md">Click any cell to change its color. Rename row/column labels inline. Add or delete rows and columns using the buttons below.</p>
           <div className="overflow-x-auto">
             <table className="border-collapse">
               <thead>
@@ -430,15 +431,15 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                             onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
                             onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
-                            className={`${INP} font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded text-center outline-none`}
+                            className={`${INP} font-bold text-[color:var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] rounded text-center outline-none`}
                           />
                         ) : (
                           <button
                             onClick={() => startRenameHeader('ie', i)}
-                            className={`${LBL} text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors`}
+                            className={`${LBL} text-[color:var(--ui-text-muted)] uppercase tracking-wider hover:text-[color:var(--ui-text-strong)] transition-colors`}
                           >{ie}</button>
                         )}
-                        <button onClick={() => removeOption('ie', i)} className="text-zinc-600 hover:text-red-400 transition-colors p-1.5">
+                        <button onClick={() => removeOption('ie', i)} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] transition-colors p-1.5">
                           <X className={XSZ} />
                         </button>
                       </div>
@@ -447,7 +448,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                     <th className="px-1 pb-2 text-center">
                     <button
                       onClick={() => addOption('ie')}
-                      className={`${ADD} text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
+                      className={`${ADD} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-muted)] uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
                     >
                       <Plus className={XSZ} /> Add
                     </button>
@@ -459,7 +460,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                   <tr key={di}>
                     <td className="pr-3 py-1 align-middle text-right">
                       <div className={`flex items-center justify-end ${GAP}`}>
-                        <button onClick={() => removeOption('dn', di)} className="text-zinc-600 hover:text-red-400 transition-colors p-1.5">
+                        <button onClick={() => removeOption('dn', di)} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] transition-colors p-1.5">
                           <X className={XSZ} />
                         </button>
                         {editingHeader?.type === 'dn' && editingHeader.idx === di ? (
@@ -470,12 +471,12 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                             onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
                             onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
-                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 w-20 text-right outline-none"
+                            className="text-[9px] font-bold text-[color:var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] rounded px-2 py-0.5 w-20 text-right outline-none"
                           />
                         ) : (
                           <button
                             onClick={() => startRenameHeader('dn', di)}
-                            className={`${LBL} text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors`}
+                            className={`${LBL} text-[color:var(--ui-text-muted)] uppercase tracking-wider hover:text-[color:var(--ui-text-strong)] transition-colors`}
                           >{dn}</button>
                         )}
                       </div>
@@ -493,7 +494,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                                 return d >= 0 ? { bg: DEFAULT_COLOR_PALETTE.sceneColors[d].background, text: DEFAULT_COLOR_PALETTE.sceneColors[d].text } : { bg: '#ffffff', text: '#000000' };
                               },
                             )}
-                            className={`w-full h-14 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${CELL} font-semibold cursor-pointer`}
+                            className={`w-full h-14 rounded border border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-border-strong)] transition-colors flex items-center justify-center ${CELL} font-semibold cursor-pointer`}
                             style={{ background: c.background, color: c.text }}
                           >
                             <span className="text-center leading-tight px-1">
@@ -510,7 +511,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                   <td className="pr-3 py-1 text-right">
                     <button
                       onClick={() => addOption('dn')}
-                      className={`${ADD} text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
+                      className={`${ADD} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-muted)] uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
                     >
                       <Plus className={XSZ} /> Add
                     </button>
@@ -522,10 +523,10 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         </section>
 
         {/* Interface Colors Section */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+        <section className="bg-[var(--ui-panel-bg)] rounded-lg border border-[color:var(--ui-border)] p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Sun className={`${SEC_ICO} text-zinc-500`} />
-            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Interface Colors</span>
+            <Sun className={`${SEC_ICO} text-[color:var(--ui-text-faint)]`} />
+            <span className={`${SEC_TXT} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>Interface Colors</span>
           </div>
           <div className="grid grid-cols-5 gap-3">
             {([
@@ -538,7 +539,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
               <button
                 key={label}
                 onClick={() => openEditor(label, bg, text, commit, resetDefaults)}
-                className="w-full h-14 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center text-[9px] font-semibold cursor-pointer"
+                className="w-full h-14 rounded border border-[color:var(--ui-card-border)] hover:border-[color:var(--ui-border-strong)] transition-colors flex items-center justify-center text-[9px] font-semibold cursor-pointer"
                 style={{ background: bg, color: text }}
               >
                 <span className="text-center leading-tight px-1">{label}</span>
@@ -557,6 +558,6 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           onClose={() => setEditRule(undefined)}
         />
       )}
-    </div>
+    </ThemeScope>
   );
 };

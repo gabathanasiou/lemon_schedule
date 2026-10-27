@@ -7,6 +7,7 @@ import { RuleCard } from './rules/RuleCard';
 import { RuleEditorPanel } from './rules/RuleEditorPanel';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import Modal from './Modal';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
@@ -87,13 +88,13 @@ export const RulesTab: React.FC = () => {
 
   return (
     <>
-      <div className="flex-1 flex flex-col overflow-hidden bg-zinc-200/50">
+      <ThemeScope mode="light" surface="neutral" className="flex-1 flex flex-col overflow-hidden bg-[var(--ui-card-band)]">
         <div className="flex-1 overflow-auto">
           <div className="max-w-3xl mx-auto w-full p-8 pb-32">
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Production Rules</h1>
-                <p className="text-sm text-zinc-500 mt-1 max-w-xl">
+                <h1 className="text-2xl font-bold text-[color:var(--ui-text-strong)] tracking-tight">Production Rules</h1>
+                <p className="text-sm text-[color:var(--ui-text-muted)] mt-1 max-w-xl">
                   Track cast availability, working hours, and time constraints.
                   Violations flag red on day headers and scene strips in your schedule.
                 </p>
@@ -101,7 +102,7 @@ export const RulesTab: React.FC = () => {
               <button
                 onClick={handleAdd}
                 disabled={locked}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-[var(--ui-text-strong)] hover:bg-[var(--ui-text)] text-[var(--ui-panel-bg)] px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />
                 New Rule
@@ -111,20 +112,20 @@ export const RulesTab: React.FC = () => {
             {totalRules > 0 && (
               <div className="flex items-center gap-2 mb-4">
                 <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--ui-text-faint)]" />
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search by cast ID or rule..."
-                    className="w-full bg-white border border-zinc-200 rounded-md pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
+                    className="w-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ui-text-strong)] focus:border-[color:var(--ui-text-strong)]"
                   />
                 </div>
-                <div className="flex bg-white border border-zinc-200 rounded-md p-0.5">
+                <div className="flex bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md p-0.5">
                   <button
                     onClick={() => setTypeFilter('ALL')}
                     className={cn(
                       'px-2.5 py-1 text-xs font-medium rounded transition-colors',
-                      typeFilter === 'ALL' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'
+                      typeFilter === 'ALL' ? 'bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]'
                     )}
                   >
                     All
@@ -137,7 +138,7 @@ export const RulesTab: React.FC = () => {
                         onClick={() => setTypeFilter(t)}
                         className={cn(
                           'px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1',
-                          typeFilter === t ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'
+                          typeFilter === t ? 'bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]'
                         )}
                       >
                         <m.icon className="w-3 h-3" />
@@ -150,19 +151,19 @@ export const RulesTab: React.FC = () => {
             )}
 
             {totalRules === 0 ? (
-              <div className="bg-white border-2 border-dashed border-zinc-200 rounded-xl p-12 text-center">
-                <div className="w-12 h-12 rounded-full bg-zinc-100 mx-auto mb-4 flex items-center justify-center">
-                  <Clock4 className="w-5 h-5 text-zinc-400" />
+              <div className="bg-[var(--ui-panel-bg)] border-2 border-dashed border-[color:var(--ui-border)] rounded-xl p-12 text-center">
+                <div className="w-12 h-12 rounded-full bg-[var(--ui-card-band)] mx-auto mb-4 flex items-center justify-center">
+                  <Clock4 className="w-5 h-5 text-[color:var(--ui-text-faint)]" />
                 </div>
-                <h3 className="text-zinc-900 font-semibold text-base mb-1">No rules defined yet</h3>
-                <p className="text-sm text-zinc-500 max-w-md mx-auto mb-6">
+                <h3 className="text-[color:var(--ui-text-strong)] font-semibold text-base mb-1">No rules defined yet</h3>
+                <p className="text-sm text-[color:var(--ui-text-muted)] max-w-md mx-auto mb-6">
                   Rules let you flag cast unavailability, hour limits, and time windows.
                   Violations will appear as red flags on your schedule and calendar.
                 </p>
                 <button
                   onClick={handleAdd}
                   disabled={locked}
-                  className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="bg-[var(--ui-text-strong)] hover:bg-[var(--ui-text)] text-[var(--ui-panel-bg)] px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   Add your first rule
@@ -175,14 +176,14 @@ export const RulesTab: React.FC = () => {
                       <div key={t} className={cn('p-3 rounded-lg border', m.border, m.bg)}>
                         <Icon className={cn('w-4 h-4 mb-1.5', m.text)} />
                         <div className={cn('text-xs font-bold', m.text)}>{m.label}</div>
-                        <p className="text-[10px] text-zinc-600 leading-snug mt-0.5">{m.description}</p>
+                        <p className="text-[10px] text-[color:var(--ui-text-muted)] leading-snug mt-0.5">{m.description}</p>
                       </div>
                     );
                   })}
                 </div>
               </div>
             ) : grouped.length === 0 ? (
-              <div className="bg-white border border-zinc-200 rounded-lg p-8 text-center text-zinc-500 text-sm">
+              <div className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-lg p-8 text-center text-[color:var(--ui-text-muted)] text-sm">
                 No rules match your filters.
               </div>
             ) : (
@@ -196,13 +197,13 @@ export const RulesTab: React.FC = () => {
                         className="w-full flex items-center gap-2 mb-1.5 px-1 group"
                       >
                         {isCollapsed ? (
-                          <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                          <ChevronRight className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] group-hover:text-[color:var(--ui-text)]" />
                         ) : (
-                          <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                          <ChevronDown className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] group-hover:text-[color:var(--ui-text)]" />
                         )}
-                        <span className="font-mono font-bold text-zinc-700 text-sm">{resolveCastName(castId)}</span>
-                        <span className="text-xs text-zinc-500">·</span>
-                        <span className="text-xs text-zinc-500">
+                        <span className="font-mono font-bold text-[color:var(--ui-text)] text-sm">{resolveCastName(castId)}</span>
+                        <span className="text-xs text-[color:var(--ui-text-muted)]">·</span>
+                        <span className="text-xs text-[color:var(--ui-text-muted)]">
                           {castRules.length} {castRules.length === 1 ? 'rule' : 'rules'}
                         </span>
                       </button>
@@ -225,7 +226,7 @@ export const RulesTab: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      </ThemeScope>
 
       {showForm && (
         <Modal

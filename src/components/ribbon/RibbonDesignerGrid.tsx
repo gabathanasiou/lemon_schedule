@@ -49,10 +49,10 @@ export default function RibbonDesignerGrid({
   cellPaddingV, cellPaddingH, textSize, edgePadding, presenceAnchorPrefix,
 }: RibbonDesignerGridProps) {
   return (
-    <section className={`bg-zinc-900 rounded-lg border border-zinc-800 ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
+    <section className={`bg-[var(--ui-panel-bg)] rounded-lg border border-[color:var(--ui-border)] ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex items-center gap-2 mb-3 px-5 pt-5">
-        <Pencil className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
+        <Pencil className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
+        <span className="text-[10px] font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Designer</span>
       </div>
 
       <div className="space-y-5 pb-5">

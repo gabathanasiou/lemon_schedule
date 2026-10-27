@@ -9,6 +9,7 @@ import {
   getMergeLookup, mergeSiblingIds, normalizeColWidths,
 } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
+import { ThemeScope } from '@gabriel/ui-kit';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
   Calendar, StickyNote, UserPlus, Sparkles, Car, Package, Shirt, Scissors,
@@ -676,9 +677,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         itemLabel="Design"
         trigger={
           <Button theme="dark" data-presence-anchor="toolbar:ribbons:designs" className={locked ? 'opacity-40 cursor-not-allowed' : ''}>
-            <span className="text-xs font-semibold text-zinc-500">Editing:</span>
-            <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
+            <span className="text-xs font-semibold text-[color:var(--ui-text-faint)]">Editing:</span>
+            <span className="text-xs font-semibold text-[color:var(--ui-input-text)]">{activeDesign.name}</span>
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       />
@@ -689,9 +690,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         width="w-36"
         trigger={
           <Button theme="dark" data-presence-anchor="toolbar:ribbons:view">
-            <span className="text-xs font-semibold text-zinc-500">View:</span>
-            <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
+            <span className="text-xs font-semibold text-[color:var(--ui-text-faint)]">View:</span>
+            <span className="text-xs font-semibold text-[color:var(--ui-input-text)]">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
@@ -709,9 +710,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
    );
 
    return (
-     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
+     <ThemeScope mode="dark" surface="neutral" className="flex-1 flex flex-col bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
        {headerTarget ? createPortal(headerContent, headerTarget) : (
-         <header data-chrome-bar="ribbon-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none`}>
+         <header data-chrome-bar="ribbon-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 bg-[var(--ui-panel-bg)] border-b border-[color:var(--ui-border)] shrink-0 select-none`}>
            {headerContent}
          </header>
        )}
@@ -732,7 +733,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         />
 
         {/* ── Canvas ── */}
-        <div ref={canvasRef} className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
+        <div ref={canvasRef} className="flex-1 overflow-auto bg-[var(--ui-modal-header-base)] p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
           <RibbonToolbar
             readOnly={locked}
@@ -830,6 +831,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         clearCell={clearCell}
         removeColumn={removeColumn}
       />
-    </div>
+    </ThemeScope>
   );
 }
