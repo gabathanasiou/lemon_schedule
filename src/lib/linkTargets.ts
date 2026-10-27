@@ -22,8 +22,6 @@ export interface LinkTargetItem {
   name: string;
   group?: string;
   hint?: string;
-  /** Render as a highlighted tag (the "All <department>" rows). */
-  tag?: boolean;
 }
 
 const DEPT_PREFIX = 'dept:';
@@ -42,19 +40,13 @@ export function crewIdsForDepartment(project: Project, dept: string): string[] {
   return out;
 }
 
-/** Crew picker rows: people by department plus one "All <dept>" tag per
- *  department. The tag sits above the department's people. */
+/** Crew picker rows: people grouped by department. Selecting a department is
+ *  the header tick (group select-all over its people) — there are no separate
+ *  "All <dept>" rows. */
 export function crewTargetItems(project: Project): LinkTargetItem[] {
   const people: LinkTargetItem[] = [];
-  const seenDept = new Set<string>();
   for (const role of project.crewRoles || []) {
     const dept = crewRoleGroup(role);
-    if (!seenDept.has(dept)) {
-      seenDept.add(dept);
-      // Always offered — even for an empty department: the tag is the promise
-      // that future joiners are covered.
-      people.push({ id: crewDeptTargetId(dept), name: `All ${dept}`, group: dept, tag: true });
-    }
     for (const person of project.crew?.[role.key] || []) {
       people.push({ id: person.id, name: person.name || '(unnamed)', group: dept, hint: role.label });
     }

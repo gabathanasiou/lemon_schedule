@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PickerField, useKitTheme, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
+import { PickerField, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
 
 /**
  * Light/dark grouped selection picker (locations by type, crew by department,
@@ -8,8 +8,10 @@ import { PickerField, useKitTheme, type PickerItem, type SearchMenuGroup } from 
  * the search box that matches both the row label and its category, selection,
  * positioning, flip, touch dismissal and coarse sizing.
  *
- * Value fields commit on close (one change, one undo entry); single selects
- * commit on pick. There is no second picker implementation.
+ * Sections are searchable accordions: a header expands/collapses its group and
+ * never selects anything, while its TICK is the group select-all. Value fields
+ * commit on close (one change, one undo entry); single selects commit on pick.
+ * There is no second picker implementation.
  */
 export interface GroupedSelectItem {
   id: string;
@@ -18,8 +20,6 @@ export interface GroupedSelectItem {
   hint?: string;
   /** Action row (e.g. "Add new location…") — renders in emerald. */
   accent?: boolean;
-  /** Whole-department tag row (roadmap 308) — amber background. */
-  tag?: boolean;
 }
 
 export interface GroupedSelectProps {
@@ -34,11 +34,6 @@ export interface GroupedSelectProps {
   /** Force a trigger/menu theme; omitted = the ambient kit theme (a dark modal
    *  stays dark, the light Day Manager stays light). */
   theme?: 'light' | 'dark';
-  /** Grouped catalogue behaviour: `accordion` (default — headers expand one
-   *  section at a time and are never selectable) or `open` (every section
-   *  expanded; used where the "All <department>" rows must be visible and
-   *  pickable, e.g. Element links). */
-  browse?: 'open' | 'accordion';
 }
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
@@ -50,11 +45,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   className = '',
   disabled,
   theme,
-  browse = 'accordion',
 }) => {
-  const ambient = useKitTheme();
-  const dark = (theme ?? ambient?.mode ?? 'light') === 'dark';
-
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
   const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
@@ -62,10 +53,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
     id: item.id,
     label: item.name,
     group: item.group,
-    rowClassName: item.tag
-      ? (dark ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'bg-amber-50 hover:bg-amber-100')
-      : undefined,
-  })), [items, dark]);
+  })), [items]);
 
   /* Group headers follow the item order; the kit searches the label AND the
      group name, so typing a type keeps its whole section. */
@@ -86,7 +74,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       onChange={onChange}
       items={pickerItems}
       groups={groups}
-      browse={browse}
+      browse="accordion"
       theme={theme}
       placeholder={placeholder}
       className={className}

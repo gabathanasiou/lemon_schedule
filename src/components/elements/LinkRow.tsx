@@ -74,10 +74,6 @@ export const LinkRow: React.FC<{
           selectedIds={selectedIds}
           onChange={ids => onChange(ids.join(', '))}
           placeholder={placeholder || (isCrew ? 'Select crew…' : 'Select locations…')}
-          /* Crew: every department expanded so the "All <department>" rows
-             (whole-production tags that cover future joiners) are pickable.
-             Locations keep the accordion. */
-          browse={isCrew ? 'open' : 'accordion'}
         />
 
         {onRemove && (
