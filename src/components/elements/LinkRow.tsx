@@ -64,7 +64,7 @@ export const LinkRow: React.FC<{
           btnClass={btnClass}
         />
 
-        <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
+        <span className="text-xs text-[color:var(--ui-text-faint)] font-medium shrink-0">=</span>
 
         <GroupedSelect
           className="flex-1 min-w-0"
@@ -80,7 +80,7 @@ export const LinkRow: React.FC<{
           <button
             onClick={onRemove}
             aria-label="Remove linked element"
-            className={removeBtnClass || 'text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0'}
+            className={removeBtnClass || 'text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] transition-colors p-0.5 shrink-0'}
           >
             {removeIcon || <X className="w-3 h-3" />}
           </button>

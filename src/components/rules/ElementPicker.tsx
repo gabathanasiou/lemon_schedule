@@ -71,7 +71,7 @@ export const ElementPickerRow: React.FC<{
         btnClass={btnClass}
       />
 
-      <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
+      <span className="text-xs text-[color:var(--ui-text-faint)] font-medium shrink-0">=</span>
 
       <span data-el-dropdown className="flex-1 min-w-0">
         <EntityDropdown
@@ -89,14 +89,14 @@ export const ElementPickerRow: React.FC<{
           anchoredKeys={anchoredKeys}
           onCreateItem={onCreateItem}
           wrapValue={wrapValue}
-          renderItem={isCast ? (item) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
+          renderItem={isCast ? (item) => (<><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
         />
       </span>
 
       {trailing}
 
       {onRemove && (
-        <button onClick={onRemove} aria-label="Remove linked element" className={removeBtnClass || 'text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0'}>
+        <button onClick={onRemove} aria-label="Remove linked element" className={removeBtnClass || 'text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] transition-colors p-0.5 shrink-0'}>
           {removeIcon || <X className="w-3 h-3" />}
         </button>
       )}

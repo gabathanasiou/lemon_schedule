@@ -13,7 +13,7 @@ import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer, type CommitResult } from '../lib/rowBuffer';
 import type { SearchMenuItem } from '@gabriel/ui-kit';
-import { searchMenuContent } from '@gabriel/ui-kit';
+import { searchMenuContent, ThemeScope } from '@gabriel/ui-kit';
 import type { ManagerSearchHit, ManagerSearchRecord } from '../lib/managerSearch';
 import { useScrolledLeft } from '../lib/useScrolledLeft';
 import { useFollowView } from '../lib/supabase/useFollowView';
@@ -619,7 +619,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [flashKeys]);
 
   const actionBar = (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm flex-wrap shrink-0">
       <Button onClick={() => setShowLinks(true)} disabled={locked} title="Link elements so adding the anchor adds its linked elements too" data-presence-anchor="toolbar:elements:links">
         <Link2 className="w-3 h-3" />
         Links
@@ -689,7 +689,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     const isProtected = PROTECTED_CATEGORIES.has(key);
     const showHideToggle = !isCustom && !isProtected;
     const showDelete = isCustom;
-    const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
+    const hoverCls = active ? 'hover:bg-white/10' : 'hover:bg-black/10';
     // Inner actions are spans (role=button), NOT <button>s — they live inside
     // the row's own <button> and nested buttons are invalid HTML.
     const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
@@ -712,7 +712,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           }}
           className={actionCls(hoverCls)}
         >
-          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
+          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-[color:var(--ui-text-faint)]" />
         </span>
         {showHideToggle && !isHidden && (
           <span
@@ -730,7 +730,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             }}
             className={actionCls(hoverCls)}
           >
-            <EyeOff style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
+            <EyeOff style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-[color:var(--ui-text-faint)]" />
           </span>
         )}
         {showHideToggle && isHidden && (
@@ -746,7 +746,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             className={actionCls(hoverCls)}
             title="Unhide category"
           >
-            <Eye style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
+            <Eye style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-[color:var(--ui-text-faint)]" />
           </span>
         )}
         {showDelete && (
@@ -774,7 +774,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex overflow-hidden">
       {headerTarget ? createPortal(headerContent, headerTarget) : null}
       <SidebarNav
         title="Categories"
@@ -796,30 +796,30 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         onSearchSelect={jumpToSearchHit}
       />
 
-      <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-[var(--ui-card-band)] overflow-hidden">
         {!headerTarget && actionBar}
         <div className="flex flex-col h-full px-4 py-4 gap-3">
 
           {/* Table card */}
-          <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
+          <div className="flex-1 overflow-hidden rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm min-h-0">
             <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
               <table className="w-full manager-table">
                 <thead>
-                  <tr className="bg-zinc-50">
-                    <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
-                    <th style={sizes.header} className={`sticky top-0 left-24 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                  <tr className="bg-[var(--ui-card-bg)]">
+                    <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
+                    <th style={sizes.header} className={`sticky top-0 left-24 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
                     {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
-                      <th key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left`}>{f.label}</th>
+                      <th key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left`}>{f.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Occ</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Start Date</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Total Days</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Occ</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Start Date</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Total Days</th>
                     {dayTypes.map(t => (
-                      <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
+                      <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] ${MT_HEADER} text-center w-12`} />
                   </tr>
                 </thead>
                 <tbody>
@@ -831,9 +831,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       data-presence-anchor={`elements:${r.key}`}
                       data-manager-row={r.key}
                       style={flashKeys.has(r.key) ? { backgroundColor: '#fee2e2' } : undefined}
-                      className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}
+                      className={`group transition-colors ${ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} hover:bg-[var(--ui-card-band)]`}
                     >
-                      <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${rejectedKey === r.key ? 'bg-red-100' : ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
+                      <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${rejectedKey === r.key ? 'bg-red-100' : ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} group-hover:bg-[var(--ui-card-band)] ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
                         <div className="flex items-center gap-1">
                           <div className="flex-1 min-w-0">
                             {renderInput(r.key, boardIdField(), boardIdValue(r), v => buf.updateRow(r.key, boardIdField(), v), {
@@ -850,31 +850,31 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                             className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                           >
                             {lockedIds.has(r.key)
-                              ? <Lock style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-700 hover:text-red-500" />
-                              : <LockOpen style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-400 hover:text-zinc-800" />}
+                              ? <Lock style={{ width: sizes.icon, height: sizes.icon }} className="text-[color:var(--ui-text)] hover:text-red-500" />
+                              : <LockOpen style={{ width: sizes.icon, height: sizes.icon }} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)]" />}
                           </button>
                         </div>
                       </td>
-                      <td style={sizes.cellSmall} className={`sticky left-24 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), { upper: isCast || isSet, wrap: true })}</td>
+                      <td style={sizes.cellSmall} className={`sticky left-24 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} group-hover:bg-[var(--ui-card-band)] ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), { upper: isCast || isSet, wrap: true })}</td>
                       {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
-                        <td key={f.key} style={{ ...sizes.cellSmall, minWidth: f.width }} className={`${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100`}>
+                        <td key={f.key} style={{ ...sizes.cellSmall, minWidth: f.width }} className={`${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} group-hover:bg-[var(--ui-card-band)]`}>
                           {renderInput(r.key, f.key, r[f.key], v => buf.updateRow(r.key, f.key, v), { detail: f.key })}
                         </td>
                       ))}
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{r.occ}</td>
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{stats?.totalDays ?? 0}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-[color:var(--ui-text-faint)] font-medium`}>{r.occ}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-[color:var(--ui-text-faint)]`}>{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-[color:var(--ui-text-faint)]`}>{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-[color:var(--ui-text-faint)] font-medium`}>{stats?.totalDays ?? 0}</td>
                       {dayTypes.map(t => (
-                        <td key={t.key} title={t.label} style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
+                        <td key={t.key} title={t.label} style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-[color:var(--ui-text-faint)] font-medium`}>{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
                       ))}
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
                         <button
                           onClick={() => setViewTarget({ key: r.key })}
                           title={`Element view — properties, crew links and events for ${r.name || r.id}`}
-                          className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
+                          className="p-1.5 rounded-md hover:bg-[var(--ui-accent-soft-bg)] transition-colors opacity-40 hover:opacity-100 align-middle"
                         >
-                          <PanelRight style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
+                          <PanelRight style={{ width: sizes.icon, height: sizes.icon }} className="text-[color:var(--ui-accent-soft-text)]" />
                         </button>
                       </td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
@@ -974,7 +974,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           />
         )}
       </div>
-    </div>
+    </ThemeScope>
   );
 
   function updateBuiltinLabel() {

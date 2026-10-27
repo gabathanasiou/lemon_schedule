@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
-import { inputCls, SearchMenu } from '@gabriel/ui-kit';
+import { inputCls, SearchMenu, ThemeScope } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { MT_TITLE, MT_ROW, useManagerTableSizes } from '../lib/managerTable';
 import { usePaneResize } from '../lib/usePaneResize';
@@ -111,27 +111,27 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
 
   if (collapsed) {
     return (
-      <div style={{ width: sizes.railW }} className="shrink-0 bg-zinc-50 border-r border-zinc-200 flex flex-col items-center pt-3 island-inset-l">
+      <ThemeScope mode="light" surface="neutral" style={{ width: sizes.railW }} className="shrink-0 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] flex flex-col items-center pt-3 island-inset-l">
         <button
           onClick={() => setCollapsed(false)}
-          className="text-zinc-400 hover:text-zinc-700 transition-colors"
+          className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors"
           title="Expand sidebar"
         >
           <PanelLeftOpen className="w-4 h-4" />
         </button>
-      </div>
+      </ThemeScope>
     );
   }
 
   return (
-    <div className="relative flex shrink-0" style={{ width: resizable ? w : sizes.sidebarW, maxWidth: '70%' }}>
-      <aside data-theme="light" className="min-w-0 flex-1 bg-zinc-50 border-r border-zinc-200 overflow-y-auto island-inset-l">
-      <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
+    <ThemeScope mode="light" surface="neutral" className="relative flex shrink-0" style={{ width: resizable ? w : sizes.sidebarW, maxWidth: '70%' }}>
+      <aside className="min-w-0 flex-1 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] overflow-y-auto island-inset-l">
+      <div className="sticky top-0 z-10 bg-[var(--ui-card-bg)] px-3 pt-3 pb-1.5">
         <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: sizes.title.fontSize }} className={MT_TITLE}>{title}</span>
           <button
             onClick={() => setCollapsed(true)}
-            className="text-zinc-400 hover:text-zinc-700 transition-colors"
+            className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors"
             title="Collapse sidebar"
           >
             <PanelLeftClose className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             />
           ) : (
             <div className="relative">
-              <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3 h-3 text-[color:var(--ui-text-faint)] absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -168,7 +168,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                 <button
                   onClick={() => setQuery('')}
                   onMouseDown={e => e.preventDefault()}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)]"
                   title="Clear search"
                 >
                   <X className="w-3 h-3" />
@@ -188,7 +188,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             return (
               <div key={row.key} className="group">
                 {showHeader && (
-                  <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">
                     {row.group}
                   </div>
                 )}
@@ -198,13 +198,13 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                   style={sizes.row}
                   className={`${MT_ROW} ${
                     row.dimmed
-                      ? 'text-zinc-400 hover:bg-zinc-100 font-medium opacity-60'
+                      ? 'text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-card-hover)] font-medium opacity-60'
                       : isActive
-                      ? 'bg-zinc-900 text-white font-semibold'
-                      : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
+                      ? 'bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)] font-semibold'
+                      : 'text-[color:var(--ui-text)] hover:bg-[var(--ui-row-hover-bg)] hover:text-[color:var(--ui-text-strong)] font-medium'
                   }`}
                 >
-                  {Icon && <Icon style={{ width: sizes.iconSm, height: sizes.iconSm }} className={`shrink-0 ${isActive ? 'text-white' : row.dimmed ? 'text-zinc-300' : 'text-zinc-400'}`} />}
+                  {Icon && <Icon style={{ width: sizes.iconSm, height: sizes.iconSm }} className={`shrink-0 ${isActive ? 'text-[var(--ui-panel-bg)]' : row.dimmed ? 'text-[color:var(--ui-text-disabled)]' : 'text-[color:var(--ui-text-faint)]'}`} />}
                   <span className={`${wrapRows ? 'whitespace-normal break-words' : 'truncate'} flex-1 ${row.italic ? 'italic' : ''}`}>{row.label}</span>
                   {actions && (
                     <span className={`flex items-center gap-0.5 shrink-0 ${row.dimmed ? '' : 'hover-reveal'}`} onClick={e => e.stopPropagation()}>
@@ -212,7 +212,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                     </span>
                   )}
                   {row.count !== undefined && (
-                    <span style={{ fontSize: sizes.title.fontSize }} className={`tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : row.dimmed ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                    <span style={{ fontSize: sizes.title.fontSize }} className={`tabular-nums shrink-0 ${isActive ? 'text-[color:var(--ui-text-faint)]' : row.dimmed ? 'text-[color:var(--ui-text-disabled)]' : 'text-[color:var(--ui-text-faint)]'}`}>
                       {row.count}
                     </span>
                   )}
@@ -222,14 +222,14 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
           })}
         </div>
         {searching && !searchItems && filtered.length === 0 && (
-          <div className="px-1 py-2 text-[10px] text-zinc-400 italic">No {title.toLowerCase()} match “{query}”.</div>
+          <div className="px-1 py-2 text-[10px] text-[color:var(--ui-text-faint)] italic">No {title.toLowerCase()} match “{query}”.</div>
         )}
         {onAdd && (
           <button
             onClick={onAdd}
             disabled={addDisabled}
             style={sizes.row}
-            className={`${MT_ROW} mt-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`${MT_ROW} mt-1 text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-row-hover-bg)] hover:text-[color:var(--ui-text)] font-medium disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <Plus style={{ width: sizes.iconSm, height: sizes.iconSm }} className="shrink-0" />
             <span>{addLabel || 'Add'}</span>
@@ -246,6 +246,6 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
           className="absolute inset-y-0 right-0 z-10 w-1.5 translate-x-1/2 cursor-col-resize touch-none hover:bg-blue-400/40"
         />
       )}
-    </div>
+    </ThemeScope>
   );
 }

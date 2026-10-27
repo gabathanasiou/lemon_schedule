@@ -49,7 +49,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 | Layer | Palette | Where |
 |---|---|---|
-| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager + manager shell; SceneSheet/stripboard/Calendar/ProjectManager cards are being migrated family-by-family (roadmap 310) |
+| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager + the managers (manager shell, Element Manager); SceneSheet/stripboard/Calendar/ProjectManager/Reports are being migrated family-by-family (roadmap 310) |
 | Dark chrome | header `bg-[var(--ui-accent-header-bg)]`; kit Menu/Modal/input tokens | App header, pop-out toolbar, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
 | Drive chrome | `ProjectChromeScope` publishes `accent="blue"`: header `--ui-accent-950` (#172554), tab pill `--ui-tab-pill-accent`, action chips `--ui-accent-950/900` | ONE identity source `useProjectTheme()` + `projectAccentNameOf()`; `src/components/ProjectChromeScope.tsx` |
 | Shared chrome | same scope with `accent="emerald"`: header #022c22, emerald tab/action roles | same ONE source; a project is never both (shared > drive) |
@@ -155,8 +155,12 @@ section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The d
 family is fully tokenised — the Day Events modals, Production Details, Call Times,
 Copy-from-day, Add Crew Member, the crew roster Glide grid (ambient light/dark theme via
 `createDayTimesTheme(fs, mode)`) and the Call Sheet editor/paper (the paper gets its own
-light neutral scope). The app `Modal` shim pins `theme="dark"` (302), so a light page
-scope never flips an overlay — modals stay dark until light modals land.
+light neutral scope). **The manager family is too**: `managerShell` pages,
+`ElementManager` (its own light `ThemeScope`), the shared `SidebarNav` + `MT_*` table
+recipes, Link Manager, Crew Links and the Element View panel/sections — chip pickers use
+the token trigger (`DD_TOKEN_TRIGGER_CLASS`). The app `Modal` shim pins `theme="dark"`
+(302), so a light page scope never flips an overlay — modals stay dark until light
+modals land.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

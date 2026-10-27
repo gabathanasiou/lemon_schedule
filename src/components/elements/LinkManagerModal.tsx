@@ -32,10 +32,10 @@ interface AnchorGroup {
 const BTN = 'px-2 py-1.5 text-xs';
 const ANCHOR_BTN = 'px-2 py-1.5 text-xs font-semibold';
 const ICON_BTN = 'p-1.5 rounded-md transition-colors shrink-0';
-const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-800`;
+const REMOVE_BTN = `${ICON_BTN} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-item-hover-bg)]`;
 /** Labeled action button — reads as an action even without hovering (NN/g:
  *  icon-only buttons need text labels for the information scent). */
-const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white transition-colors shrink-0';
+const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[color:var(--ui-text)] border border-[color:var(--ui-input-border)] rounded-md hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)] transition-colors shrink-0';
 
 /**
  * Link Manager (roadmap 44): one-way anchor-based element links, opened from
@@ -318,7 +318,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
       }
     >
       <div className="p-6 space-y-5">
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
           Each card links one anchor to elements, crew people or locations. Only element→element links add values to scenes (crew and locations are associations).
           Removing a linked row never touches the anchor; removing the anchor removes its links as well.
         </p>
@@ -333,8 +333,8 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
             <CardSection
               key={g.id}
               dataProps={{ 'data-anchor-card': g.id }}
-              icon={<Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
-              title={anchorLabel ? <span className="truncate">{anchorLabel}</span> : <span className="text-zinc-500 italic">Unset anchor</span>}
+              icon={<Link2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" />}
+              title={anchorLabel ? <span className="truncate">{anchorLabel}</span> : <span className="text-[color:var(--ui-text-faint)] italic">Unset anchor</span>}
               count={`${linkCount} link${linkCount === 1 ? '' : 's'}`}
               collapsed={collapsedGroups.has(g.id)}
               onToggle={() => toggleCollapse(g.id)}
@@ -363,7 +363,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
             >
               <div className="space-y-2 pt-1">
                 <div>
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Anchor</span>
+                  <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block">Anchor</span>
                   <ElementPickerRow
                     category={g.category}
                     elementValue={g.anchorValue}
@@ -384,7 +384,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Linked elements</span>
+                  <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block">Linked elements</span>
                   {g.links.map((l, li) => {
                     const linkedElements = elementsFor(l.linkedCategory);
                     return (
@@ -417,7 +417,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
 
                   <div className="flex items-center gap-3 mt-2">
                     {unusedCategory(g) !== null && (
-                      <button onClick={() => addLink(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                      <button onClick={() => addLink(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
                         <Plus className="w-3.5 h-3.5" />
                         Add Linked Element
                       </button>
@@ -434,7 +434,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
           );
         })}
 
-        <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+        <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
           <Plus className="w-3.5 h-3.5" />
           Add Anchor
         </button>

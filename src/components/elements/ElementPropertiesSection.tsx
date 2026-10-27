@@ -11,8 +11,8 @@ import type { CastMember } from '../../types';
  * source of truth, one undo entry per commit.
  */
 
-const FIELD_LABEL = 'block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1';
-const FIELD_INPUT = 'w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50';
+const FIELD_LABEL = 'block text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider mb-1';
+const FIELD_INPUT = 'w-full bg-[var(--ui-input-bg)] border border-[color:var(--ui-input-border)] rounded px-2 py-1.5 text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50';
 
 function PanelField({ label, value, onCommit, readOnly, numeric, testKey }: {
   label: string;
@@ -61,7 +61,7 @@ export function ElementPropertiesSection({ category, elementKey: selectedKey, on
   const elements = getCategoryElements(project, category);
   const element = elements.find(e => elementKey(e) === selectedKey);
   if (!element) {
-    return <div className="p-6 text-xs text-zinc-500">This element no longer exists.</div>;
+    return <div className="p-6 text-xs text-[color:var(--ui-text-faint)]">This element no longer exists.</div>;
   }
   const isCast = category === 'cast';
   const member = element as CastMember;
@@ -116,7 +116,7 @@ export function ElementPropertiesSection({ category, elementKey: selectedKey, on
           </div>
         </div>
       ) : (
-        <p className="text-xs text-zinc-500 leading-relaxed">
+        <p className="text-xs text-[color:var(--ui-text-faint)] leading-relaxed">
           Performer details are cast-only. Per-category custom fields are roadmap 307; for now this panel edits the
           element's built-in properties.
         </p>

@@ -6,7 +6,7 @@ import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 
 interface CategoryFormProps {
   open: boolean;
@@ -62,7 +62,7 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
               width="w-56"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
                   <span className="truncate">{group || 'Other'}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                 </button>

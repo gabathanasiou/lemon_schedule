@@ -206,8 +206,8 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
         {/* Events — one collapsible card per day type */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-              <CalendarDays className="w-3 h-3 text-zinc-400" />
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <CalendarDays className="w-3 h-3 text-[color:var(--ui-text-muted)]" />
               Events
             </span>
             <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={locked}>
@@ -215,7 +215,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
             </Button>
           </div>
           {typeCards.length === 0 ? (
-            <p className={`${CREM_LABEL} text-zinc-600 italic`}>No events yet — add {identity.name} to a day above.</p>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No events yet — add {identity.name} to a day above.</p>
           ) : (
             <div className="space-y-2">
               {typeCards.map(({ status, rows }) => {
@@ -250,7 +250,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
                               disabled={wholeOnly}
                               title={wholeOnly ? `The whole ${statusLabel(status, project)} category is marked — remove the day's events in the editor` : `Remove ${identity.name} from this day`}
                               aria-label={`Remove ${identity.name} from this day`}
-                              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="p-1 rounded hover:bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-danger-text)] transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -268,28 +268,28 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
                                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                 if (e.key === 'Escape') { setNoteDate(null); }
                               }}
-                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-950 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
+                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-[var(--ui-seg-track-bg)] border border-transparent hover:border-[color:var(--ui-border-strong)] focus:border-[color:var(--ui-input-focus-border)] transition-colors outline-none placeholder:text-[color:var(--ui-text-faint)] text-[11px] [field-sizing:content] min-w-60 cursor-text`}
                             />
                           ) : note ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); !locked && setNoteDate(date); }}
                               title={locked ? note : 'Edit note'}
-                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
+                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors cursor-text"
                             >
-                              <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
+                              <span className="text-[color:var(--ui-text-faint)] shrink-0 font-medium">Notes:</span>
                               <span className="truncate italic">"{note}"</span>
                             </button>
                           ) : !locked ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteDate(date); }}
-                              className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
+                              className="text-[10px] text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors cursor-text"
                             >
                               Add note
                             </button>
                           ) : (
-                            <span className={`${CREM_LABEL} text-zinc-600 italic`}>No note</span>
+                            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No note</span>
                           )}
                         </ItemRow>
                       );
@@ -305,18 +305,18 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
             when none fire) */}
         {data.violations.size > 0 && (
           <div>
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-2`}>
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-2`}>
               <Flag className="w-3 h-3 text-red-400" />
               Violations
             </span>
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800 divide-y divide-zinc-700/60">
+            <div className="rounded-lg border border-[color:var(--ui-border-strong)] bg-[var(--ui-input-bg)] divide-y divide-[color:var(--ui-border-strong)]">
               {[...data.violations.entries()]
                 .sort((a, b) => a[0].localeCompare(b[0]))
                 .map(([date, vs]) => vs.map(v => (
                   <div key={`${date}-${v.ruleId}`} data-element-violation={date}
-                    className="flex items-start gap-2 px-3 py-2 text-[11px] text-zinc-300">
+                    className="flex items-start gap-2 px-3 py-2 text-[11px] text-[color:var(--ui-text)]">
                     <Flag className="w-3 h-3 shrink-0 mt-[1px] fill-red-400 text-red-400" />
-                    <span className="w-24 shrink-0 font-medium text-zinc-200">{formatDateLabel(date)}</span>
+                    <span className="w-24 shrink-0 font-medium text-[color:var(--ui-input-text)]">{formatDateLabel(date)}</span>
                     <span className="text-red-300">{v.message}</span>
                   </div>
                 )))}
@@ -330,7 +330,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
         {(isCast || data.rules.length > 0) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
-              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
                 <Clock4 className="w-3 h-3" />
                 Rules
               </span>
@@ -341,7 +341,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
               )}
             </div>
             {data.rules.length === 0 ? (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules yet — add a rule for {identity.name}.</p>
+              <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No rules yet — add a rule for {identity.name}.</p>
             ) : (
               rulesByType.map(([type, rules]) => {
               const meta = RULE_TYPE_META[type];

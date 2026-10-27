@@ -11,26 +11,27 @@ import { useCoarseSize, coarsePx, useCoarseScale } from '@gabriel/ui-kit';
  * buttons/menus around them instead of jumping to a full-coarse size.
  */
 
-/** Table cell input chrome (padding/font via `sizes.input` inline). */
-export const MT_INPUT = 'w-full bg-transparent text-zinc-800 outline-none rounded focus:bg-white focus:ring-1 focus:ring-zinc-400 transition-shadow';
+/** Table cell input chrome (padding/font via `sizes.input` inline). Reads the
+ *  ambient `--ui-*` ladder (roadmap 310) — manager pages are light scopes. */
+export const MT_INPUT = 'w-full bg-transparent text-[color:var(--ui-input-text)] outline-none rounded focus:bg-[var(--ui-panel-bg)] focus:ring-1 focus:ring-[color:var(--ui-input-focus-border)] transition-shadow';
 
 /** Table header cell chrome (padding/font via `sizes.header` inline). */
-export const MT_HEADER = 'font-semibold text-zinc-400 uppercase tracking-wider';
+export const MT_HEADER = 'font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider';
 
 /** Plain data cell chrome (padding/font via `sizes.cell` inline). */
-export const MT_CELL = 'border-r border-zinc-200';
+export const MT_CELL = 'border-r border-[color:var(--ui-border)]';
 
 /** Small data cell chrome (padding/font via `sizes.cellSmall` inline). */
-export const MT_CELL_SMALL = 'border-r border-zinc-200 text-zinc-400';
+export const MT_CELL_SMALL = 'border-r border-[color:var(--ui-border)] text-[color:var(--ui-text-faint)]';
 
 /** Footer "Add" button chrome (padding/font via `sizes.add` inline). */
-export const MT_ADD = 'flex items-center gap-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed';
+export const MT_ADD = 'flex items-center gap-1.5 text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-card-bg)] transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed';
 
 /** Sidebar category row chrome (padding/font via `sizes.row` inline). */
 export const MT_ROW = 'w-full text-left rounded-md transition-colors flex items-center gap-2';
 
 /** Sidebar title chrome (font via `sizes.title` inline). */
-export const MT_TITLE = 'font-semibold text-zinc-400 uppercase tracking-wider';
+export const MT_TITLE = 'font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider';
 
 export interface ManagerTableSizes {
   input: { padding: string; fontSize: string };

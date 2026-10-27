@@ -21,9 +21,9 @@ import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 
 const BTN = 'px-2 py-1.5 text-xs';
 const ICON_BTN = 'p-1.5 rounded-md transition-colors shrink-0';
-const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-800`;
-const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white transition-colors shrink-0';
-const SECTION_LABEL = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block';
+const REMOVE_BTN = `${ICON_BTN} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-item-hover-bg)]`;
+const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[color:var(--ui-text)] border border-[color:var(--ui-input-border)] rounded-md hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)] transition-colors shrink-0';
+const SECTION_LABEL = 'text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block';
 
 export function ElementLinksSection({ category, elementKey: selectedKey, onSelectElement }: {
   category: string;
@@ -162,7 +162,7 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
   return (
     <div className="p-6 space-y-5">
       <CardSection
-        icon={<Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+        icon={<Link2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" />}
         title={<span className="truncate">{thisLabel}</span>}
         count={`${linkCount} link${linkCount === 1 ? '' : 's'}`}
         collapsed={collapsed}
@@ -208,7 +208,7 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
 
           <div className="flex items-center gap-3 mt-2">
             {allCategoryKeys.some(k => !rows.some(r => r.linkedCategory === k.key)) && (
-              <button onClick={addRow} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+              <button onClick={addRow} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
                 <Plus className="w-3.5 h-3.5" /> Add linked element
               </button>
             )}
@@ -224,23 +224,23 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
       <div>
         <span className={SECTION_LABEL}>Pulled in by</span>
         {incoming.length === 0 ? (
-          <p className="text-xs text-zinc-500 italic">No element links point at {thisLabel}.</p>
+          <p className="text-xs text-[color:var(--ui-text-faint)] italic">No element links point at {thisLabel}.</p>
         ) : (
           <div className="space-y-1">
             {incoming.map(l => {
               const label = anchorLabel(l);
               const canJump = l.anchorKind === 'element' && l.anchorCategory === category && onSelectElement;
               return (
-                <div key={l.id} className="flex items-center gap-2 text-xs text-zinc-300">
-                  <Link2 className="w-3 h-3 text-zinc-500 shrink-0" />
+                <div key={l.id} className="flex items-center gap-2 text-xs text-[color:var(--ui-text)]">
+                  <Link2 className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                   {canJump ? (
-                    <button type="button" className="truncate hover:text-white underline-offset-2 hover:underline" onClick={() => onSelectElement!(l.anchorValue)}>
+                    <button type="button" className="truncate hover:text-[color:var(--ui-text-strong)] underline-offset-2 hover:underline" onClick={() => onSelectElement!(l.anchorValue)}>
                       {label}
                     </button>
                   ) : (
                     <span className="truncate">{label}</span>
                   )}
-                  <span className="text-zinc-500">({categoryLabelLookup[l.anchorCategory || ''] || l.anchorCategory})</span>
+                  <span className="text-[color:var(--ui-text-faint)]">({categoryLabelLookup[l.anchorCategory || ''] || l.anchorCategory})</span>
                 </div>
               );
             })}

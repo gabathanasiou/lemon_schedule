@@ -29,7 +29,7 @@ interface PersonGroup {
 
 const BTN = 'px-2 py-1.5 text-xs';
 const ICON_BTN = 'p-1.5 rounded-md transition-colors shrink-0';
-const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-800`;
+const REMOVE_BTN = `${ICON_BTN} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-item-hover-bg)]`;
 
 /**
  * Crew Links manager (roadmap 11, layer 2): one card per crew person links a
@@ -260,7 +260,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
           <PositionsTab dispatch={dispatch} readOnly={locked} groups={positionGroups} options={categoryOptions} />
         ) : (
           <>
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
           Link a crew member to the people they look after — a driver to the director, a chaperone to a young cast member —
           or to elements (an HMU artist to a cast member). Call sheets and crew tables can print the assignment, and
           you're warned when the linked person isn't working that day.
@@ -272,8 +272,8 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
             <CardSection
               key={g.id}
               dataProps={{ 'data-crew-link-card': g.id }}
-              icon={<UserRound className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
-              title={label ? <span className="truncate">{label}</span> : <span className="text-zinc-500 italic">Unset person</span>}
+              icon={<UserRound className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" />}
+              title={label ? <span className="truncate">{label}</span> : <span className="text-[color:var(--ui-text-faint)] italic">Unset person</span>}
               count={`${linkCount(g)} link${linkCount(g) === 1 ? '' : 's'}`}
               collapsed={collapsedGroups.has(g.id)}
               onToggle={() => toggleCollapse(g.id)}
@@ -290,7 +290,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
             >
               <div className="space-y-2 pt-1">
                 <div>
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Crew member</span>
+                  <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block">Crew member</span>
                   <GroupedSelect
                     theme="dark"
                     mode="single"
@@ -302,12 +302,12 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Linked to</span>
+                  <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block">Linked to</span>
                   {g.links.map((l, li) => (
                     l.category === CREW_LINK_TARGET ? (
                       <div key={l.id} className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1.5 text-xs rounded bg-zinc-950 border border-zinc-700 text-zinc-300 shrink-0">Crew</span>
-                        <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
+                        <span className="px-2 py-1.5 text-xs rounded bg-[var(--ui-seg-track-bg)] border border-[color:var(--ui-border-strong)] text-[color:var(--ui-text)] shrink-0">Crew</span>
+                        <span className="text-xs text-[color:var(--ui-text-faint)] font-medium shrink-0">=</span>
                         <GroupedSelect
                           className="flex-1 min-w-0"
                           theme="dark"
@@ -347,13 +347,13 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
                   ))}
                   <div className="flex items-center gap-3 mt-2">
                     {unusedCategory(g) !== null && (
-                      <button onClick={() => addLink(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                      <button onClick={() => addLink(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
                         <Plus className="w-3.5 h-3.5" />
                         Add Linked Element
                       </button>
                     )}
                     {!hasCrewRow(g) && (
-                      <button onClick={() => addCrewRow(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                      <button onClick={() => addCrewRow(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
                         <Plus className="w-3.5 h-3.5" />
                         Add Linked Crew Member
                       </button>
@@ -365,7 +365,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
           );
         })}
 
-        <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+        <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] transition-colors">
           <Plus className="w-3.5 h-3.5" />
           Add Crew Member
         </button>
@@ -393,14 +393,14 @@ const PositionsTab: React.FC<{
     });
   return (
     <div className="space-y-4">
-      <p className="text-xs text-zinc-400 leading-relaxed">
+      <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
         A position maps to the element categories it looks after. If a day's scenes have an element in that category, the
         position is needed that day — reports and rules scope by this ("only crew in this day").
       </p>
       {groups.map(g => (
         <CardSection
           key={g.name}
-          icon={<UserRound className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+          icon={<UserRound className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" />}
           title={g.name}
           count={`${g.roles.length}`}
           collapsed={collapsed.has(g.name)}
@@ -409,7 +409,7 @@ const PositionsTab: React.FC<{
         >
           {g.roles.map(role => (
             <div key={role.key} className="flex items-center gap-3 px-3 py-2" data-position={role.key}>
-              <span className="w-40 shrink-0 text-[11px] font-medium text-zinc-300">{role.label}</span>
+              <span className="w-40 shrink-0 text-[11px] font-medium text-[color:var(--ui-text)]">{role.label}</span>
               <GroupedSelect
                 className="flex-1 min-w-0"
                 theme="dark"

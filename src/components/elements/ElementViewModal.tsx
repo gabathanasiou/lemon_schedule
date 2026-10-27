@@ -45,7 +45,7 @@ function ElementPicker({ options, selectedKey, onSelect, groupIcon }: {
   // and `selectedId` marks + scrolls to the element we are on.
   const items: SearchMenuItem[] = options.map(o => ({ id: o.key, label: o.label }));
   const collapsedWidth = 216;
-  const arrow = 'p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 disabled:opacity-25 disabled:hover:bg-transparent transition-colors';
+  const arrow = 'p-1 rounded text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-active-bg)] disabled:opacity-25 disabled:hover:bg-transparent transition-colors';
   return (
     <div className="flex items-center gap-1" data-element-view-picker>
       <button type="button" onClick={() => step(-1)} disabled={i <= 0} className={arrow} title="Previous element" aria-label="Previous element">
@@ -115,14 +115,14 @@ export function ElementViewModal({ category, rowKey, onClose }: {
       }
     >
       <div className="flex flex-col" data-element-view={category}>
-        <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-3 border-b border-zinc-800">
+        <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-3 border-b border-[color:var(--ui-border)]">
           <ElementPicker
             options={options}
             selectedKey={selectedKey}
             onSelect={setSelectedKey}
             groupIcon={CategoryIcon ? <CategoryIcon className="w-3.5 h-3.5" /> : undefined}
           />
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">
             <Users className="w-3 h-3" />
             {categoryLabel}
           </span>
@@ -143,7 +143,7 @@ export function ElementViewModal({ category, rowKey, onClose }: {
         </div>
 
         {!selected ? (
-          <div className="p-6 text-xs text-zinc-500">This category has no elements yet.</div>
+          <div className="p-6 text-xs text-[color:var(--ui-text-faint)]">This category has no elements yet.</div>
         ) : tab === 'properties' ? (
           <ElementPropertiesSection category={category} elementKey={selectedKey} onKeyChange={setSelectedKey} />
         ) : tab === 'links' ? (
@@ -168,7 +168,7 @@ export function ElementViewModal({ category, rowKey, onClose }: {
         )}
 
         {locked && (
-          <p className="px-6 pb-3 text-[10px] text-zinc-600">Read-only — this project is not editable.</p>
+          <p className="px-6 pb-3 text-[10px] text-[color:var(--ui-text-faint)]">Read-only — this project is not editable.</p>
         )}
       </div>
     </Modal>

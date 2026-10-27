@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 
@@ -51,9 +51,9 @@ export const CategoryDropdown: React.FC<{
       contentClassName="z-[10001]"
       maxMenuHeight={256}
       trigger={
-        <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} ${btnClass} shrink-0 ${minWidth || 'min-w-[120px]'} justify-between cursor-pointer`}>
-          <span className={`truncate ${!value && placeholder ? 'text-zinc-500' : ''}`}>{categoryLabelLookup[value] || value || placeholder || ''}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} ${btnClass} shrink-0 ${minWidth || 'min-w-[120px]'} justify-between cursor-pointer`}>
+          <span className={`truncate ${!value && placeholder ? 'text-[color:var(--ui-text-faint)]' : ''}`}>{categoryLabelLookup[value] || value || placeholder || ''}</span>
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>
       }
     >
@@ -69,7 +69,7 @@ export const CategoryDropdown: React.FC<{
               <DropdownItem
                 onClick={() => onChange(key)}
                 disabled={disabled}
-                className={active ? 'bg-zinc-800 text-white' : ''}
+                className={active ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''}
                 icon={Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
                 trailing={active ? <Check className="w-3 h-3 shrink-0" /> : undefined}
               >
