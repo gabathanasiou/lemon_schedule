@@ -37,6 +37,7 @@ export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
 import { resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
+import { revealRowInScroller } from '@gabriel/ui-kit';
 
 export interface EntityItem {
   id: string;
@@ -384,13 +385,16 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     // while the user aims at it). Hover still lights the row via hoverRef.
     if (highlightedIndex < 0 || hoverRef.current || !panelRef.current) return;
     const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
-    if (btn) btn.scrollIntoView({ block: 'nearest' });
+    revealRowInScroller(btn, 'nearest', scrollRef.current);
   }, [highlightedIndex]);
 
   useLayoutEffect(() => {
+    // A picker that holds a value opens ON it: the checked row is revealed
+    // BEFORE the panel's first paint and the list never moves again once the
+    // pointer engages it (the shared preselected-surface contract).
     if (!open || !keepAlphabetical || !panelRef.current) return;
     const checked = panelRef.current.querySelector('[data-checked="true"]') as HTMLElement;
-    if (checked) checked.scrollIntoView({ block: 'nearest' });
+    revealRowInScroller(checked, 'nearest', scrollRef.current);
   }, [open, keepAlphabetical]);
 
   useEffect(() => {

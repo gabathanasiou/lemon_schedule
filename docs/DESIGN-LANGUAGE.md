@@ -696,6 +696,11 @@ MUST be added to `HelpModal.tsx` (AGENTS.md rule).
    (extend, never fork).
 9. **No hardcoded z-index surprises** — overlay `9999`, modal content `10000`, menus `200`
    (10001 in modals), tooltips `99999`.
+10. **Never scroll a menu/dropdown list after it is visible** — no `requestAnimationFrame`
+    reveal, no `scrollIntoView` (it also scrolls the page/modal). A list that moves between
+    mousedown and mouseup loses the click (the "click the item twice" bug). A picker that holds
+    a value opens **already scrolled to it** via the kit's `useRevealRowOnOpen` (pre-paint
+    reveal, frozen once the pointer engages); arrow/hover scrolling uses `revealRowInScroller`.
 
 ## Verification checklist
 
