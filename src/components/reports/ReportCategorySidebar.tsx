@@ -59,7 +59,7 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
   }
 
   return (
-    <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
+    <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
@@ -92,7 +92,7 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
           })}
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
