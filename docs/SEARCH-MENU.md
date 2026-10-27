@@ -153,6 +153,16 @@ the user is clicking. Pointer hover never scrolls; arrows keep the highlighted
 row in view. App use: the Element View header picker and the Production Details
 timezone.
 
+**The preselected list is frozen from its first visible frame** (roadmap 320 —
+the kit's `useRevealRowOnOpen` in `src/revealInScroller.ts`): the reveal runs in
+the layout phase, so the panel paints already on the value, and once the pointer
+enters or presses the panel nothing scrolls it again. The old open-edge `rAF`
+scrolled a frame late — rows moved between mousedown and mouseup and the browser
+dropped the click ("I have to click it twice"). Every picker that opens with a
+current value MUST use the same hook (`SearchMenu` `selectedId`,
+`ItemManagerDropdown`, `CategoryDropdown`, `DayPickerList`, `EntityDropdown`
+`keepAlphabetical`) — never a hand-rolled rAF/`scrollIntoView` reveal.
+
 ## 5. Search semantics
 
 - The query is **comma-separated tags, ANDed**: `roy, 555` keeps a record only

@@ -1,5 +1,5 @@
 import { CrewLink, Link, Project } from '../types';
-import { getCategoryElements, elementMatchId } from './elements';
+import { getCategoryElements, elementMatchId, boardIdOf, boardLabelForDisplay } from './elements';
 import { CREW_LINK_TARGET, getElementOutgoingLinks } from './links';
 
 /**
@@ -68,12 +68,13 @@ export function getCrewLinksTargetingPerson(links: Link[] | undefined, personId:
   return crewLinkViews(links).filter(l => l.category === CREW_LINK_TARGET && l.elementKey === personId);
 }
 
-/** Human label for a linked element ("1. FISHERMAN" for cast, name otherwise). */
+/** Human label for a linked element — cast always "N. NAME", other categories
+ *  per the Board ID pref (roadmap 321), falling back to the stored key. */
 export function elementLabelForLink(project: Project, link: CrewLink): string {
   const el = getCategoryElements(project, link.category).find(e =>
     elementMatchId(e, link.category).toLowerCase() === link.elementKey.toLowerCase());
   if (!el) return link.elementKey;
-  return link.category === 'cast' ? `${el.id}. ${el.name}` : (el.name || el.id);
+  return boardLabelForDisplay(boardIdOf(el, link.category), el.name || el.id, link.category);
 }
 
 /** id → name for every crew person in the project. */

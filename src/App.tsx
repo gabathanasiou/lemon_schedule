@@ -982,6 +982,7 @@ function AppContent() {
           productionStart={activeCalendarVersion?.productionStart}
           nonShootDates={activeCalendarVersion?.nonShootDates}
           castMembers={project.castMembers || []}
+          breakdownElements={project.breakdownElements}
           elementIds={elementIds}
           dayInts={doodOptions.dayInts}
           includeNonShooting={doodOptions.includeNonShooting}
@@ -1001,6 +1002,7 @@ function AppContent() {
           scenes={project.scenes}
           rows={version?.rows || []}
           castMembers={project.castMembers || []}
+          breakdownElements={project.breakdownElements}
           customCategories={project.customCategories || []}
           sortOrder={breakdownSheetOptions.sortOrder}
           sceneIds={breakdownSheetOptions.sceneIds}
@@ -1020,6 +1022,7 @@ function AppContent() {
           productionStart={activeCalendarVersion?.productionStart}
           nonShootDates={activeCalendarVersion?.nonShootDates}
           castMembers={project.castMembers || []}
+          breakdownElements={project.breakdownElements}
           customCategories={project.customCategories || []}
           category={elementBreakdownOptions.category}
         />

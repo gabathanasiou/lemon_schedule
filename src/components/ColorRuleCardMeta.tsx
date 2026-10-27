@@ -1,12 +1,12 @@
 import React from 'react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
-import { getCategoryElements } from '../lib/elements';
+import { getCategoryElements, boardIdOf, boardLabelForDisplay } from '../lib/elements';
 import { Project } from '../types';
 
 export function getElementName(project: Project, cat: string, elementId: string): string {
   const elements = getCategoryElements(project, cat);
   const el = elements.find(e => (e.id || e.name) === elementId);
-  return el?.name || elementId;
+  return el ? boardLabelForDisplay(boardIdOf(el, cat), el.name, cat) : elementId;
 }
 
 export function getCategoryLabel(project: Project, cat: string): string {

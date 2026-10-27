@@ -44,14 +44,13 @@ export default function ColorRuleCard({ project, rule, onToggle, onEdit, onDupli
           {rule.conditions.map((c, i) => {
             const catLabel = getCategoryLabel(project, c.category);
             const elName = getElementName(project, c.category, c.elementId);
-            const isCast = c.category === 'cast';
             const isLast = i === rule.conditions.length - 1;
             return (
               <div key={i} className="flex items-center gap-1 text-xs leading-snug">
                 {getCatIcon(project, c.category)}
                 <span className="font-medium text-[color:var(--ui-text)]">{catLabel} <span className="text-[color:var(--ui-text-faint)]">=</span></span>
                 <span className="text-[color:var(--ui-input-text)] truncate">
-                  {isCast ? `${c.elementId}. ${elName}` : elName}
+                  {elName}
                 </span>
                 {isLast && (
                   <span className="flex items-center gap-1 ml-2 shrink-0">

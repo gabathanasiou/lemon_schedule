@@ -68,6 +68,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   the TRUE sheet number (array index + 1). `naturalSortSceneStrings`; stripboard order = active
   version's SCENE rows, boneyard scenes appended. `initialIndex` echo-guarded
   (`lastReportedIndexRef`) so the App→prop feedback doesn't yoyo the position in non-sheet orders.
+- **Board ID display pref (roadmap 321)**: the Scene Sheet toolbar's **IDs: Cast / IDs: All**
+  menu writes `lemon_schedule_board_id_display` (`src/lib/persist.ts` — `useBoardIdDisplay`,
+  default `cast`). Closed element cells/chips and rule/link labels use
+  `boardLabelForDisplay` (`src/lib/elements.ts`); EntityDropdown PANELS always list every
+  category's number, and reports/DOOD/print surfaces always keep their numbers.
 - **Project chrome (roadmap 248)**: ONE source — `useProjectTheme()` → `local` (zinc) /
   `drive` (blue) / `shared` (emerald); class tokens + kit accent values live in
   `src/lib/projectTheme.ts` (`PROJECT_CHROME`, `projectAccentOf`, `projectMenuThemeOf`,

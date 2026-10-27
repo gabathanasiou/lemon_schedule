@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateShort } from '../../../lib/utils';
+import { useRevealRowOnOpen } from '@gabriel/ui-kit';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 
@@ -59,14 +60,15 @@ export const DayPickerList: React.FC<DayPickerListProps> = ({ options, selectedI
   const listRef = useRef<HTMLDivElement>(null);
   const allSelected = allLabel != null && !options.some(o => o.sectionIndex === selectedIndex);
 
-  // Scroll the current day (centred) into view when the surface opens — the
-  // list mounts with the menu/submenu content.
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => {
-      listRef.current?.querySelector(`[data-day="${selectedIndex}"]`)?.scrollIntoView({ block: 'center' });
-    }));
-    return () => cancelAnimationFrame(raf);
-  }, [selectedIndex]);
+  // The list mounts with the menu/submenu content, so "open" is its mount.
+  // The current day is revealed centred BEFORE the menu paints and the list
+  // never moves afterwards (the shared preselected-surface contract) — the old
+  // double-rAF scrolled the day list out from under the click that opened it.
+  const reveal = useRevealRowOnOpen({
+    open: true,
+    block: 'center',
+    row: () => listRef.current?.querySelector<HTMLElement>(`[data-day="${selectedIndex}"]`) ?? null,
+  });
 
   const weeks: { key: string; days: DayPickerOption[] }[] = [];
   for (const o of options) {
@@ -77,7 +79,7 @@ export const DayPickerList: React.FC<DayPickerListProps> = ({ options, selectedI
   }
 
   return (
-    <div ref={listRef} className="flex flex-col">
+    <div ref={listRef} onPointerEnter={reveal.engage} onPointerDown={reveal.engage} className="flex flex-col">
       {allLabel != null && (
         <DropdownItem selected={allSelected} onClick={() => onSelect(-1)}>
           {allLabel}

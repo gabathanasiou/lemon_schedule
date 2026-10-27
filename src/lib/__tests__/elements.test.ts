@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
+import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, boardIdMapFor, boardLabel, boardLabelForDisplay, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
+import { setBoardIdDisplay } from '../persist';
 
 /**
  * AGENTS.md §Cast & Entities — the STRICT cast-vs-elements storage rule:
@@ -80,5 +81,35 @@ describe('Board IDs', () => {
   it('compareBoardIds sorts numerically with blanks last', () => {
     const values = ['10', '', '2', '1', 'x'];
     expect(values.sort(compareBoardIds)).toEqual(['1', '2', '10', '', 'x']);
+  });
+
+  it('boardLabel prefixes "N. NAME" and leaves unnumbered elements plain', () => {
+    expect(boardLabel('7', 'GUN')).toBe('7. GUN');
+    expect(boardLabel('', 'GUN')).toBe('GUN');
+    expect(boardLabel(undefined, 'GUN')).toBe('GUN');
+  });
+
+  it('boardLabelForDisplay follows the Cast-only pref (roadmap 321)', () => {
+    setBoardIdDisplay('cast');
+    expect(boardLabelForDisplay('2', 'MARY', 'cast')).toBe('2. MARY');
+    expect(boardLabelForDisplay('7', 'GUN', 'props')).toBe('GUN');
+    setBoardIdDisplay('all');
+    expect(boardLabelForDisplay('2', 'MARY', 'cast')).toBe('2. MARY');
+    expect(boardLabelForDisplay('7', 'GUN', 'props')).toBe('7. GUN');
+    setBoardIdDisplay('cast');
+  });
+
+  it('boardIdMapFor keys name categories case-insensitively', () => {
+    const project = {
+      breakdownElements: {
+        props: [
+          { id: 'GUN', name: 'GUN', boardId: '7' },
+          { id: 'Mug', name: 'Mug' },
+        ],
+      },
+    };
+    const map = boardIdMapFor(project, 'props');
+    expect(map.get('gun')).toBe('7');
+    expect(map.has('mug')).toBe(false);
   });
 });

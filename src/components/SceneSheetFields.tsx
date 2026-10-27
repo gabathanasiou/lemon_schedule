@@ -92,9 +92,9 @@ export default function SceneSheetFields({
                     onBlur={commitTextEdits}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                 ) : cat === 'cast' ? (
-                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} mode="multi" placeholder="Cast" className="flex-1 p-1 text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} wrapValue resolveClosed renderItem={(item) => <><span className="text-[color:var(--ui-text-faint)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '?'}</span></>} />
+                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} mode="multi" placeholder="Cast" className="flex-1 p-1 text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} wrapValue resolveClosed />
                 ) : (
-                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="flex-1 p-1 text-xs" anchoredKeys={anchoredByCategory?.[cat]} wrapValue renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="flex-1 p-1 text-xs" anchoredKeys={anchoredByCategory?.[cat]} wrapValue resolveClosed />
                 )}
               </div>
             </div>

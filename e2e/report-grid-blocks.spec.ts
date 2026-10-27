@@ -42,7 +42,7 @@ test.describe('Report grid blocks (items 111/112/159)', () => {
 
     // The days repeat samples day 1 → the real per-category tables render.
     await expect(page.locator('.report-table-cols').first()).toBeVisible({ timeout: 8000 });
-    await expect(page.getByText('Cast ID', { exact: true }).first()).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('Board ID', { exact: true }).first()).toBeVisible({ timeout: 8000 });
     await expect(page.getByText('SWF', { exact: true }).first()).toBeVisible({ timeout: 8000 });
     const stage = await firstStageLabel(page);
     if (stage) await expect(page.getByText(stage, { exact: true }).first()).toBeVisible({ timeout: 8000 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, SetStateAction } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore, SetStateAction } from 'react';
 import type { ReportViewMode } from '../types';
 
 export function usePersistState<T>(storageKey: string, defaults: T): [T, (value: SetStateAction<T>) => void, () => void] {
@@ -99,6 +99,48 @@ export function useKeyboardMode(): [KeyboardMode, (m: KeyboardMode) => void] {
     return () => { _keyboardModeListeners.delete(fn); };
   }, []);
   return [getKeyboardMode(), setKeyboardMode];
+}
+
+/** Board ID prefixes in element display surfaces (roadmap 321): `all` shows
+ *  every category's number, `cast` only cast (the pre-305 look, the default).
+ *  Device-local per-user pref — report/print surfaces keep their numbers
+ *  regardless. */
+export type BoardIdDisplay = 'all' | 'cast';
+
+export const BOARD_ID_DISPLAY_VALUES: readonly BoardIdDisplay[] = ['all', 'cast'];
+
+const BOARD_ID_DISPLAY_KEY = 'lemon_schedule_board_id_display';
+
+let _boardIdDisplay: BoardIdDisplay = (() => {
+  try {
+    const stored = localStorage.getItem(BOARD_ID_DISPLAY_KEY);
+    return BOARD_ID_DISPLAY_VALUES.find(v => v === stored) ?? 'cast';
+  } catch { return 'cast'; }
+})();
+const _boardIdDisplayListeners = new Set<() => void>();
+
+export function getBoardIdDisplay(): BoardIdDisplay {
+  return _boardIdDisplay;
+}
+
+export function setBoardIdDisplay(mode: BoardIdDisplay) {
+  _boardIdDisplay = mode;
+  try { localStorage.setItem(BOARD_ID_DISPLAY_KEY, mode); } catch {}
+  _boardIdDisplayListeners.forEach(fn => fn());
+}
+
+/** Subscribe/read the pref from anywhere (EntityDropdown panels + the Scene
+ *  Sheet toolbar toggle). */
+export function useBoardIdDisplay(): [BoardIdDisplay, (m: BoardIdDisplay) => void] {
+  const mode = useSyncExternalStore(
+    (fn) => {
+      _boardIdDisplayListeners.add(fn);
+      return () => { _boardIdDisplayListeners.delete(fn); };
+    },
+    getBoardIdDisplay,
+    getBoardIdDisplay,
+  );
+  return [mode, setBoardIdDisplay];
 }
 
 export type CellBorders = 'none' | 'vertical' | 'horizontal' | 'both';

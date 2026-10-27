@@ -289,7 +289,6 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                         className="text-xs flex-1 min-w-0"
                         displayMode={isCast ? 'id' : 'name'}
                         anchoredKeys={anchoredByCategory.get(r.category)}
-                        renderItem={isCast ? (item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
                       />
                       <Checkbox
                         checked={r.all}

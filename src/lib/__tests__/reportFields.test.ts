@@ -355,7 +355,7 @@ describe('buildLookupTokens — stage 1 items only', () => {
     expect(gun?.hint).toBe('Props');
     const mary = items.find(t => t.collection === 'elements' && t.itemKey === elementLookupKey('cast', '2'));
     expect(mary?.category).toBe('cast');
-    expect(mary?.label).toBe('MARY');
+    expect(mary?.label).toBe('2. MARY');
     expect(mary?.hint).toBe('Cast');
   });
 

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered, Hash } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import Button from './Button';
 import DropdownMenu from './DropdownMenu';
@@ -18,11 +18,13 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
+import { boardIdOf } from '../lib/elements';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
+import { useBoardIdDisplay } from '../lib/persist';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 
@@ -60,6 +62,10 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const order = orderPrefs.order;
   const setOrder = useCallback((o: BreakdownOrder) => setOrderPrefs({ order: o }), [setOrderPrefs]);
   const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+  /** Board ID display pref (roadmap 321) — Cast only by default; the toggle
+   *  rewrites the closed sheet cells and every picker's closed chip. */
+  const [boardIdDisplay, setBoardIdDisplay] = useBoardIdDisplay();
+  const [idsMenuOpen, setIdsMenuOpen] = useState(false);
   const scriptPane = useScriptPanePref('sheet', phone ? false : undefined);
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
@@ -351,35 +357,35 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, [scene, index, dispatch, orderedScenes.length, onIndexChange]);
 
   const breakdownItems = useMemo(() => {
-    const result: Record<string, { id: string; name: string }[]> = {};
+    const result: Record<string, { id: string; name: string; boardId?: string }[]> = {};
     for (const cat of allBreakdownCats) {
       if (cat === 'notes') continue;
       const isCast = cat === 'cast';
-      const stored: { id: string; name: string }[] = isCast ? castMembers : (breakdownElements[cat] || []);
+      const stored: { id: string; name: string; boardId?: string }[] = isCast ? castMembers : (breakdownElements[cat] || []);
       const nameMap = new Map(stored.map(e => [isCast ? (e.id || e.name).toLowerCase() : e.name.toLowerCase(), e]));
-      const items: { id: string; name: string }[] = [];
-      const addItem = (iid: string, iname: string) => {
+      const items: { id: string; name: string; boardId?: string }[] = [];
+      const addItem = (iid: string, iname: string, boardId?: string) => {
         const k = (iid || iname).toLowerCase();
         if (items.some(i => (i.id || i.name).toLowerCase() === k)) return;
         if (isCast) {
           const nameIdx = items.findIndex(i => i.name.toLowerCase() === iname.toLowerCase());
           if (nameIdx >= 0) {
-            if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname };
+            if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname, boardId: iid };
             return;
           }
         }
-        items.push({ id: iid, name: iname });
+        items.push({ id: iid, name: iname, boardId: boardId || (isCast ? iid : undefined) });
       };
-      for (const e of stored) addItem(e.id || e.name, e.name);
+      for (const e of stored) addItem(e.id || e.name, e.name, isCast ? (e.id || e.name) : boardIdOf(e, cat));
       for (const s of scenes) {
         const raw = isCast ? s.cast : (s as any)[cat] || '';
         for (const v of getFieldItems(cat, raw)) {
-          const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v);
+          const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v, matched ? boardIdOf(matched, cat) : undefined);
         }
       }
       if (scene) {
         const ev = (edits[scene.id] as Record<string, any>)?.[cat];
-        if (ev) for (const v of getFieldItems(cat, ev)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v); }
+        if (ev) for (const v of getFieldItems(cat, ev)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v, matched ? boardIdOf(matched, cat) : undefined); }
       }
       result[cat] = items;
     }
@@ -390,7 +396,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     const sets = new Map<string, string>();
     for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
     (breakdownElements['set'] || []).forEach(e => { const v = e.name.toUpperCase(); if (v) sets.set(v, v); });
-    return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
+    const boardIds = new Map((breakdownElements['set'] || []).map(e => [e.name.toUpperCase(), e.boardId || '']));
+    return [...sets.entries()].map(([id, name]) => ({ id, name, boardId: boardIds.get(name) || undefined })).sort((a, b) => a.id.localeCompare(b.id));
   }, [scenes, breakdownElements]);
 
   const locationItems = useMemo(() => {
@@ -478,6 +485,34 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     </DropdownMenu>
   );
 
+  /** Board ID visibility toggle (roadmap 321) — the pref defaults to Cast
+   *  only; "All elements" brings the 305 numbering back in the sheet/pickers. */
+  const idsMenu = (
+    <DropdownMenu
+      open={idsMenuOpen}
+      onOpenChange={setIdsMenuOpen}
+      width="w-52"
+      theme="light"
+      trigger={
+        <Button title="Board IDs shown in the sheet and element pickers">
+          <Hash className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">{boardIdDisplay === 'all' ? 'IDs: All' : 'IDs: Cast'}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </Button>
+      }
+    >
+      {([['cast', 'Cast only'], ['all', 'All elements']] as const).map(([mode, label]) => (
+        <DropdownItem
+          key={mode}
+          onClick={() => setBoardIdDisplay(mode)}
+          icon={boardIdDisplay === mode ? <Check className="w-3.5 h-3.5" /> : undefined}
+        >
+          {label}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+
   const sheetNav = (
     <>
       <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-[var(--ui-card-band)] transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-[color:var(--ui-text-muted)]" /></button>
@@ -499,6 +534,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     phone ? (
       <>
         {orderMenu}
+        {idsMenu}
         <ToolbarDivider />
         {sheetNav}
         <ToolbarDivider />
@@ -507,6 +543,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     ) : (
       <>
         {orderMenu}
+        {idsMenu}
         <ToolbarDivider />
         {sheetNav}
         <ToolbarDivider />

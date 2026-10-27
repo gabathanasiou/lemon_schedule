@@ -117,7 +117,6 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       className="text-xs"
       displayMode="id"
       anchoredKeys={anchoredKeys}
-      renderItem={(item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
     />
   );
 

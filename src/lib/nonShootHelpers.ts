@@ -1,5 +1,5 @@
 import { NonShootDate } from '../types';
-import { getCategoryElements, elementMatchId } from './elements';
+import { getCategoryElements, elementMatchId, boardIdOf, boardLabelForDisplay } from './elements';
 
 /**
  * Single source of truth for per-date element annotations
@@ -121,12 +121,13 @@ export function isAllKeys(keys: string[]): boolean {
   return keys.length === 1 && keys[0] === NON_SHOOT_ALL;
 }
 
-/** Resolves an element key to a display name (cast → "ID. NAME", others → name). */
+/** Resolves an element key to a display label — cast keeps "N. NAME"
+ *  (roadmap 321; other categories only when the Board ID pref is All). */
 export function resolveElementName(key: string, category: string, project: any): string {
   if (category === 'cast') {
     const el = (project.castMembers || []).find((m: any) => m.id === key);
-    return el ? `${el.id}. ${el.name}` : key;
+    return el ? boardLabelForDisplay(el.id, el.name, 'cast') : key;
   }
   const el = getCategoryElements(project, category).find((e: any) => elementMatchId(e, category) === key);
-  return el?.name || key;
+  return el ? boardLabelForDisplay(boardIdOf(el, category), el.name, category) : key;
 }

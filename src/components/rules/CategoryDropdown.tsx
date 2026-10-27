@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
+import { useRevealRowOnOpen } from '@gabriel/ui-kit';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 
@@ -31,15 +32,14 @@ export const CategoryDropdown: React.FC<{
   const contentRef = useRef<HTMLDivElement>(null);
   const activeIndex = allCategoryKeys.findIndex(k => k.key === value);
 
-  useEffect(() => {
-    if (!open) return;
-    // Scroll the active row into view (the kit's initialHighlightIndex lights
-    // it — no focus stealing).
-    const raf = requestAnimationFrame(() => {
-      contentRef.current?.querySelector(`[data-cat="${value}"]`)?.scrollIntoView({ block: 'nearest' });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [open, value]);
+  // The active category is revealed before the menu paints (the kit's
+  // initialHighlightIndex lights it) and never after the pointer engages —
+  // the shared preselected-surface contract. No rAF: a list that scrolls
+  // after it is visible moves rows out from under a click.
+  const reveal = useRevealRowOnOpen({
+    open,
+    row: () => contentRef.current?.querySelector<HTMLElement>(`[data-cat="${value}"]`) ?? null,
+  });
 
   return (
     <DropdownMenu
@@ -57,7 +57,7 @@ export const CategoryDropdown: React.FC<{
         </button>
       }
     >
-      <div ref={contentRef} className="flex flex-col">
+      <div ref={contentRef} onPointerEnter={reveal.engage} onPointerDown={reveal.engage} className="flex flex-col">
         {allCategoryKeys.map(({ key, isCustom }) => {
           const Icon = isCustom
             ? getCustomIcon(customCategories?.find(c => c.key === key)?.icon || 'Tag')

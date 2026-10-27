@@ -4,6 +4,7 @@ import { formatPageCount } from '../../lib/utils';
 import { DEFAULT_CATEGORY_LABELS } from '../../store';
 import { getFieldItems } from '../../lib/categories';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
+import { boardIdMapFor, boardLabel, compareBoardIds } from '../../lib/elements';
 
 const CSS = `
 ${BASE_PRINT_RESET}
@@ -34,6 +35,8 @@ interface ElementBreakdownProps {
   productionStart?: string;
   nonShootDates?: NonShootDate[];
   castMembers: CastMember[];
+  /** Element registry per category — only the Board ID lookup (roadmap 305). */
+  breakdownElements?: Record<string, { id: string; name: string; boardId?: string }[]>;
   customCategories: CustomCategoryDef[];
   category: string;
 }
@@ -50,10 +53,15 @@ function getElementValues(scene: any, category: string): string[] {
   return getFieldItems(category, raw);
 }
 
-const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows, productionStart, nonShootDates, castMembers, customCategories, category }) => {
+const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows, productionStart, nonShootDates, castMembers, breakdownElements, customCategories, category }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   const catLabel = getCategoryLabel(category, customCategories);
+
+  const boardIds = useMemo(
+    () => boardIdMapFor({ breakdownElements: breakdownElements || {} }, category),
+    [breakdownElements, category],
+  );
 
   const sceneToDay = useMemo(() => {
     const m = new Map<string, number>();
@@ -99,7 +107,12 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
 
     const sceneMap = new Map(scenes.map(s => [s.id, s]));
     return Array.from(elMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => {
+        const ba = boardIds.get(a.toLowerCase());
+        const bb = boardIds.get(b.toLowerCase());
+        if (ba || bb) return ba && bb ? compareBoardIds(ba, bb) || a.localeCompare(b) : (ba ? -1 : 1);
+        return a.localeCompare(b);
+      })
       .map(([key, el]) => {
         const elScenes = (el.sceneIds
           .map(id => sceneMap.get(id))
@@ -115,7 +128,7 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
 
         return { key, name: el.name, scenes: elScenes, totalPages, totalPagesStr: formatPageCount(Math.round(totalPages * 8)) };
       });
-  }, [scenes, category]);
+  }, [scenes, category, boardIds]);
 
   return (
     <div className="eb-root">
@@ -138,7 +151,7 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
                     const cm = castMembers.find(c => c.id === el.name);
                     return cm ? `${el.name}. ${cm.name}` : el.name;
                   })()
-                : el.name}
+                : boardLabel(boardIds.get(el.key.toLowerCase()), el.name)}
             </div>
             <table className="eb-table">
               <thead>

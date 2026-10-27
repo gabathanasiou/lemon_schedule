@@ -2,6 +2,7 @@ import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
 import { canonicalBoardId } from './boardIds';
+import { getBoardIdDisplay } from './persist';
 
 /**
  * Single source of truth for breakdown elements:
@@ -67,6 +68,36 @@ export { nextBoardId, compareBoardIds } from './boardIds';
 /** The category's Board ID for one element — cast's id, else `boardId`. */
 export function boardIdOf(e: { id: string; name?: string; boardId?: string }, category: string): string {
   return isIdKeyed(category) ? String(e.id || '') : String(e.boardId || '');
+}
+
+/** "1. NAME" — the ONE element display label (roadmap 305). Plain name when
+ *  the element has no Board ID. Display only: committed values stay id/name. */
+export function boardLabel(boardId: string | null | undefined, name: string): string {
+  const id = String(boardId ?? '').trim();
+  const label = String(name ?? '');
+  return id ? `${id}. ${label}` : label;
+}
+
+/** Display label for the surfaces that follow the user's Board ID pref
+ *  (roadmap 321 — cast only by default): cast always keeps its number, other
+ *  categories only when the pref is "All elements". Reports/print/DOOD call
+ *  `boardLabel` directly and stay numbered regardless. */
+export function boardLabelForDisplay(boardId: string | null | undefined, name: string, category: string): string {
+  const show = isIdKeyed(category) || getBoardIdDisplay() === 'all';
+  return boardLabel(show ? boardId : undefined, name);
+}
+
+/** Scene-value key (lowercase) → Board ID, built ONCE per display surface
+ *  (DOOD, Element Breakdown, print sheets). Name-keyed categories match
+ *  case-insensitively; unnumbered elements are absent. */
+export function boardIdMapFor(project: any, category: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of getCategoryElements(project, category)) {
+    const key = elementMatchId(e, category).toLowerCase();
+    const id = boardIdOf(e, category);
+    if (key && id) out.set(key, id);
+  }
+  return out;
 }
 
 /** True when `value` is already used by a DIFFERENT element of the category.

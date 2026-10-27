@@ -34,9 +34,10 @@ export const DD_ITEM_BASE = DD_ITEM_BASE_LIB;
 export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
 export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
-import { resolveTypedElementKey } from '../lib/elements';
+import { boardLabel, resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
-import { useKeyboardMode } from '../lib/persist';
+import { useKeyboardMode, useBoardIdDisplay } from '../lib/persist';
+import { revealRowInScroller } from '@gabriel/ui-kit';
 
 export interface EntityItem {
   id: string;
@@ -46,6 +47,10 @@ export interface EntityItem {
   group?: string;
   /** Render as a highlighted TAG (whole-department link rows). */
   accent?: boolean;
+  /** Element categories only: the per-category Board ID (roadmap 305). The
+   *  default renderer prefixes "N. " in name mode and the closed chip reads
+   *  "N. NAME"; it is display-only — commits stay name/id valued. */
+  boardId?: string;
 }
 
 interface EntityDropdownProps {
@@ -288,6 +293,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
    *  precedes focus) is the only reliable "was this the opening click?" test. */
   const openAtMousedownRef = useRef(open);
   const [keyboardMode] = useKeyboardMode();
+  /** Device pref (roadmap 321): name-mode items carry a number unless the user
+   *  chose Cast only. Cast `displayMode="id"` is always numbered. */
+  const [boardIdDisplay] = useBoardIdDisplay();
   const hwKeyboard = useHardwareKeyboard();
   // Who moved the highlight last — pointer hover or the keyboard arrows. The
   // highLighter state is shared, so the latest interaction wins; leaving the
@@ -384,13 +392,16 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     // while the user aims at it). Hover still lights the row via hoverRef.
     if (highlightedIndex < 0 || hoverRef.current || !panelRef.current) return;
     const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
-    if (btn) btn.scrollIntoView({ block: 'nearest' });
+    revealRowInScroller(btn, 'nearest', scrollRef.current);
   }, [highlightedIndex]);
 
   useLayoutEffect(() => {
+    // A picker that holds a value opens ON it: the checked row is revealed
+    // BEFORE the panel's first paint and the list never moves again once the
+    // pointer engages it (the shared preselected-surface contract).
     if (!open || !keepAlphabetical || !panelRef.current) return;
     const checked = panelRef.current.querySelector('[data-checked="true"]') as HTMLElement;
-    if (checked) checked.scrollIntoView({ block: 'nearest' });
+    revealRowInScroller(checked, 'nearest', scrollRef.current);
   }, [open, keepAlphabetical]);
 
   useEffect(() => {
@@ -559,7 +570,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
-      {displayMode === 'id' && <span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span>}
+      {/* Board ID prefix: id mode already carries the number in `id` (cast);
+          name mode reads the element's per-category number (roadmap 305). The
+          PANEL is a lookup surface — it always shows every number; only the
+          closed/committed display follows the Cast-only pref (roadmap 321). */}
+      {(displayMode === 'id' ? item.id : item.boardId) && (
+        <span className="text-[color:var(--ui-text-muted)] shrink-0">{displayMode === 'id' ? item.id : item.boardId}.</span>
+      )}
       <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}</span>
       {showSceneCounts && scenes && (
         <span className="text-[10px] text-[color:var(--ui-text-muted)]">
@@ -618,9 +635,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         : items.find(i => (i.name || i.id) === seg);
       if (!item) return seg;
       if (displayMode === 'id') return `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`;
-      return item.name || item.id;
+      return boardLabel(boardIdDisplay === 'all' ? item.boardId : undefined, item.name || item.id);
     }).filter(Boolean).join(', ');
-  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed]);
+  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed, boardIdDisplay]);
 
   if (readOnly && !open) {
     return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;

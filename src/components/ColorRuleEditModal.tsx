@@ -4,7 +4,7 @@ import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { ColorRule, ColorRuleCondition, ColorOverride, SceneColorEntry, ProjectElement } from '../types';
 import { generateUUID } from '../lib/utils';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
-import { getCategoryElements } from '../lib/elements';
+import { getCategoryElements, boardIdOf, boardLabelForDisplay } from '../lib/elements';
 import { getIntExtOptions, getDayNightOptions, DEFAULT_COLOR_PALETTE, getNoteBannerColors } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
 import Modal, { ModalFooter } from './Modal';
@@ -98,7 +98,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
   const getElementName = useCallback((cat: string, elementId: string): string => {
     const el = getElementsForCategory(cat).find(e => (e.id || e.name) === elementId);
-    return el?.name || elementId;
+    return el ? boardLabelForDisplay(boardIdOf(el, cat), el.name, cat) : elementId;
   }, [getElementsForCategory]);
 
   const addCondition = () => {
