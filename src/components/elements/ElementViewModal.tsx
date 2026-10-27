@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../../store';
-import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS } from '../../lib/categories';
 import { elementKey, elementMatchId } from '../../lib/elements';
-import { ChevronDown, ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import { Seg } from '@gabriel/ui-kit';
-import DropdownMenu from '../DropdownMenu';
-import DropdownItem from '../DropdownItem';
+import { clipTriggerLabel } from '../../lib/searchMenuTrigger';
+import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Seg, SearchMenu, useKitTheme } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPropertiesSection, elementViewOptions } from './ElementPropertiesSection';
@@ -28,51 +28,49 @@ const TAB_OPTIONS = [
   { v: 'events', l: 'Events' },
 ];
 
-function ElementPicker({ options, selectedKey, onSelect }: {
+function ElementPicker({ options, selectedKey, onSelect, groupLabel, groupIcon }: {
   options: { key: string; label: string }[];
   selectedKey: string;
   onSelect: (key: string) => void;
+  groupLabel: string;
+  groupIcon?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const ambient = useKitTheme();
   const i = options.findIndex(o => o.key === selectedKey);
   const selected = i >= 0 ? options[i] : undefined;
   const step = (delta: number) => {
     const next = options[i + delta];
-    if (next) { onSelect(next.key); setOpen(false); }
+    if (next) onSelect(next.key);
   };
+  // Roadmap 318 — the category's elements are the catalogue (one group, every
+  // record open); typing searches names and Board IDs.
+  const items: SearchMenuItem[] = options.map(o => ({ id: o.key, label: o.label, group: 'elements' }));
+  const groups: SearchMenuGroup[] = [{ key: 'elements', label: groupLabel, icon: groupIcon, count: options.length }];
+  const collapsedWidth = 216;
   const arrow = 'p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 disabled:opacity-25 disabled:hover:bg-transparent transition-colors';
   return (
     <div className="flex items-center gap-1" data-element-view-picker>
       <button type="button" onClick={() => step(-1)} disabled={i <= 0} className={arrow} title="Previous element" aria-label="Previous element">
         <ChevronLeft className="w-3.5 h-3.5" />
       </button>
-      <DropdownMenu
-        open={open}
-        onOpenChange={setOpen}
-        onClose={() => setOpen(false)}
-        theme="dark"
-        align="left"
-        width="w-72"
-        trigger={
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            className="inline-flex items-center gap-1.5 max-w-[22rem] px-2 py-1 rounded text-xs font-semibold text-zinc-100 hover:bg-zinc-800 transition-colors"
-          >
-            <span className="truncate">{selected ? selected.label : 'Select element'}</span>
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
-          </button>
-        }
-      >
-        <div className="max-h-72 overflow-y-auto">
-          {options.length === 0 && <div className="px-3 py-2 text-xs text-zinc-500">No elements in this category yet.</div>}
-          {options.map(o => (
-            <DropdownItem key={o.key} selected={o.key === selectedKey} onClick={() => { onSelect(o.key); setOpen(false); }}>
-              {o.label}
-            </DropdownItem>
-          ))}
-        </div>
-      </DropdownMenu>
+      <SearchMenu
+        mode="expandable"
+        theme={ambient?.mode ?? 'dark'}
+        items={items}
+        groups={groups}
+        triggerLabel={clipTriggerLabel(selected ? selected.label : 'Select element', collapsedWidth)}
+        triggerIcon={groupIcon}
+        placeholder="Search elements…"
+        onSelect={item => onSelect(item.id)}
+        browseExpanded
+        groupExpandMode="single"
+        collapsedWidth={collapsedWidth}
+        expandedWidth={260}
+        panelWidth={320}
+        maxMenuHeight={320}
+        emptyTitle={options.length === 0 ? 'No elements in this category yet.' : undefined}
+        emptyHint="Try a name or a Board ID."
+      />
       <button type="button" onClick={() => step(1)} disabled={i < 0 || i >= options.length - 1} className={arrow} title="Next element" aria-label="Next element">
         <ChevronRight className="w-3.5 h-3.5" />
       </button>
@@ -99,6 +97,7 @@ export function ElementViewModal({ category, rowKey, onClose }: {
 
   const selected = options.find(o => o.key === selectedKey);
   const categoryLabel = getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels);
+  const CategoryIcon = CAT_ICONS[category];
   const elementName = selected?.name || selected?.label || '';
   // Link values use `elementMatchId` (cast = Board ID, others = the NAME), NOT
   // the picker's row key (`elementKey` = the element id — which differs after a
@@ -120,7 +119,13 @@ export function ElementViewModal({ category, rowKey, onClose }: {
     >
       <div className="flex flex-col" data-element-view={category}>
         <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-3 border-b border-zinc-800">
-          <ElementPicker options={options} selectedKey={selectedKey} onSelect={setSelectedKey} />
+          <ElementPicker
+            options={options}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+            groupLabel={categoryLabel}
+            groupIcon={CategoryIcon ? <CategoryIcon className="w-3.5 h-3.5" /> : undefined}
+          />
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
             <Users className="w-3 h-3" />
             {categoryLabel}
