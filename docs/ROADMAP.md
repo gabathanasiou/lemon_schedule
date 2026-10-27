@@ -911,6 +911,11 @@ Manager. This pass surfaces it where users read elements: EntityDropdown item
 prefixes, Breakdown Sheet / Element Breakdown print, DOOD, call sheets, report
 ordering and the `dayView` board ID column — the deferred list from 257.
 
+- **Manager search slice (shipped)**: manager search rows now use the
+  board-numbered identity (`1. BOB`) with the cast subtitle as the artiste, and
+  field LABELS are no longer searchable — the old synthetic `"Board ID: n"`
+  subtitle made `board` list every element (`managerSearch.ts`,
+  `managerShell.tsx`, `ElementManager.tsx`).
 - Scope: widen `sortReportElements` (`reportData.ts`, cast-by-id today) to every
   category's `boardId`; `dayView.ts` `boardId` + `reportData.ts`
   `ReportElementCallItem.boardId` (`cat === 'cast' ? key : undefined`); label
