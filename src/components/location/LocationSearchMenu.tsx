@@ -166,6 +166,7 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
           icon: <Plus className="w-3.5 h-3.5" />,
           onClick: (query: string) => onAddNew(query),
         }] : undefined}
+        hideLeadingOnEmpty={newActionFirst && !!onAddNew}
       />
       {value && onClear && (
         <button
