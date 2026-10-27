@@ -259,6 +259,8 @@ test('link manager: typing a brand-new element in a linked row creates it', asyn
   const addRow = page.getByText(/Add "zzz brand new prop"/);
   await expect(addRow).toBeVisible();
   await addRow.click();
+  // Value fields commit on close (one change); Tab commits the typed list.
+  await page.keyboard.press('Tab');
 
   await page.waitForFunction(() => {
     const p = (window as any).__lemonSchedule.getProject();

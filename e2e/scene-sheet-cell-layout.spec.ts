@@ -62,7 +62,7 @@ test.describe('scene sheet entity cell layout (roadmap 95)', () => {
     const boxRect = await castBox(page).boundingBox();
     await page.mouse.click(boxRect!.x + boxRect!.width - 20, boxRect!.y + boxRect!.height - 8);
     await expect(castEditor(page)).toBeFocused();
-    await expect(page.locator('.z-\\[10010\\]')).toBeVisible();
+    await expect(page.locator('#search-menu-panel')).toBeVisible();
 
     // 4. Click-to-position: the click that OPENS the editor parks the caret at
     //    the end (ready to append a segment); while it is already open, a click

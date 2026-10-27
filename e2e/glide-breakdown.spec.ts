@@ -223,22 +223,49 @@ test.describe('Glide Breakdown Tab', () => {
     // §E select-first open — Cast = a11y col 9, row 0 (fresh grid: no drag).
     const input = await openGlideCellEditor(page, { x: castX, y: y0 }, glideCellId(9, 0));
     await input.click(); // open the suggestions panel on the overlay editor
-    await expect(page.locator('.click-outside-ignore')).toBeVisible({ timeout: 4000 });
+    await expect(page.locator('#search-menu-panel')).toBeVisible({ timeout: 4000 });
 
-    const item = page.locator('.click-outside-ignore button:not([data-checked="true"])').first();
+    const item = page.locator('#search-menu-panel [data-search-item]:not([aria-selected="true"])').first();
     const pickId = (await item.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
     expect(pickId).toBeTruthy();
     await item.click();
 
     // Panel stays open (the pick must not leak into the canvas' handlers) …
-    await expect(page.locator('.click-outside-ignore')).toBeVisible();
+    await expect(page.locator('#search-menu-panel')).toBeVisible();
     // … and Enter on the refocused editor input commits the toggled Cast list.
-    await input.click();
+    await input.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('.click-outside-ignore')).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0, { timeout: 4000 });
     await expect.poll(() => page.evaluate(() =>
       (window as any).__lemonSchedule.getProject().scenes[0].cast,
     ), { timeout: 5000 }).toContain(pickId);
+
+    // Keyboard flow on the same cell: Enter opens, arrows pick (keeping the
+    // panel open and RESUMING below the pick), Enter commits.
+    await page.keyboard.press('Enter');
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel).toBeVisible({ timeout: 5000 });
+    await page.keyboard.press('ArrowDown');
+    const first = await panel.locator('.ui-item-highlighted').getAttribute('data-search-item');
+    expect(first).toBeTruthy();
+    await page.keyboard.press('Enter');
+    await expect(panel).toBeVisible();
+    // The open field edits as Board IDs (the closed face resolves names).
+    const openValue = await page.locator('#portal input').first().inputValue();
+    expect(openValue).toContain(`${first}, `);
+    await page.keyboard.press('ArrowDown');
+    const second = await panel.locator('.ui-item-highlighted').getAttribute('data-search-item');
+    expect(second).toBeTruthy();
+    expect(second).not.toBe(first);
+    await page.keyboard.press('Enter');
+    // The pick consumed the highlight — the next Enter commits and closes.
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(panel).toHaveCount(0);
+    const cast = await page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes[0].cast);
+    expect(cast).toContain(first);
+    expect(cast).toContain(second);
   });
 });
 
@@ -374,3 +401,4 @@ test('row filter is display-only, survives collapsing, and restores every row (r
     (window as any).__lemonSchedule.getProject().scenes.map((s: any) => s.id));
   expect(idsAfter).toEqual(idsBefore);
 });
+

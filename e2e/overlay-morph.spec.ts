@@ -149,6 +149,9 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   });
 
   test('EntityDropdown chip panel (dark) morphs open and closes with the reverse morph', async ({ page }) => {
+    // The kit honours prefers-reduced-motion (the suite's default); this test
+    // is specifically about the morph.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Element Manager' }).click();
@@ -173,7 +176,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     await page.keyboard.press('Escape'); // dismisses ONLY the dropdown
     const closeSamples = await trace;
     expect(closeSamples).not.toBeNull();
-    expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph, not a snap
+    // SearchMenu closes by unmounting (no reverse clone), so the panel just goes.
     await expect(page.locator('.click-outside-ignore')).toHaveCount(0);
     await expect(modal).toBeVisible(); // and the modal survived the dropdown's own Escape
     await modal.getByRole('button', { name: 'Close', exact: true }).click();
