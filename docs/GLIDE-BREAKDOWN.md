@@ -139,9 +139,23 @@ a funnel (no accent tint); the expanded field's leading icon matches.
   sheet/script-page numbers, the scene location, unit/sequence, etc. Only
   internal ids and the script-anchored `cutAnchor` are excluded — "everything
   except the actual script". Cast contributes `id name` so the displayed Board
-  ID + performer name both search. Matching is SUBSTRING: `night` also matches
-  a Day scene whose props say "Overnight Bag" (the count reflects every real
-  match; rows never reorder).
+  ID + performer name both search. Rows are never reordered.
+- **Smart tags** (`src/lib/glideFilterVocabulary.ts`): a tag that exactly equals
+  a project value is matched as a **WHOLE WORD**, not a substring. The
+  vocabulary is DERIVED, never a literal list:
+  - Colors: `colorPalette.intExtOptions` / `dayNightOptions` and the scene-colour
+    matrix values (+ any I/E or D/N value actually used on a scene, for legacy
+    imports).
+  - Database: every cast member and breakdown-element name (all categories,
+    including custom ones).
+  - Locations: the Locations DB names.
+  Everything else stays SUBSTRING, so partial names/sets still work. On the
+  seed: `INT` → 77 (the real INT scenes; not the 126 rows "into"/"point" would
+  add), `night` → 77 (not "Overnight"), `day` → 69 (one genuine standalone
+  "day"), while `drug` → 8 (DRUGSTORE) and `main street` → 8 (both sets).
+  Comma tags classify individually, then AND (`int, night` → 36). Crew and
+  Locations Glide keep substring matching — their rows are name lists where
+  partial typing is the point.
 - **Display-only**: `allRows`/`allScenes` still feed Info counts, CSV export
   and the project; the grid indexes the FILTERED list everywhere
   (`rowsRef`/`scenesRef`). Editing, range fill, copy/cut/paste, delete and peer
@@ -160,9 +174,10 @@ a funnel (no accent tint); the expanded field's leading icon matches.
   your matching Glide page mirrors their query (and clears when they clear
   it); typing your own re-syncs on the leader's next view change. Filters never
   enter project data. See `docs/PRESENCE.md` §Follow.
-- **Verify**: `src/lib/__tests__/glideFilter.test.ts` (tags/AND/display values)
-  + `e2e/glide-breakdown.spec.ts` and `e2e/crew-glide.spec.ts` "row filter"
-  cases (counts change, clearing restores, project ids unchanged).
+- **Verify**: `src/lib/__tests__/glideFilter.test.ts` (tags/AND/display values,
+  smart vocabulary + whole-word matching) + `e2e/glide-breakdown.spec.ts` and
+  `e2e/crew-glide.spec.ts` "row filter" cases (counts change, smart term stays
+  below the substring count, clearing restores, project ids unchanged).
 
 ## Peer selection highlights (roadmap 234)
 

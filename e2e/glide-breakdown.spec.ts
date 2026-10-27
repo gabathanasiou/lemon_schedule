@@ -296,7 +296,7 @@ test('row filter is display-only, survives collapsing, and restores every row (r
   await expect(filter.locator('[data-glide-filter-count]')).toHaveCount(0);
 
   // EVERY scene field filters, not just the columns on screen: D/N ("night"
-  // must match every Night scene, plus any other field that contains it) …
+  // must match every Night scene) …
   const dn = await page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
     const counts = new Map<string, number>();
@@ -315,7 +315,38 @@ test('row filter is display-only, survives collapsing, and restores every row (r
     await input.press('Escape');
   }
 
-  // … and fields that are NOT grid columns at all (the scene's Unit).
+  // Smart tags: a palette/database value matches as a WHOLE WORD, so "INT"
+  // collapses to the real I/E scenes instead of every "into"/"point".
+  const smart = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const counts = new Map<string, number>();
+    for (const s of p.scenes || []) {
+      const v = String(s.intExt || '').trim();
+      if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    const [value, fieldCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+    if (!value) return null;
+    const needle = value.toLowerCase();
+    const hay = (s: any) => Object.entries(s)
+      .filter(([k, v]) => !['id', 'ghostOf', 'duplicateOf', 'cutAnchor'].includes(k)
+        && (typeof v === 'string' || typeof v === 'number'))
+      .map(([, v]) => String(v))
+      .join('\n')
+      .toLowerCase();
+    const substringCount = (p.scenes || []).filter((s: any) => hay(s).includes(needle)).length;
+    return { value, fieldCount, substringCount };
+  });
+  if (smart && smart.substringCount > smart.fieldCount) {
+    await trigger.click();
+    await input.fill(smart.value);
+    await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows')))
+      .toBeGreaterThanOrEqual(smart.fieldCount);
+    expect(Number(await grid.getAttribute('data-glide-visible-rows'))).toBeLessThan(smart.substringCount);
+    await input.press('Escape');
+  }
+
+  // … and fields that are NOT grid columns at all (the scene's Unit; a tag
+  // that is not in the smart vocabulary keeps substring matching).
   const hidden = await page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
     const shownCols = ['sceneNumber', 'pageCount', 'scriptDay', 'intExt', 'set', 'dayNight', 'description', 'cast', 'notes'];

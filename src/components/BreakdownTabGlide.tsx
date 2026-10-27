@@ -71,6 +71,7 @@ import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
 import { isWarningSuppressed, suppressWarningFor24h } from '../lib/warnings';
 import { filterGlideRows, sceneFilterValues } from '../lib/glideFilter';
+import { sceneFilterVocabulary } from '../lib/glideFilterVocabulary';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { GlideFilter } from './GlideFilter';
 
@@ -173,12 +174,17 @@ export function GlideBreakdownTab({
     () => new Map((project.castMembers || []).map(m => [m.id, m.name])),
     [project.castMembers],
   );
+  // Smart tags: the project's own I/E + D/N palette, cast/element database,
+  // locations and any legacy scene values. Exact matches are whole words;
+  // everything else stays substring (roadmap 172).
+  const filterVocabulary = useMemo(() => sceneFilterVocabulary(project), [project]);
   const scenes = useMemo(() => filterGlideRows(allScenes, filterQuery, scene =>
     // EVERY scene field, not just the on-screen columns — hidden/custom
     // categories, script-page/sheet numbers and the scene location too; the
     // script fragment is excluded (roadmap 172).
-    sceneFilterValues(scene as unknown as Record<string, unknown>, castNameById)
-  ), [allScenes, filterQuery, castNameById]);
+    sceneFilterValues(scene as unknown as Record<string, unknown>, castNameById),
+    { wholeWordTags: filterVocabulary },
+  ), [allScenes, filterQuery, castNameById, filterVocabulary]);
 
   useEffect(() => {
     localStorage.setItem(`lemon_schedule_glide_cols_${project.id}`, JSON.stringify(columnWidths));

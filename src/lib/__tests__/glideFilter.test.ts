@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { filterGlideRows, sceneFilterValues } from '../glideFilter';
+import { sceneFilterVocabulary } from '../glideFilterVocabulary';
+import type { Project } from '../../types';
 
 interface Row {
   name: string;
@@ -69,7 +71,7 @@ describe('sceneFilterValues (roadmap 172)', () => {
 
   it('collects every scene field, not just the on-screen columns', () => {
     const values = sceneFilterValues(scene, cast);
-    for (const expected of ['12A', '21-24', '2.375', 'Stage 1', 'VisFX Unit', 'Suitcase']) {
+    for (const expected of ['INT', 'NIGHT', '12A', '21-24', '2.375', 'Stage 1', 'VisFX Unit', 'Suitcase']) {
       expect(values).toContain(expected);
     }
   });
@@ -84,5 +86,80 @@ describe('sceneFilterValues (roadmap 172)', () => {
     const values = sceneFilterValues(scene, cast);
     expect(values.some(v => v.includes('uuid'))).toBe(false);
     expect(values).not.toContain('SCRIPT FRAGMENT');
+  });
+});
+
+describe('smart whole-word tags (roadmap 172)', () => {
+  interface SceneRow {
+    name: string;
+    text: string;
+  }
+  const smartRows: SceneRow[] = [
+    { name: 'into', text: 'crash into tree' },
+    { name: 'point', text: 'point' },
+    { name: 'night', text: 'Night shoot' },
+    { name: 'overnight', text: 'Overnight bag' },
+    { name: 'drugstore', text: 'DRUGSTORE' },
+  ];
+  const sceneValues = (r: SceneRow) => [r.text];
+  const wholeWordTags = new Set(['int', 'night', 'day', 'ext', 'd/e']);
+  const names = (query: string) =>
+    filterGlideRows(smartRows, query, sceneValues, { wholeWordTags }).map(r => r.name);
+
+  it('matches a known tag only as a whole word', () => {
+    expect(names('int')).toEqual([]); // not into / point
+    expect(names('night')).toEqual(['night']); // not Overnight
+    expect(names('NIGHT')).toEqual(['night']); // case-insensitive
+    expect(names('day')).toEqual([]); // not birthday
+  });
+
+  it('keeps substring matching for tags that are not in the vocabulary', () => {
+    expect(names('drug')).toEqual(['drugstore']);
+  });
+
+  it('handles punctuation and mixed whole-word / substring tags', () => {
+    const rows: SceneRow[] = [
+      { name: 'd/e', text: 'D/E' },
+      { name: 'int-night', text: 'INT Night' },
+      { name: 'ext-day', text: 'EXT Day' },
+      { name: 'drug-night', text: 'BACK ROOM DRUGSTORE, Night' },
+    ];
+    const pick = (query: string) =>
+      filterGlideRows(rows, query, sceneValues, { wholeWordTags }).map(r => r.name);
+    expect(pick('d/e')).toEqual(['d/e']);
+    expect(pick('int, night')).toEqual(['int-night']);
+    expect(pick('drug, night')).toEqual(['drug-night']);
+  });
+});
+
+describe('sceneFilterVocabulary (roadmap 172)', () => {
+  const project = {
+    colorPalette: {
+      intExtOptions: ['INT', 'EXT', 'D/E'],
+      dayNightOptions: ['DAY', 'Magic Hour'],
+      sceneColors: [{ intExt: 'MORNING', dayNight: 'EVENING' }],
+    },
+    castMembers: [{ id: '1', name: 'GEORGE' }],
+    breakdownElements: {
+      set: [{ id: 's1', name: 'DRUGSTORE' }],
+      props: [{ id: 'p1', name: 'Overnight Bag' }],
+    },
+    locations: [{ id: 'l1', name: 'Stage 1' }],
+    scenes: [{ intExt: 'INT/EXT', dayNight: 'NIGHT' }],
+  } as unknown as Project;
+
+  it('is derived from colors, the element/cast database, locations and scene values', () => {
+    const vocabulary = sceneFilterVocabulary(project);
+    expect([...vocabulary]).toEqual(expect.arrayContaining([
+      // colors
+      'int', 'ext', 'd/e', 'day', 'magic hour', 'morning', 'evening',
+      // database + cast
+      'george', 'drugstore', 'overnight bag',
+      // locations
+      'stage 1',
+      // values actually used on a scene (legacy safety net)
+      'int/ext', 'night',
+    ]));
+    expect(vocabulary.has('')).toBe(false);
   });
 });

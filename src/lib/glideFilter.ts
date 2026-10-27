@@ -7,20 +7,49 @@ import { parseSearchTags } from '@gabriel/ui-kit';
  * its displayed values (case-insensitive), the same AND semantics as the
  * manager search. The filter never touches project data — clearing it restores
  * every row.
+ *
+ * `wholeWordTags` (the "smart" vocabulary — see `sceneFilterVocabulary`) makes
+ * those exact tags match a WHOLE word instead of a substring: `int` stops
+ * matching "into"/"point" and `night` stops matching "Overnight". Any tag not
+ * in the set keeps substring matching, so partial names/sets still work.
  */
+export interface GlideFilterOptions {
+  /** Lowercased tags that must match as whole words. */
+  wholeWordTags?: ReadonlySet<string>;
+}
+
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+
+/** True when `tag` occurs in `haystack` as a complete word/token. */
+function hasWholeWord(haystack: string, tag: string): boolean {
+  let from = 0;
+  while (from <= haystack.length) {
+    const at = haystack.indexOf(tag, from);
+    if (at < 0) return false;
+    const before = at === 0 ? '' : haystack[at - 1];
+    const after = at + tag.length >= haystack.length ? '' : haystack[at + tag.length];
+    if (!WORD_CHAR.test(before) && !WORD_CHAR.test(after)) return true;
+    from = at + 1;
+  }
+  return false;
+}
+
 export function filterGlideRows<T>(
   rows: readonly T[],
   query: string,
   valuesOf: (row: T) => readonly string[],
+  options?: GlideFilterOptions,
 ): T[] {
   const tags = parseSearchTags(query);
   if (tags.length === 0) return rows as T[];
+  const wholeWordTags = options?.wholeWordTags;
   return rows.filter(row => {
     const haystack = valuesOf(row)
       .filter(Boolean)
       .join('\n')
       .toLowerCase();
-    return tags.every(tag => haystack.includes(tag));
+    return tags.every(tag =>
+      wholeWordTags?.has(tag) ? hasWholeWord(haystack, tag) : haystack.includes(tag));
   });
 }
 
