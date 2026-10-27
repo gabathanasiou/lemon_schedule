@@ -685,61 +685,26 @@ set manually per day instead.
   persistence; module is a rule-7 manual pass.
 - **Relations**: 98, 53 (supersedes its nearby-fields part), 109, 146.
 
-## 318. SearchMenu adoption audit — replace eligible controls with the kit SearchMenu (`[~]`)
+## 319. SearchMenu adoption — kit/adapter follow-ups (`[ ]`)
 
-**Request**: audit the app for buttons/pickers that can become the kit
-`SearchMenu` (inline textbox or expandable button→field). Produce a short
-candidate list, then migrate the clear wins; don't force a search where a plain
-select is better.
+**Request**: the SearchMenu audit (318) ruled out the remaining candidates that
+need a kit capability or an adapter. Migrate them when the kit supplies it —
+never fork a second search panel.
 
-- **Shipped (Day Manager)**: master location · Add location · crew Report to
-  (all crew + per department) · Add role (header across all departments +
-  per-department, role categories with available people) → kit `SearchMenu`
-  expandable. ONE adapter `LocationSearchMenu`
-  (`src/components/location/`) replaces the retired `LocationEntityDropdown`;
-  `LocationOption.fields` carries address/place/contact/phone into deep search.
-  Browse modes: **master location = `browseExpanded`** (plain, non-interactive
-  type headers, all attached records open); **all Report-to pickers, Add
-  location and the master Add role = accordion**; **per-department Add role =
-  open** (few roles). Add location's create path is a pinned leading
-  **“New location…”** row (typed text prefills the map), not a separate button;
-  in the no-results state the row hides and the query-aware **“Add “typed”…”**
-  action takes over (`hideLeadingOnEmpty`) so there are never two add rows.
-  Category counts are true totals — a role with only “Add new person…” shows
-  **0**. Kit **v0.1.122-130** supplies `browseExpanded`, `triggerIcon`
-  (**MapPin** on location fields, **Plus** on adders), `leadingActions` /
-  `footerActions`, `hideLeadingOnEmpty`, plain-header rendering that can never
-  look selectable (no hover/pointer/`role=option`/keyboard stop — including
-  during a query), focus retention when a category is clicked, and
-  anchor-resize tracking so the panel opens immediately and follows the
-  button→field morph (no wrong-position snap). **Categories only expand —
-  never add on category click.**
-  Manager jump/flash now uses the kit `searchMenuContent` matcher (single
-  matcher; the duplicate `managerSearch` matcher + its test are gone).
-  Docs: **`docs/SEARCH-MENU.md`** (full manual: model, props, decision table,
-  app map), `UI-PRIMITIVES.md` §SearchMenu (summary),
-  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-130.
-- **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
-  Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
-  spaces, portal target). SearchMenu takes only standalone single-select
-  catalogue cases; don't fork a third panel.
-- **Next (clear wins)**: Key Positions → Assign (crew grouped by department);
-  Element View header element picker (per-category, no search today); Script
-  scene sidebar (scene records: number/set/location/cast); Day Types sidebar;
-  Reports category sidebar (+ popout); Day picker (days grouped by week); nearby
-  hospital/police picker; Trash search.
-- **Later (adapter/kit)**: report field/collection/palette pickers (flatten the
-  grouped submenus); ribbon field palette + Change Field; PeoplePicker (needs
-  async + avatar rows); Add Crew Member role field; version/design/style pickers
-  (keep inline rename/duplicate/delete).
-- **Blocked — do not force**: in-cell EntityDropdown editors (ribbon/Glide/Sheet/
-  crew Person + per-slot Report To/locations grid); multi-select surfaces
-  (Checklists, multi GroupedSelect/EntityDropdown, event filter); async geocoder;
-  free-text cast/set creation (empty actions only cover no-match).
-- **Verify**: lint + full suite (done); Day Manager surfaces are rule-7 manual
-  checks (panel opens, categories expand, picking/changing/clearing persists,
-  add-role adds the person, add location creates from typed text, icons).
-- **Relations**: `follows` **172**; `relates to` **306**, **308**.
+- **Report field / collection / palette pickers** (`reports/ReportPalette.tsx`):
+  flatten the grouped submenus into one searchable catalogue.
+- **Ribbon field palette + Change Field** (`RibbonDesigner`): same flattening.
+- **PeoplePicker** (collaboration): needs an ASYNC source + avatar rows.
+- **Add Crew Member → Role** (`crew/AddCrewMemberModal.tsx`): a full-width form
+  field — the kit trigger is fixed-width (`collapsedWidth`), so it needs a
+  stretch/full-width trigger variant. The role catalogue itself is ready
+  (`crewRoleGroup`/`departmentOrder`).
+- **Version / design / style pickers**: keep inline rename / duplicate / delete.
+
+**Verify**: lint + `npm run test:smart`; every surface is a rule-7 manual check
+(panel opens, search matches, picking applies, cancel keeps the old value).
+**Relations**: `follows` **318** (archived); `blocked by` kit async source /
+avatar rows / full-width trigger.
 
 ## 174. Call Times — label audit (`[ ]`, parked)
 

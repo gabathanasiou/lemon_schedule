@@ -3,6 +3,7 @@ import { Plus, X, MapPin } from 'lucide-react';
 import { SearchMenu, useKitTheme } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { ADD_LOCATION_SENTINEL, type LocationOption } from '../../lib/locationOptions';
+import { clipTriggerLabel } from '../../lib/searchMenuTrigger';
 
 /**
  * The SearchMenu face of every STANDALONE location picker (roadmap 318).
@@ -107,12 +108,9 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
 
   // The kit trigger is a fixed-width button and renders its label unclipped —
   // keep long location names from spilling past the box (the panel shows the
-  // full name). Rough character fit for the 12px label + icon/padding.
+  // full name).
   const triggerLabel = label || placeholder;
-  const fit = Math.max(12, Math.floor((collapsedWidth - 40) / 7));
-  const clippedTriggerLabel = triggerLabel.length > fit
-    ? `${triggerLabel.slice(0, fit - 1)}…`
-    : triggerLabel;
+  const clippedTriggerLabel = clipTriggerLabel(triggerLabel, collapsedWidth);
 
   if (readOnly) {
     return (

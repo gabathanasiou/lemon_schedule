@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, UserRound, FileText } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import { CardSection } from '@gabriel/ui-kit';
+import { CardSection, SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './rules/ruleMeta';
 import { DEFAULT_CATEGORY_LABELS, useProject } from '../store';
@@ -206,6 +207,43 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
 
   const totalItems = sections.reduce((n, s) => n + s.entries.length, 0);
 
+  /** Trash search (roadmap 318): the sections are the categories, the deleted
+   *  records the items. Picking one expands its section, scrolls it into view
+   *  and flashes it — the restore button stays on the row (never auto-restore). */
+  const searchGroups = useMemo<SearchMenuGroup[]>(() => sections.map(section => ({
+    key: section.kind,
+    label: section.label,
+    icon: <span className={section.iconClass}>{section.icon}</span>,
+    count: section.entries.length,
+  })), [sections]);
+  const searchItems = useMemo<SearchMenuItem[]>(() => sections.flatMap(section => section.entries.map(entry => ({
+    id: `${section.kind}::${entry.id}`,
+    label: entry.title,
+    group: section.kind,
+    detail: entry.subtitle,
+  }))), [sections]);
+
+  const [jump, setJump] = useState<{ key: string; nonce: number } | null>(null);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const jumpToTrashEntry = (item: SearchMenuItem) => {
+    const kind = item.id.split('::')[0];
+    setCollapsed(prev => ({ ...prev, [kind]: false }));
+    setJump({ key: item.id, nonce: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!jump || !bodyRef.current) return;
+    const row = Array.from(bodyRef.current.querySelectorAll<HTMLElement>('[data-trash-id]'))
+      .find(el => el.getAttribute('data-trash-id') === jump.key);
+    if (!row) return;
+    row.scrollIntoView({ block: 'center' });
+    setFlashKey(jump.key);
+    const timer = window.setTimeout(() => setFlashKey(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [jump]);
+
   const emptyTrash = async () => {
     const ok = await dialog.confirm({
       title: 'Empty Trash?',
@@ -232,7 +270,20 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
         </ModalFooter>
       }
     >
-      <div className="p-5 space-y-3" inert={locked || undefined}>
+      <div ref={bodyRef} className="p-5 space-y-3" inert={locked || undefined}>
+        {totalItems > 0 && (
+          <SearchMenu
+            mode="inline"
+            theme="dark"
+            items={searchItems}
+            groups={searchGroups}
+            onSelect={jumpToTrashEntry}
+            expandableGroups
+            groupExpandMode="single"
+            placeholder="Search trash…"
+            emptyHint="Try a name, a category or a date."
+          />
+        )}
         <p className="text-[11px] text-zinc-500">Items expire after 30 days</p>
         {totalItems === 0 ? (
           <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
@@ -248,7 +299,12 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
               dataProps={{ 'data-trash-section': section.kind }}
             >
               {section.entries.map(entry => (
-                <div key={entry.id} className="flex items-center justify-between px-3 py-2 rounded hover:bg-zinc-800/60 group" data-trash-item={section.kind}>
+                <div
+                  key={entry.id}
+                  data-trash-item={section.kind}
+                  data-trash-id={`${section.kind}::${entry.id}`}
+                  className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${flashKey === `${section.kind}::${entry.id}` ? 'bg-red-500/20 ring-1 ring-red-500/50' : 'hover:bg-zinc-800/60'}`}
+                >
                   <div className="min-w-0">
                     <div className="text-white text-sm font-semibold truncate">{entry.title}</div>
                     <div className="text-zinc-500 text-[11px] mt-0.5">{entry.subtitle}</div>

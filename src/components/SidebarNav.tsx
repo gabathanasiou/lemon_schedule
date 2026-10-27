@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
 import { inputCls, SearchMenu } from '@gabriel/ui-kit';
-import type { SearchMenuItem } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { MT_TITLE, MT_ROW, useManagerTableSizes } from '../lib/managerTable';
 import { usePaneResize } from '../lib/usePaneResize';
 import type { ManagerSearchHit } from '../lib/managerSearch';
@@ -39,6 +39,13 @@ interface SidebarNavProps {
   /** Roadmap 172 — records for the kit SearchMenu (deep manager search). */
   searchItems?: SearchMenuItem[];
   onSearchSelect?: (hit: ManagerSearchHit, query: string) => void;
+  /** Category registry for the search panel. Defaults to one category per
+   *  sidebar row (the managers). Pass `[]` for record search with no browse
+   *  categories — the Script scene list, where every row is a record. */
+  searchGroups?: SearchMenuGroup[];
+  /** Open the search panel on focus (the default) or only once a query is
+   *  typed. Record-only lists use `false` (an empty browse panel is noise). */
+  searchOpenOnFocus?: boolean;
 }
 
 const SIDEBAR_MIN_W = 200;
@@ -52,7 +59,7 @@ const SIDEBAR_MAX_W = 560;
  *
  *  With `searchItems` the box is the kit `SearchMenu` (inline mode): type to
  *  search records, or browse categories with expandable tree rows. */
-export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false, searchItems, onSearchSelect }: SidebarNavProps) {
+export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false, searchItems, onSearchSelect, searchGroups: searchGroupsProp, searchOpenOnFocus }: SidebarNavProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +79,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
   // Deep search lives in the menu; the sidebar list stays the full list.
   const filtered = searchItems ? rows : (searching ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows);
 
-  const searchGroups = useMemo(() => rows.map(row => {
+  const rowGroups = useMemo(() => rows.map(row => {
     const Icon = row.icon;
     return {
       key: row.key,
@@ -81,6 +88,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
       icon: Icon ? <Icon className="w-3.5 h-3.5" /> : undefined,
     };
   }), [rows]);
+  const searchGroups = searchGroupsProp ?? rowGroups;
 
   const handleSearchSelect = (item: SearchMenuItem) => {
     const parts = item.id.split('::');
@@ -143,6 +151,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
               onClose={() => setSearchQuery('')}
               expandableGroups
               groupExpandMode="single"
+              openOnFocus={searchOpenOnFocus}
               placeholder={`Search ${title.toLowerCase()} and records…`}
               panelWidth={Math.min(380, Math.max(288, w - 24))}
             />

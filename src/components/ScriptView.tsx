@@ -10,6 +10,7 @@ import { EighthsRuler } from './script/EighthsRuler';
 import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { IS_COARSE } from '../lib/device';
@@ -44,6 +45,8 @@ const READ_LINE_HEIGHT = 15 * 1.7;
 const SCROLL_KEY = 'lemon_schedule_script_scroll';
 /** Stable empty prop so a memoized scene doesn't re-render on identity churn. */
 const NO_ANNOTATIONS: ScriptAnnotation[] = [];
+/** Stable empty category list — the scene picker searches records only. */
+const NO_SCENE_GROUPS: SearchMenuGroup[] = [];
 
 const headingText = (scene: ScriptScene) => scene.blocks.find(b => b[0] === 'heading')?.[1] || '';
 
@@ -255,6 +258,38 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       };
     });
   }, [doc, sceneByIdentity, projectScenes]);
+
+  const castNameById = useMemo(
+    () => new Map((project.castMembers || []).map(m => [String(m.id), m.name])),
+    [project.castMembers],
+  );
+
+  /** Deep scene search (roadmap 318): the sidebar's picker searches the scene
+   *  RECORD — number + heading (the label), set, location and cast — never the
+   *  screenplay body (the header's "Search script" box owns that). */
+  const navSearchItems = useMemo<SearchMenuItem[]>(() => {
+    if (!doc) return [];
+    return navRows.map((row, i) => {
+      const live = sceneByIdentity.get(normalizeSceneNumber(doc.scenes[i]?.sceneNumber ?? ''));
+      const liveScene = live ? projectScenes[live.index] : undefined;
+      // Cast stores Board IDs — search the names people know (fall back to the
+      // stored token so an unmatched id stays findable).
+      const cast = (liveScene?.cast || '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(id => castNameById.get(id) || id);
+      return {
+        id: row.key,
+        label: row.label,
+        fields: [
+          { label: 'Set', value: liveScene?.set || '' },
+          { label: 'Location', value: liveScene?.location || '' },
+          { label: 'Cast', value: cast.join(', ') },
+        ],
+      };
+    });
+  }, [doc, navRows, sceneByIdentity, projectScenes, castNameById]);
 
   const q = query.trim();
   const matches = useMemo(() => {
@@ -564,6 +599,10 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         rows={navRows}
         activeKey={String(activeIndex)}
         onSelect={key => { follow.noteUserChange(); jumpTo(Number(key)); }}
+        searchItems={navSearchItems}
+        searchGroups={NO_SCENE_GROUPS}
+        searchOpenOnFocus={false}
+        onSearchSelect={hit => { follow.noteUserChange(); jumpTo(Number(hit.rowKey)); }}
         resizable
         wrapRows
         width={sidebarPref.width}

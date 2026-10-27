@@ -133,6 +133,25 @@ set together: chevrons + groups start open.
 focus from the text field (`onMouseDown` is prevented), so you can click
 “Camera”, then keep typing to filter; Escape still closes.
 
+### 4b. Value fields — `browseAll` + `selectedId`
+
+A **value field** (the picker shows the record the form already holds) is a
+single-kind catalogue: timezones, one element category, a day. There is nothing
+to categorise, and a header would only repeat the trigger. Two props make that
+case first-class:
+
+| Prop | Behaviour |
+|---|---|
+| `browseAll` | An empty query lists **every record flat** — no category rows, no “Type to search…” gate. Querying still groups hits when `groups` is passed. |
+| `selectedId` | That record renders with the `ui-item-selected` tint **and a check**; opening the panel scrolls to it and the keyboard highlight **starts on it** (so ↓ moves to the next record instead of jumping to the top). Purely visual — the caller still owns the value and commits via `onSelect`. |
+
+Scroll rules (both `selectedId` and keyboard navigation): only the panel's own
+`[data-search-scroller]` moves. Never call `scrollIntoView` — it also scrolls
+the page/modal (Safari especially) and moves the list under the pointer while
+the user is clicking. Pointer hover never scrolls; arrows keep the highlighted
+row in view. App use: the Element View header picker and the Production Details
+timezone.
+
 ## 5. Search semantics
 
 - The query is **comma-separated tags, ANDed**: `roy, 555` keeps a record only
@@ -175,6 +194,10 @@ leading row returns.
 `renderEmpty` replaces the title/hint body; the action rows still render below
 it. The adapter's location menu uses a map-pin empty body plus “Add “…”“”.
 
+The kit's **`DropdownMenu`** searchable mode (in-panel box, or the trigger
+field itself as the search box) has its own `No matches for “…”` state — a
+search that hides every row must never render as a blank panel.
+
 ## 8. Keyboard and focus
 
 - The text field owns the keyboard. ↑/↓ move the highlight through actionable
@@ -182,7 +205,8 @@ it. The adapter's location menu uses a map-pin empty body plus “Add “…”�
 - **→ / ←** expand / collapse a focused category in accordion browse.
 - **Enter** activates the highlighted row (a record, category, or action).
   Opening a picker highlights the first list row — not the pinned create action
-  — so Enter cannot create a record by accident.
+  — so Enter cannot create a record by accident. With `selectedId` it
+  highlights **the current value** instead (§4b).
 - **Escape** closes (via the field); clicking a category keeps the field
   focused, so Escape still works.
 - When `closeOnSelect` is true, picking a record/action closes the surface and

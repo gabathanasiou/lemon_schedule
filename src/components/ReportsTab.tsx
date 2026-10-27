@@ -1,21 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useProject, getElementsFromScenes } from '../store';
-import { CustomCategoryDef } from '../types';
-import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
+import { useProject } from '../store';
+import { ELEMENT_CATEGORIES } from '../lib/categories';
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
-import { PanelLeftOpen, PanelLeftClose, Printer, GanttChart, Layers } from 'lucide-react';
+import { Printer, GanttChart, Layers } from 'lucide-react';
 import PageToolbar from './PageToolbar';
 import Button from './Button';
 import { PopoutPlaceholder } from './PopoutWindow';
-
-function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
-  const builtin: Record<string, string> = {};
-  for (const c of ELEMENT_CATEGORIES) builtin[c.key] = c.label;
-  if (builtin[key]) return builtin[key];
-  const custom = customCategories.find(c => c.key === key);
-  return custom?.label || key;
-}
+import { ReportCategorySidebar } from './reports/ReportCategorySidebar';
 
 interface ReportsTabProps {
   subTab: 'doods' | 'elementBreakdown';
@@ -78,67 +70,14 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0">
-        {sidebarCollapsed ? (
-          <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
-            <button
-              onClick={() => setSidebarCollapsed(false)}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Expand sidebar"
-            >
-              <PanelLeftOpen className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
-                <button
-                  onClick={() => setSidebarCollapsed(true)}
-                  className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                  title="Collapse sidebar"
-                >
-                  <PanelLeftClose className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="space-y-0.5">
-              {allCategoryKeys.map(({ key, isCustom }) => {
-                const Icon = isCustom
-                  ? getCustomIcon((project.customCategories || []).find(c => c.key === key)?.icon || 'Tag')
-                  : CAT_ICONS[key] || null;
-                const isActive = key === selectedCategory;
-                const label = isCustom
-                  ? (project.customCategories || []).find(c => c.key === key)?.label || key
-                  : getLabel(key, getCategoryLabel(key, project.customCategories || []), project.categoryLabels);
-
-                let count = 0;
-                if (key === 'cast') {
-                  count = project.castMembers?.length || 0;
-                } else {
-                  const stored = (project.breakdownElements || {})[key] || [];
-                  const sceneElems = getElementsFromScenes(project.scenes, key);
-                  const merged = new Map<string, boolean>();
-                  for (const e of stored) merged.set((e.id || e.name).toLowerCase(), true);
-                  for (const e of sceneElems) merged.set((e.id || e.name).toLowerCase(), true);
-                  count = merged.size;
-                }
-
-                return (
-                  <button
-                    key={key}
-                    onClick={() => onCategoryChange(key)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${isActive ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'}`}
-                  >
-                    {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                    <span className="truncate flex-1">{label}</span>
-                    <span className="text-[10px] text-zinc-600">{count || ''}</span>
-                  </button>
-                );
-              })}
-              </div>
-            </div>
-          </aside>
-        )}
+        <ReportCategorySidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={setSidebarCollapsed}
+          keys={allCategoryKeys}
+          selected={selectedCategory}
+          onSelect={onCategoryChange}
+          project={project}
+        />
 
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {subTab === 'doods' ? (

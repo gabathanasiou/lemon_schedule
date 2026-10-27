@@ -261,6 +261,29 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   Current map: master location = `browse="open"`; **all Report-to pickers = `browse="accordion"`**;
   Add location = accordion + `newActionFirst`; master Add role = accordion; per-department Add
   role = open (plain role headers, count 0 when only “Add new person…”).
+  **Trigger fit**: `clipTriggerLabel` (`src/lib/searchMenuTrigger.ts`) fits a long record
+  name to the collapsed width — use it for every expandable trigger, never re-derive the
+  formula.
+  **Value-field pickers**: `browseAll` (flat list on open, no category rows) + `selectedId`
+  (the current record tinted + checked, the panel opens scrolled to it, the keyboard starts
+  there) — kit 0.1.129-134; used by the Element View header picker and the Production
+  Details timezone. Row scrolling uses the panel's own scroller, never `scrollIntoView`
+  (that also scrolls the page/modal in Safari and moves the list under the pointer).
+  **Adoption audit (318)**: Key Positions → Assign (crew grouped by department), the
+  Element View header picker, the Production Details timezone, the Script scene sidebar
+  (scene records — number/set/location/cast, jumping the script) and Trash (sections as
+  categories; picking expands + flashes the row, restore stays a click) are SearchMenu.
+  Audited and deliberately KEPT plain: **Day Types sidebar** (a 3-10 row registry — the
+  plain filter is enough), **Reports category sidebar** (a category navigator, not a record
+  picker; its main-window/popout copies are ONE component,
+  `reports/ReportCategorySidebar.tsx`), the **day picker** (prev/next stepper is the primary
+  control; the list already groups by week + scrolls to the current day) and the **nearby
+  hospital/police** fields (in-cell `EntityDropdown`; item 171 deletes them). Kit-dependent
+  leftovers → roadmap **319**.
+  **Searchable menus need a no-match state**: the kit `DropdownMenu` renders
+  `No matches for “…”` when a searchable query hides every row (in-panel box and
+  trigger-as-search). **Theme gotcha**: a component calling `useKitTheme()` ABOVE its own
+  `<Modal>` reads the PAGE theme — pass the modal's theme explicitly.
 - **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs into the
   kit input and keeps its term when collapsed (unlike SearchMenu's clear-on-close), Escape
   clears, click-away collapses. Pass `triggerLabel` / `triggerIcon` to name the active term

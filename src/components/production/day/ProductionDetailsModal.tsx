@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { ChevronDown, Info, Plus, UserPlus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown, Globe, Info, Plus, UserPlus } from 'lucide-react';
+import { SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { useProject } from '../../../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../../../lib/utils';
 import { useDaybreakSections } from '../../../lib/useDaybreakSections';
@@ -8,12 +10,14 @@ import Modal, { ModalFooter } from '../../Modal';
 import ModalFooterButton from '../../ModalFooterButton';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
-import DropdownDivider from '../../DropdownDivider';
 import { CommitInput } from '../../CommitInput';
+import { useDialog } from '../../Dialog';
 import DateField from '../../DateField';
-import Button from '../../Button';
 import { initialViewFor } from '../../calendar/calendarUtils';
 import { ruleModalSizes } from '../../rules/ColorRuleFormParts';
+import { clipTriggerLabel } from '../../../lib/searchMenuTrigger';
+import { crewRoleGroup } from '../../../lib/crewCatalog';
+import { departmentOrder } from '../../../lib/dayCrew';
 import type { CrewPerson } from '../../../types';
 
 /**
@@ -30,6 +34,9 @@ const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'firstAD', label: '1st AD' },
   { key: 'upm', label: 'UPM' },
 ];
+
+/** Timezone catalogue for the SearchMenu picker (flat — no categories). */
+const TIMEZONE_ITEMS: SearchMenuItem[] = COMMON_TIMEZONES.map(tz => ({ id: tz, label: tz }));
 
 const DETAIL_FIELDS: { key: string; label: string }[] = [
   { key: 'company', label: 'Production Company' },
@@ -63,6 +70,7 @@ const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: bo
 
 export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { state, dispatch, locked } = useProject();
+  const dialog = useDialog();
   const project = state.present;
   const sizes = ruleModalSizes();
   const { CREM_LABEL, CREM_TEXT, CREM_BODY } = sizes;
@@ -79,11 +87,16 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
     for (const p of crew[role.key] || []) allPeople.push({ person: p, role: role.key });
   }
 
+  // Assign catalogue (roadmap 318): every person on the crew is a record, the
+  // departments are the categories — `departmentOrder`'s ordering, the same one
+  // the Crew surfaces use (never a local sort).
+  const depts = useMemo(() => departmentOrder(project), [project]);
+  const deptOfRole = useMemo(() => new Map(crewRoles.map(r => [r.key, crewRoleGroup(r)])), [crewRoles]);
+
   const wrapDate = React.useMemo(() => {
     const last = productionSections[productionSections.length - 1];
     return last ? formatDateShort(last.date) : '';
   }, [productionSections]);
-  const [addingName, setAddingName] = useState<{ role: string } | null>(null);
   const [tzOpen, setTzOpen] = useState(false);
 
   const commitInfo = (patch: Record<string, string>) => dispatch({ type: 'SET_PRODUCTION_INFO', payload: patch });
@@ -92,6 +105,11 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
     const trimmed = name.trim();
     if (!trimmed) return;
     dispatch({ type: 'ADD_CREW_PERSON', payload: { role, person: { id: generateUUID(), name: trimmed } } });
+  };
+
+  const addPersonPrompt = async (role: string) => {
+    const name = await dialog.prompt({ title: 'Add person', placeholder: 'Full name' });
+    if (name) addPersonToRole(role, name);
   };
 
   const movePersonToRole = (person: CrewPerson, fromRole: string, toRole: string) => {
@@ -180,23 +198,22 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 {locked ? (
                   <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>{productionInfo.timezone || '—'}</span>
                 ) : (
-                  <Menu
-                    width="w-72"
-                    searchable
-                    searchPlaceholder="Search timezones…"
-                    trigger={
-                      <button type="button" className={PICKER_TRIGGER}>
-                        <span className="truncate">{productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`}</span>
-                        <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-                      </button>
-                    }
-                  >
-                    {COMMON_TIMEZONES.map(tz => (
-                      <DropdownItem key={tz} selected={productionInfo.timezone === tz} onClick={() => commitInfo({ timezone: tz })}>
-                        {tz}
-                      </DropdownItem>
-                    ))}
-                  </Menu>
+                  <SearchMenu
+                    mode="expandable"
+                    theme="dark"
+                    items={TIMEZONE_ITEMS}
+                    triggerLabel={clipTriggerLabel(productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`, 190)}
+                    triggerIcon={<Globe className="w-3.5 h-3.5" />}
+                    placeholder="Search timezones…"
+                    onSelect={item => commitInfo({ timezone: item.id })}
+                    browseAll
+                    selectedId={productionInfo.timezone || ''}
+                    collapsedWidth={190}
+                    expandedWidth={240}
+                    panelWidth={280}
+                    maxMenuHeight={320}
+                    emptyHint="Try a city or region — London, New York, Asia."
+                  />
                 )}
               </div>
               <span className="text-[10px] text-[color:var(--ui-text-faint)] w-32 shrink-0 text-right">Sunrise / sunset &amp; weather</span>
@@ -212,6 +229,27 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
             {KEY_POSITIONS.map(kp => {
               const people = crew[kp.key] || [];
               const candidates = allPeople.filter(a => a.role !== kp.key);
+              // Department buckets (roadmap 318) — the crew catalogue's own
+              // grouping, ordered by `departmentOrder`.
+              const counts = new Map<string, number>();
+              const items: SearchMenuItem[] = candidates.map(a => {
+                const group = deptOfRole.get(a.role) || 'Other';
+                counts.set(group, (counts.get(group) || 0) + 1);
+                return {
+                  id: a.person.id,
+                  label: a.person.name,
+                  group,
+                  detail: roleLabel(a.role),
+                  fields: [
+                    { label: 'Role', value: roleLabel(a.role) },
+                    { label: 'Phone', value: a.person.phone || '' },
+                    { label: 'Email', value: a.person.email || '' },
+                  ],
+                };
+              });
+              const groups: SearchMenuGroup[] = depts
+                .filter(d => counts.has(d))
+                .map(d => ({ key: d, label: d, count: counts.get(d) }));
               return (
                 <div key={kp.key} className="flex items-center gap-3 rounded border border-[color:var(--ui-border)] bg-[var(--ui-card-band)] px-3 py-2">
                   <span className={`${CREM_LABEL} text-[color:var(--ui-text)] w-40 shrink-0 font-medium`}>{kp.label}</span>
@@ -219,33 +257,32 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                     {people.length > 0 ? people.map((p: CrewPerson) => p.name).join(', ') : '— unassigned —'}
                   </span>
                   {!locked && (
-                    <Menu
-                      onClose={() => setAddingName(null)}
-                      trigger={
-                        <Button variant="subtle" type="button" className="gap-1">
-                          <UserPlus className="w-3.5 h-3.5" /> Assign
-                          <ChevronDown className="w-3 h-3" />
-                        </Button>
-                      }
-                    >
-                      {candidates.map(a => (
-                        <DropdownItem key={a.person.id} onClick={() => movePersonToRole(a.person, a.role, kp.key)}>
-                          {a.person.name} <span className="text-[color:var(--ui-text-faint)]">({roleLabel(a.role)})</span>
-                        </DropdownItem>
-                      ))}
-                      {candidates.length > 0 && <DropdownDivider />}
-                      <DropdownItem onClick={() => setAddingName({ role: kp.key })} icon={<Plus className="w-3.5 h-3.5" />}>
-                        Add new person…
-                      </DropdownItem>
-                    </Menu>
-                  )}
-                  {addingName?.role === kp.key && (
-                    <CommitInput
-                      value=""
-                      onCommit={v => { addPersonToRole(kp.key, v); setAddingName(null); }}
-                      readOnly={locked}
-                      placeholder="Name"
-                      className={`${INPUT_CLS} w-40`}
+                    <SearchMenu
+                      mode="expandable"
+                      theme="dark"
+                      items={items}
+                      groups={groups}
+                      triggerLabel="Assign"
+                      triggerIcon={<UserPlus className="w-3.5 h-3.5" />}
+                      placeholder="Search crew…"
+                      onSelect={item => {
+                        const hit = candidates.find(a => a.person.id === item.id);
+                        if (hit) movePersonToRole(hit.person, hit.role, kp.key);
+                      }}
+                      expandableGroups
+                      groupExpandMode="single"
+                      collapsedWidth={104}
+                      expandedWidth={220}
+                      panelWidth={300}
+                      emptyHint="Try a name, role, phone or department — or add a new person."
+                      emptyActions={[{
+                        label: (query: string) => query.trim() ? `Add “${query.trim()}”…` : 'Add new person…',
+                        icon: <Plus className="w-3.5 h-3.5" />,
+                        onClick: (query: string) => {
+                          if (query.trim()) addPersonToRole(kp.key, query);
+                          else void addPersonPrompt(kp.key);
+                        },
+                      }]}
                     />
                   )}
                 </div>
