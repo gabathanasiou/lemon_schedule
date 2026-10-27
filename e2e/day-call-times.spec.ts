@@ -76,14 +76,15 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(page.getByRole('menuitem').first()).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Multi-select stage dropdown (GroupedSelect → kit searchable menu) toggles a stage off cast.
-    await castRow.getByRole('button').first().click();
-    await page.locator('[data-ei]').filter({ hasText: /^Pickup$/ }).click();
+    // Multi-select stage dropdown (GroupedSelect → shared PickerField) toggles
+    // a stage off cast; clicking away commits the draft.
+    await castRow.locator('[data-picker-field] input').click();
+    await page.locator('[data-search-item]').filter({ hasText: /^Pickup$/ }).click();
+    await modal.getByRole('heading', { name: 'Call Times' }).click();
     await expect.poll(() => page.evaluate(() => {
       const p = (window as any).__lemonSchedule.getProject();
       return (p.productionInfo?.callTimes?.categoryStages?.cast || []).includes('pickup');
     }), { timeout: 4000 }).toBe(false);
-    await page.keyboard.press('Escape');
 
     // Removing a non-cast default stores an explicit empty list -> the row
     // disappears (it falls back to the DOOD + first-scene grid on the day).

@@ -41,13 +41,16 @@ test('positions: defaults ship and toggling a category persists', async ({ page 
 
   // Defaults: Makeup maps to the Makeup & Hair element category.
   const makeupRow = modal.locator('[data-position="makeup"]');
+  const categories = makeupRow.locator('[data-picker-field] input');
   await expect(makeupRow).toBeVisible();
-  await expect(makeupRow.getByRole('button')).toContainText('Makeup & Hair');
+  await expect(categories).toHaveValue('Makeup & Hair');
 
-  // Toggle Props on — the mapping is stored explicitly on the role.
-  await makeupRow.getByRole('button').click();
-  await page.locator('[data-ei]').filter({ hasText: /^Props$/ }).click();
-  await expect(makeupRow.getByRole('button')).toContainText('Props');
+  // Toggle Props on — the mapping is stored explicitly on the role when the
+  // picker closes (value fields commit on close, Escape cancels the draft).
+  await categories.click();
+  await page.locator('[data-search-item="props"]').click();
+  await modal.getByRole('heading', { name: 'Crew Links' }).click();
+  await expect(categories).toHaveValue(/Props/);
   await expect.poll(() => page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
     return (p.crewRoles.find((r: any) => r.key === 'makeup') || {}).categories || null;
@@ -87,9 +90,11 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   await emModal.getByRole('tab', { name: 'Links' }).click();
   const crewRow = emModal.locator('[data-link-row="crew"]');
   await expect(crewRow).toContainText('ZZZ ALPHA');
-  // Grouped crew picker (names, grouped by department) — untick the person.
-  await crewRow.getByRole('button', { name: 'ZZZ ALPHA' }).click();
-  await page.locator('[data-ei]').filter({ hasText: 'ZZZ ALPHA' }).click();
+  // Grouped crew picker (names, grouped by department) — untick the person,
+  // then click away to commit the draft.
+  await crewRow.locator('[data-picker-field] input').click();
+  await page.locator('[data-search-item]').filter({ hasText: 'ZZZ ALPHA' }).click();
+  await emModal.getByRole('tab', { name: 'Links' }).click();
   await expect.poll(() => page.evaluate(() =>
     ((window as any).__lemonSchedule.getProject().links || []).some((l: any) => l.id === 'zzz-cl-1'),
   )).toBe(false);

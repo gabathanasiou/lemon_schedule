@@ -1,15 +1,15 @@
-import React, { useMemo, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
-import { DropdownMenu, DropdownItem, useKitTheme } from '@gabriel/ui-kit';
-import { DD_TOKEN_TRIGGER_CLASS } from '../../../lib/dropdown';
+import React, { useMemo } from 'react';
+import { PickerField, useKitTheme, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
 
 /**
  * Light/dark grouped selection picker (locations by type, crew by department,
- * a position's element categories). The panel is the kit `DropdownMenu`:
- * `DropdownItem group=…` renders the category headers in plain AND searchable
- * modes, and the search box matches both the row label and its category — so
- * typing "set" keeps the whole Set group. The kit owns positioning, flip,
- * touch dismissal and coarse sizing.
+ * a position's element categories) — a thin adapter over the shared
+ * `PickerField` (roadmap 322). The kit owns the panel, the grouped catalogue,
+ * the search box that matches both the row label and its category, selection,
+ * positioning, flip, touch dismissal and coarse sizing.
+ *
+ * Value fields commit on close (one change, one undo entry); single selects
+ * commit on pick. There is no second picker implementation.
  */
 export interface GroupedSelectItem {
   id: string;
@@ -31,19 +31,10 @@ export interface GroupedSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  /** Force a trigger/menu mode; omitted = the ambient kit theme (a dark modal
+  /** Force a trigger/menu theme; omitted = the ambient kit theme (a dark modal
    *  stays dark, the light Day Manager stays light). */
   theme?: 'light' | 'dark';
-  /** Search input in the panel (default true). Category labels are searchable. */
-  searchable?: boolean;
-  searchPlaceholder?: string;
 }
-
-const TRIGGER_CLS = 'flex w-full items-center justify-between gap-2 rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-input-focus-border)] focus:ring-1 focus:ring-[color:var(--ui-accent-focus)] disabled:opacity-50';
-/* Legacy light trigger for an un-scoped caller (tokens would fall back to the
-   :root dark values). An ambient kit scope covers every current usage. */
-const TRIGGER_CLS_LEGACY = 'flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
-const TRIGGER_CLS_DARK = `flex w-full items-center justify-between gap-2 ${DD_TOKEN_TRIGGER_CLASS} text-xs`;
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   items,
@@ -54,87 +45,56 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   className = '',
   disabled,
   theme,
-  searchable = true,
-  searchPlaceholder = 'Search…',
 }) => {
   const ambient = useKitTheme();
-  const resolvedMode = theme ?? ambient?.mode ?? 'light';
-  const dark = resolvedMode === 'dark';
-  const tokenized = !!ambient;
-  const [open, setOpen] = useState(false);
+  const dark = (theme ?? ambient?.mode ?? 'light') === 'dark';
+
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
   const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
-  const tagById = useMemo(() => new Set(items.filter(i => i.tag).map(i => i.id)), [items]);
 
-  const label = (() => {
-    const picked = items.filter(i => selectedIds.includes(i.id));
-    if (picked.length === 0) return '';
-    if (mode === 'single') return picked[0]?.name || '';
-    return picked.map(p => p.name).join(', ');
-  })();
+  const pickerItems = useMemo<PickerItem[]>(() => items.map(item => ({
+    id: item.id,
+    label: item.name,
+    group: item.group,
+    rowClassName: item.tag
+      ? (dark ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'bg-amber-50 hover:bg-amber-100')
+      : undefined,
+  })), [items, dark]);
 
-  const toggle = (item: GroupedSelectItem) => {
-    const selected = selectedIds.includes(item.id);
-    if (mode === 'single') {
-      onChange(selected ? [] : [item.id]);
-      setOpen(false);
-    } else {
-      onChange(selected ? selectedIds.filter(id => id !== item.id) : [...selectedIds, item.id]);
+  /* Group headers follow the item order; the kit searches the label AND the
+     group name, so typing a type keeps its whole section. */
+  const groups = useMemo<SearchMenuGroup[]>(() => {
+    const seen = new Map<string, number>();
+    for (const item of items) {
+      if (!item.group) continue;
+      seen.set(item.group, (seen.get(item.group) ?? 0) + 1);
     }
-  };
-
-  const initialHighlightIndex = (() => {
-    if (selectedIds.length === 0) return -1;
-    return Math.max(0, items.findIndex(i => selectedIds.includes(i.id)));
-  })();
+    return [...seen].map(([key, count]) => ({ key, label: key, count }));
+  }, [items]);
 
   return (
-    <div className={className}>
-      <DropdownMenu
-        open={open}
-        onOpenChange={setOpen}
-        theme={theme}
-        width="w-72"
-        searchable={searchable}
-        searchPlaceholder={searchPlaceholder}
-        initialHighlightIndex={initialHighlightIndex}
-        trigger={
-          <button
-            type="button"
-            disabled={disabled}
-            className={dark ? TRIGGER_CLS_DARK : tokenized ? TRIGGER_CLS : TRIGGER_CLS_LEGACY}
-          >
-            <span className={`truncate ${label ? '' : tokenized || dark ? 'text-[color:var(--ui-text-faint)]' : 'text-zinc-400'}`}>{label || placeholder}</span>
-            <ChevronDown className={`w-3 h-3 shrink-0 ${tokenized || dark ? 'text-[color:var(--ui-text-faint)]' : 'text-zinc-400'}`} />
-          </button>
-        }
-      >
-        {items.map(item => {
-          const selected = selectedIds.includes(item.id);
-          const hint = hintById.get(item.id);
-          return (
-            <DropdownItem
-              key={item.id}
-              group={item.group}
-              selected={selected}
-              keepOpen={mode === 'multi'}
-              onClick={() => toggle(item)}
-              className={tagById.has(item.id) ? (dark ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'bg-amber-50 hover:bg-amber-100') : undefined}
-              trailing={
-                (hint || selected) ? (
-                  <span className="flex items-center gap-1.5">
-                    {hint && <span className="text-[10px] text-[color:var(--ui-text-faint)]">{hint}</span>}
-                    {selected && <Check className="w-3 h-3" />}
-                  </span>
-                ) : undefined
-              }
-            >
-              <span className={accentById.has(item.id) ? 'text-[color:var(--ui-confirm-hover)]' : undefined}>{item.name}</span>
-            </DropdownItem>
-          );
-        })}
-      </DropdownMenu>
-    </div>
+    <PickerField
+      appearance="chip"
+      mode={mode === 'single' ? 'single' : 'multiple'}
+      values={selectedIds}
+      onChange={onChange}
+      items={pickerItems}
+      groups={groups}
+      theme={theme}
+      placeholder={placeholder}
+      className={className}
+      disabled={disabled}
+      renderItem={item => {
+        const accent = accentById.has(item.id);
+        const hint = hintById.get(item.id);
+        return (
+          <>
+            <span className={`flex-1 truncate ${accent ? 'text-[color:var(--ui-confirm-hover)]' : ''}`}>{item.label}</span>
+            {hint && <span className="shrink-0 text-[10px] text-[color:var(--ui-text-faint)]">{hint}</span>}
+          </>
+        );
+      }}
+    />
   );
 };
 
