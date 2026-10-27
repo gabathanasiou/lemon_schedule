@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { isMultiValue } from '../lib/categories';
-import { getCategoryElements } from '../lib/elements';
+import { boardIdOf, getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
@@ -426,9 +426,9 @@ export function GlideBreakdownTab({
   }, [allScenes, project.castMembers]);
 
   const breakdownEditorItems = useMemo(() => {
-    const map = new Map<string, { id: string; name: string }[]>();
+    const map = new Map<string, { id: string; name: string; boardId?: string }[]>();
     for (const key of allBreakdownCategories) {
-      map.set(key, getCategoryElements(project, key).map(e => ({ id: e.id, name: e.name })));
+      map.set(key, getCategoryElements(project, key).map(e => ({ id: e.id, name: e.name, boardId: boardIdOf(e, key) })));
     }
     return map;
   }, [project, allBreakdownCategories]);

@@ -34,7 +34,7 @@ export const DD_ITEM_BASE = DD_ITEM_BASE_LIB;
 export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
 export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
-import { resolveTypedElementKey } from '../lib/elements';
+import { boardLabel, resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
 import { revealRowInScroller } from '@gabriel/ui-kit';
@@ -47,6 +47,10 @@ export interface EntityItem {
   group?: string;
   /** Render as a highlighted TAG (whole-department link rows). */
   accent?: boolean;
+  /** Element categories only: the per-category Board ID (roadmap 305). The
+   *  default renderer prefixes "N. " in name mode and the closed chip reads
+   *  "N. NAME"; it is display-only — commits stay name/id valued. */
+  boardId?: string;
 }
 
 interface EntityDropdownProps {
@@ -563,7 +567,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
-      {displayMode === 'id' && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+      {/* Board ID prefix: id mode already carries the number in `id` (cast);
+          name mode reads the element's per-category number (roadmap 305). */}
+      {(displayMode === 'id' ? item.id : item.boardId) && (
+        <span className="text-zinc-400 shrink-0">{displayMode === 'id' ? item.id : item.boardId}.</span>
+      )}
       <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}</span>
       {showSceneCounts && scenes && (
         <span className="text-[10px] text-zinc-400">
@@ -622,7 +630,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         : items.find(i => (i.name || i.id) === seg);
       if (!item) return seg;
       if (displayMode === 'id') return `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`;
-      return item.name || item.id;
+      return boardLabel(item.boardId, item.name || item.id);
     }).filter(Boolean).join(', ');
   }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed]);
 

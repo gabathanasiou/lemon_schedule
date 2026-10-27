@@ -65,6 +65,23 @@ describe('buildDayViews', () => {
     }
   });
 
+  it('carries non-cast Board IDs too (roadmap 305)', () => {
+    const project = seedProject((p) => {
+      const scene = p.scenes.find((s: any) => (s.props || '').trim());
+      const name = String(scene.props).split(',')[0].trim();
+      p.breakdownElements = p.breakdownElements || {};
+      p.breakdownElements.props = [
+        ...(p.breakdownElements.props || []).filter((e: any) => e.name !== name),
+        { id: name, name, boardId: '77' },
+      ];
+    });
+    const { days } = build(project);
+    const entries = days.flatMap(d => d.elements.props || []);
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.every(e => e.boardId === '77' || !e.boardId)).toBe(true);
+    expect(entries.some(e => e.boardId === '77')).toBe(true);
+  });
+
   it('reads the governing daybreak\'s master location', () => {
     const project = seedProject((p) => {
       p.locations = [{ id: 'loc-test', name: 'TEST LOCATION', type: 'set' }];

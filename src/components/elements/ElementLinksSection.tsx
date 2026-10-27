@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from '../../lib/categories';
-import { elementMatchId, getCategoryElements } from '../../lib/elements';
+import { elementMatchId, getCategoryElements, boardIdOf, boardLabel } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory } from '../../lib/elementLinks';
 import { dedupeLinks, getElementIncomingLinks, getElementOutgoingLinks, isPropagationLink } from '../../lib/links';
 import { CREW_TARGET, LOCATION_TARGET, draftRowsFromLinks, flattenLinkRows, type LinkDraftRow } from '../../lib/linkDrafts';
@@ -147,7 +147,7 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
       const el = getCategoryElements(project, link.anchorCategory).find(e =>
         elementMatchId(e, link.anchorCategory!).toLowerCase() === link.anchorValue.toLowerCase());
       if (!el) return link.anchorValue;
-      return link.anchorCategory === 'cast' ? `${el.id}. ${el.name}` : (el.name || el.id);
+      return boardLabel(boardIdOf(el, link.anchorCategory), el.name || el.id);
     }
     return link.anchorValue;
   };
@@ -155,7 +155,7 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
   const thisElement = getCategoryElements(project, category).find(e =>
     elementMatchId(e, category).toLowerCase() === selectedKey.toLowerCase());
   const thisLabel = thisElement
-    ? (category === 'cast' ? `${thisElement.id}. ${thisElement.name}` : (thisElement.name || thisElement.id))
+    ? boardLabel(boardIdOf(thisElement, category), thisElement.name || thisElement.id)
     : selectedKey;
   const linkCount = rows.filter(r => r.linkedValue.trim()).length;
 

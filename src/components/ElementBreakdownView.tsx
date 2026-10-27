@@ -5,6 +5,7 @@ import { formatPageCount } from '../lib/utils';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { boardIdMapFor, boardLabel, compareBoardIds } from '../lib/elements';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin = DEFAULT_CATEGORY_LABELS[key];
@@ -33,6 +34,8 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
     { name: 200, scenes: 250, pages: 90, days: 250 },
   );
 
+  const boardIds = useMemo(() => boardIdMapFor(project, selectedCategory), [project, selectedCategory]);
+
   const elements = useMemo(() => {
     const cat = selectedCategory;
     const elMap = new Map<string, { name: string; sceneIds: string[] }>();
@@ -49,7 +52,12 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
     const sceneMap = new Map(project.scenes.map(s => [s.id, s]));
 
     return Array.from(elMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => {
+        const ba = boardIds.get(a.toLowerCase());
+        const bb = boardIds.get(b.toLowerCase());
+        if (ba || bb) return ba && bb ? compareBoardIds(ba, bb) || a.localeCompare(b) : (ba ? -1 : 1);
+        return a.localeCompare(b);
+      })
       .map(([key, el]) => {
         const scenes = (el.sceneIds
           .map(id => sceneMap.get(id))
@@ -73,7 +81,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
         const sortedSections = [...secIndices].sort((a, b) => a - b);
         const daysStr = sortedSections.map(d => formatSectionDate(d)).join(', ');
 
-        let displayName = el.name;
+        let displayName = boardLabel(boardIds.get(key.toLowerCase()), el.name);
         if (cat === 'cast') {
           const cm = castMembers.find(c => c.id === el.name);
           displayName = cm ? `${el.name}. ${cm.name}` : el.name;
@@ -87,7 +95,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
           days: daysStr,
         };
       });
-  }, [selectedCategory, project.scenes, sceneToSection, castMembers, formatSectionDate]);
+  }, [selectedCategory, project.scenes, sceneToSection, castMembers, boardIds, formatSectionDate]);
 
   const selectedLabel = getCategoryLabel(selectedCategory, project.customCategories || []);
 

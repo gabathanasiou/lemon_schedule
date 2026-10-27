@@ -4,7 +4,7 @@ import { CalendarVersion, CrewPerson, DayMeta, NonShootDate, Project, ProjectLoc
 import { useDaybreakSections, ComputedRow, SectionInfo, SectionSums } from './useDaybreakSections';
 import { daybreakAbove, getDayMeta, sectionCallTime } from './dayMeta';
 import { ELEMENT_CATEGORIES, getFieldItems } from './categories';
-import { getCategoryElements, elementMatchId } from './elements';
+import { boardIdOf, getCategoryElements, elementMatchId } from './elements';
 import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
 import { codeForType } from './dayTypes';
@@ -29,7 +29,8 @@ export interface DayElementEntry {
   /** Element key: cast = Board ID, others = name (`elementMatchId`). */
   key: string;
   name: string;
-  /** Cast Board ID (cast only) — the call-sheet ID column. */
+  /** The category's Board ID (roadmap 305) — the Day Manager / call-sheet ID
+   *  column for every category, not just cast. */
   boardId?: string;
   /** The performer's name (cast only, roadmap 157) — the call sheet's
    *  "Artiste" column; the character stays in `name`. */
@@ -123,6 +124,15 @@ function resolveName(key: string, category: string, project: any): string {
   }
   const el = getCategoryElements(project, category).find((e: any) => elementMatchId(e, category) === key);
   return el?.name || key;
+}
+
+/** The element's Board ID for a scene-referenced key (roadmap 305) — cast's id,
+ *  every other category's stored number; cast keeps the key so an unstored
+ *  member still shows its number (mirrors the old cast-only behavior). */
+function resolveBoardId(key: string, category: string, project: any): string {
+  if (category === 'cast') return key;
+  const el = getCategoryElements(project, category).find((e: any) => elementMatchId(e, category).toLowerCase() === key.toLowerCase());
+  return el ? boardIdOf(el, category) : '';
 }
 
 function categoryKeysOf(scene: Scene, category: string): string[] {
@@ -255,7 +265,7 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
             category,
             key,
             name: resolveName(key, category, project),
-            boardId: category === 'cast' ? key : undefined,
+            boardId: resolveBoardId(key, category, project) || undefined,
             performer: category === 'cast'
               ? ((project.castMembers || []).find(m => m.id === key)?.performer || '')
               : undefined,

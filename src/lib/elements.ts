@@ -69,6 +69,27 @@ export function boardIdOf(e: { id: string; name?: string; boardId?: string }, ca
   return isIdKeyed(category) ? String(e.id || '') : String(e.boardId || '');
 }
 
+/** "1. NAME" — the ONE element display label (roadmap 305). Plain name when
+ *  the element has no Board ID. Display only: committed values stay id/name. */
+export function boardLabel(boardId: string | null | undefined, name: string): string {
+  const id = String(boardId ?? '').trim();
+  const label = String(name ?? '');
+  return id ? `${id}. ${label}` : label;
+}
+
+/** Scene-value key (lowercase) → Board ID, built ONCE per display surface
+ *  (DOOD, Element Breakdown, print sheets). Name-keyed categories match
+ *  case-insensitively; unnumbered elements are absent. */
+export function boardIdMapFor(project: any, category: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of getCategoryElements(project, category)) {
+    const key = elementMatchId(e, category).toLowerCase();
+    const id = boardIdOf(e, category);
+    if (key && id) out.set(key, id);
+  }
+  return out;
+}
+
 /** True when `value` is already used by a DIFFERENT element of the category.
  *  `exceptKey` is the edited row's `elementKey` (it may keep its own number). */
 export function isDuplicateBoardId(

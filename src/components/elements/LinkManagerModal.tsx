@@ -3,7 +3,7 @@ import { useProject } from '../../store';
 import { Link } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../../lib/categories';
-import { getCategoryElements } from '../../lib/elements';
+import { getCategoryElements, boardIdOf, boardLabel } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
 import { isPropagationLink } from '../../lib/links';
 import { CREW_TARGET, LOCATION_TARGET, draftValueForLink, targetFromDraftValue } from '../../lib/linkDrafts';
@@ -162,7 +162,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     const elems = elementsFor(g.category);
     return getFieldItems(g.category, g.anchorValue).map(v => {
       const e = elems.find(x => g.category === 'cast' ? String(x.id) === v : (x.name || '').toLowerCase() === v.toLowerCase());
-      return e ? (g.category === 'cast' ? `${e.id}. ${e.name}` : e.name) : v;
+      return e ? boardLabel(boardIdOf(e, g.category), e.name) : v;
     }).join(', ');
   };
 

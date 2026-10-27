@@ -409,6 +409,12 @@ app-wide).
 `EntityDropdown` as a cell editor: **separate commit from exit** — `onChange` updates the value,
 `onExit` leaves edit mode; never call both in one handler (editor unmounts and can't reopen).
 
+**Board IDs in element pickers (roadmap 305)**: pass the element's number as
+`boardId` on the `EntityItem` (cast: its id) — the default renderer and the closed
+chip/label read "N. NAME". Never hand-roll the prefix in a `renderItem`; a custom
+renderer that shows only the name hides the number, and `docs/REPORTS-DESIGNER.md`
+holds the report/call-sheet conventions (separate Board ID column).
+
 **Auto-create** (`onCreateItem`): every commit diffs the value's segments against `items`
 (comma-list in multi/select, whole string in single) and calls `onCreateItem` for gaps — the
 shared "type a new element and it appears" flow (`addNewElement`, cast → naming modal). Wired in

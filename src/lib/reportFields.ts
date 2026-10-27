@@ -100,6 +100,7 @@ const SCENE_FIELDS: ReportFieldDef[] = [
 // the six cast duplicates of element fields were removed) -----------------------
 
 const ELEMENT_FIELDS: ReportFieldDef[] = [
+  { key: 'elementBoardId', label: 'Board ID', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementInfo) => s(it.boardId) },
   { key: 'elementName', label: 'Name', group: 'Elements', scope: 'elements', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.name) },
   { key: 'elementCategory', label: 'Category', group: 'Elements', scope: 'elements', defaultWidth: 14, get: (_c, it: ReportElementInfo) => s(it.category) },
   { key: 'sceneCount', label: 'Scene Count', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportElementInfo) => s(it.sceneCount) },
@@ -227,7 +228,7 @@ const CREW_FIELDS: ReportFieldDef[] = [
 // Call Times settings (same dynamic-fields pattern as the day-type columns).
 
 const ELEMENT_CALL_FIELDS: ReportFieldDef[] = [
-  { key: 'elementCallId', label: 'Cast ID', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.boardId || '') },
+  { key: 'elementCallId', label: 'Board ID', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.boardId || '') },
   { key: 'elementCallName', label: 'Name', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 22, get: (_c, it: ReportElementCallItem) => s(it.name) },
   { key: 'elementCallArtiste', label: 'Artiste', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 20, get: (_c, it: ReportElementCallItem) => s(it.details?.performer || '') },
   { key: 'elementCallPhone', label: 'Phone', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 14, get: (_c, it: ReportElementCallItem) => s(it.details?.phone || '') },

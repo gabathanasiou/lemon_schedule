@@ -1,6 +1,6 @@
 import type { Project, ReportCollection } from '../types';
 import { ELEMENT_CATEGORIES, getLabel } from './categories';
-import { elementMatchId, getCategoryElements } from './elements';
+import { elementMatchId, getCategoryElements, boardIdOf, boardLabel } from './elements';
 import { formatDateCustom } from './utils';
 import { getDayTypes } from './dayTypes';
 import { resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, parentScenesOf, ancestorSceneScope, projectDepartmentItems, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
@@ -266,7 +266,7 @@ function lookupItemsFor(project: Project, collection: ReportCollection, days: Lo
         for (const el of getCategoryElements(project, cat)) {
           const matchId = elementMatchId(el, cat);
           if (!matchId) continue;
-          out.push({ key: elementLookupKey(cat, matchId), label: el.name || matchId, category: cat, hint: catLabel.get(cat) || cat });
+          out.push({ key: elementLookupKey(cat, matchId), label: boardLabel(boardIdOf(el, cat), el.name || matchId), category: cat, hint: catLabel.get(cat) || cat });
         }
       }
       return out;

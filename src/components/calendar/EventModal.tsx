@@ -209,7 +209,6 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 className="text-xs flex-1 min-w-0"
                 displayMode={cat === 'cast' ? 'id' : 'name'}
                 anchoredKeys={anchoredByCategory.get(cat)}
-                renderItem={cat === 'cast' ? (item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
               />
             </div>
           </div>

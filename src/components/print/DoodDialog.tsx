@@ -12,6 +12,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import Checkbox from '../Checkbox';
 import Checklist from '../Checklist';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
+import { compareBoardIds } from '../../lib/elements';
 
 export interface DoodOptions {
   castIds: string[];
@@ -126,25 +127,28 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const isCast = category === 'cast';
 
-  const elementItems: { id: string; name: string }[] = useMemo(() => {
+  const elementItems: { id: string; name: string; boardId?: string }[] = useMemo(() => {
     if (isCast) {
       return allCastIds.map(id => ({
         id,
         name: castMembers.find(m => m.id === id)?.name || '?',
+        boardId: id,
       }));
     }
-    const stored: { id: string; name: string }[] = (project.breakdownElements || {})[category] || [];
+    const stored: { id: string; name: string; boardId?: string }[] = (project.breakdownElements || {})[category] || [];
     const sceneElems = getElementsFromScenes(project.scenes, category);
-    const merged = new Map<string, string>();
+    const merged = new Map<string, { name: string; boardId?: string }>();
     for (const e of stored) {
       const key = (e.id || e.name).toLowerCase();
-      if (!merged.has(key)) merged.set(key, e.name);
+      if (!merged.has(key)) merged.set(key, { name: e.name, boardId: e.boardId });
     }
     for (const e of sceneElems) {
       const key = (e.id || e.name).toLowerCase();
-      if (!merged.has(key)) merged.set(key, e.name);
+      if (!merged.has(key)) merged.set(key, { name: e.name });
     }
-    return Array.from(merged.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(merged.entries())
+      .map(([id, v]) => ({ id, name: v.name, boardId: v.boardId }))
+      .sort((a, b) => compareBoardIds(a.boardId || '', b.boardId || '') || a.name.localeCompare(b.name));
   }, [isCast, allCastIds, castMembers, project.breakdownElements, project.scenes, category]);
 
   const allElementIds: string[] = useMemo(() => {
@@ -275,7 +279,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
               items={elementItems.map(item => ({
                 id: item.id,
                 label: item.name !== '?' ? item.name : '?',
-                leading: isCast ? `${item.id}.` : undefined,
+                leading: item.boardId ? `${item.boardId}.` : undefined,
               }))}
               selected={selectedElementIds}
               onToggle={toggleElement}

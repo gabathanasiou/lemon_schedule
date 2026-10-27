@@ -43,12 +43,15 @@ export function getElementDisplayName(
   isCast: boolean,
   castMemberNames?: Map<string, string>,
   elementNameMap?: Map<string, string>,
+  elementBoardIds?: Map<string, string>,
 ): string {
   if (isCast) {
     const name = castMemberNames?.get(elementId) || '?';
     return `${elementId.padStart(3, ' ')}.  ${name}`;
   }
-  return elementNameMap?.get(elementId.toLowerCase()) || elementId;
+  const name = elementNameMap?.get(elementId.toLowerCase()) || elementId;
+  const boardId = elementBoardIds?.get(elementId.toLowerCase());
+  return boardId ? `${boardId}. ${name}` : name;
 }
 
 export function deriveDood(
@@ -63,6 +66,7 @@ export function deriveDood(
   castMemberNames?: Map<string, string>,
   elementNameMap?: Map<string, string>,
   typeCodes?: Map<string, string> | null,
+  elementBoardIds?: Map<string, string>,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
   const isCast = category === 'cast';
   const nonShootByDate = new Map(nonShootDates?.map(n => [n.date, n]) || []);
@@ -209,7 +213,7 @@ export function deriveDood(
     for (const d of typeDayLists['hold'] || []) if (!holdDayList.includes(d)) holdDayList.push(d);
     travelDayList.sort();
     holdDayList.sort();
-    const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap);
+    const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap, elementBoardIds);
 
     doodRows.push({ elementId, elementName, cells });
     totals.set(elementId, {

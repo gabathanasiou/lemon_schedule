@@ -4,6 +4,7 @@ import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
 import { deriveDood, DoodDay } from '../../lib/nonShootStats';
+import { boardIdMapFor } from '../../lib/elements';
 import { visualForType, dayTypeTextColor, codeForType, resolveDayTypes } from '../../lib/dayTypes';
 
 function formatDateShort(iso: string): string {
@@ -76,6 +77,8 @@ interface DoodProps {
   productionStart?: string;
   nonShootDates?: NonShootDate[];
   castMembers?: CastMember[];
+  /** Element registry per category — only the Board ID lookup (roadmap 305). */
+  breakdownElements?: Record<string, { id: string; name: string; boardId?: string }[]>;
   elementIds: string[];
   dayInts: number[];
   includeNonShooting: boolean;
@@ -91,6 +94,7 @@ const Dood: React.FC<DoodProps> = ({
   productionStart,
   nonShootDates,
   castMembers,
+  breakdownElements,
   elementIds,
   dayInts,
   includeNonShooting,
@@ -112,6 +116,11 @@ const Dood: React.FC<DoodProps> = ({
     return m;
   }, [scenes, category]);
 
+  const elementBoardIds = useMemo(
+    () => boardIdMapFor({ breakdownElements: breakdownElements || {} }, category),
+    [breakdownElements, category],
+  );
+
   const typeCodes = useMemo(() => {
     const m = new Map<string, string>();
     for (const t of resolveDayTypes(dayTypes)) m.set(t.key, codeForType(dayTypes, t.key));
@@ -119,8 +128,8 @@ const Dood: React.FC<DoodProps> = ({
   }, [dayTypes]);
 
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, productionStart || new Date().toISOString().slice(0, 10), nonShootDates || [], elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, typeCodes,
-  ), [scenes, scheduleRows, productionStart, nonShootDates, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, typeCodes]);
+    scenes, scheduleRows, productionStart || new Date().toISOString().slice(0, 10), nonShootDates || [], elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, typeCodes, elementBoardIds,
+  ), [scenes, scheduleRows, productionStart, nonShootDates, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, elementBoardIds, typeCodes]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
