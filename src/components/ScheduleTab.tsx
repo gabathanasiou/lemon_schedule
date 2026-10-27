@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { useProject, useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
@@ -1290,6 +1291,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   }, [activeId, activeType, activeDragIds, activeVersion.rows, activeDragRow]);
 
   return (
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex flex-col overflow-hidden">
     <div className="flex-1 flex flex-col overflow-hidden" data-presence-surface="schedule">
       <ScheduleToolbar
         shootViolations={shootViolations}
@@ -1569,5 +1571,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
   </div>
-);
+    </ThemeScope>
+  );
 }

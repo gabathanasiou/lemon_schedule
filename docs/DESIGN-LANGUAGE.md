@@ -49,7 +49,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 | Layer | Palette | Where |
 |---|---|---|
-| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager, managers, Calendar, Rules, Breakdown/Glide/Scene Sheet, Script tab, project-manager shell; tokenised app-wide (roadmap 310 — fixed-palette exceptions in §Theming) |
+| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Schedule, Day Manager, managers, Calendar, Rules, Breakdown/Glide/Scene Sheet, Script tab, project-manager shell; tokenised app-wide (roadmap 310 — fixed-palette exceptions in §Theming) |
 | Dark chrome | header `bg-[var(--ui-accent-header-bg)]`; kit Menu/Modal/input tokens | App header, pop-out toolbar, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
 | Drive chrome | `ProjectChromeScope` publishes `accent="blue"`: header `--ui-accent-950` (#172554), tab pill `--ui-tab-pill-accent`, action chips `--ui-accent-950/900` | ONE identity source `useProjectTheme()` + `projectAccentNameOf()`; `src/components/ProjectChromeScope.tsx` |
 | Shared chrome | same scope with `accent="emerald"`: header #022c22, emerald tab/action roles | same ONE source; a project is never both (shared > drive) |
@@ -150,9 +150,9 @@ are unchanged. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule.
 
 **Theming (roadmap 310)**: every app surface reads the `--ui-*` ladder. Light pages
-(`ThemeScope mode="light" surface="neutral"`) are the Day Manager + manager pages,
-Calendar, Rules, Breakdown (Sheet/Glide/Scene Sheet/Element Manager), the Script tab and
-the project-manager shell; dark pages pin `mode="dark"` (Design → Ribbon Designer/Colors/
+(`ThemeScope mode="light" surface="neutral"`) are the Schedule, Day Manager + manager
+pages, Calendar, Rules, Breakdown (Sheet/Glide/Scene Sheet/Element Manager), the Script tab
+and the project-manager shell; dark pages pin `mode="dark"` (Design → Ribbon Designer/Colors/
 Reports Designer, Reports → DOODs/Element Breakdown); dark modals inherit the kit Modal.
 Modal bodies, cards, tables, chip triggers (`DD_TOKEN_TRIGGER_CLASS`), pickers and shared
 rows are tokenised across the Day, manager, Calendar, Rules/Colors, Reports/print, import,
