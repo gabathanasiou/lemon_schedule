@@ -264,8 +264,28 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       return (list: PickerItem[]) => [...list].sort((a, b) =>
         a.label.localeCompare(b.label, undefined, { numeric: true }));
     }
+    /* The old panel's order: checked rows first (they stay at the top while
+       you work the list), then the catalogue's own order. Grouped lists keep
+       their sections intact — floating rows across groups would split them. */
+    if (groups.length === 0) {
+      const byId = displayMode === 'id';
+      return (list: PickerItem[], selectedIds: string[]) => {
+        const checked = new Set(selectedIds);
+        return [...list].sort((a, b) => {
+          const as = checked.has(a.id);
+          const bs = checked.has(b.id);
+          if (as !== bs) return as ? -1 : 1;
+          if (byId) {
+            const na = parseInt(a.id, 10);
+            const nb = parseInt(b.id, 10);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          }
+          return a.label.localeCompare(b.label, undefined, { numeric: true });
+        });
+      };
+    }
     return undefined;
-  }, [sortItems, keepAlphabetical, byKey, pickerByKey, keyOf]);
+  }, [sortItems, keepAlphabetical, groups.length, displayMode, byKey, pickerByKey, keyOf]);
 
   const renderPickerItem = useCallback((pickerItem: PickerItem, checked: boolean) => {
     const item = byKey.get(pickerItem.id);
@@ -350,6 +370,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       onEscape={onEscape}
       onTabExit={onTabExit}
       browse={groups.length > 0 ? 'open' : undefined}
+      /* Tick list, not a form: a bare check glyph in the fixed slot (the old
+         panel's look) instead of a checkbox box. */
+      indicator="check"
     />
   );
 };

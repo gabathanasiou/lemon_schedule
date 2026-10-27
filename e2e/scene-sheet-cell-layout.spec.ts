@@ -81,6 +81,30 @@ test.describe('scene sheet entity cell layout (roadmap 95)', () => {
     expect(sel.start).toBeLessThan(sel.len - 1);
   });
 
+  test('single-value fields complete a typed prefix to the catalogue option', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
+
+    // Same header row: Int/Ext is the first input, Day/Night the second.
+    const intExt = page.locator('td:text-is("Int/Ext")').locator('xpath=following-sibling::td[1]//input').first();
+    const dayNight = page.locator('td:text-is("Day/Night")').locator('xpath=following-sibling::td[1]//input').first();
+
+    // Type a prefix, Tab completes to the first catalogue match.
+    await intExt.click();
+    await intExt.fill('I');
+    await page.keyboard.press('Tab');
+    await expect.poll(() => intExt.inputValue()).toBe('INT');
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes[0]?.intExt)).toBe('INT');
+
+    await dayNight.click();
+    await dayNight.fill('N');
+    await page.keyboard.press('Tab');
+    await expect.poll(() => dayNight.inputValue()).toBe('NIGHT');
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes[0]?.dayNight)).toBe('NIGHT');
+  });
+
   test('notes auto-grow past two rows with multiline content', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();

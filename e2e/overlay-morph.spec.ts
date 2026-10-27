@@ -215,6 +215,9 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   });
 
   test('Scene Sheet INT/EXT field (AutocompleteDropdown) morphs open and closes', async ({ page }) => {
+    // The kit honours prefers-reduced-motion (the suite's default); this test
+    // is specifically about the morph.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
@@ -226,10 +229,10 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     const intField = page.locator('tr', { hasText: 'Int/Ext' }).locator('input').first();
     await intField.click();
-    const panel = page.locator('[data-overlay-panel]').last();
-    await expect(panel).toBeAttached();
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel).toBeVisible();
 
-    const samples = (await traceMorph(page, '[data-overlay-panel]'))!;
+    const samples = (await traceMorph(page, '#search-menu-panel'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0);
     expect(mids.some(s => {
@@ -237,12 +240,9 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
       return Math.abs(o.x - 0.5) > 0.05 || Math.abs(o.y - 0.5) > 0.05;
     })).toBe(true);
 
-    const trace = traceMorph(page, '[data-morph-clone]', true);
     await page.keyboard.press('Escape');
-    const closeSamples = await trace;
-    expect(closeSamples).not.toBeNull();
-    expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph on the clone
-    await expect(page.locator('[data-overlay-panel]')).toHaveCount(0);
+    // SearchMenu closes by unmounting (no reverse clone).
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
   });
 
   test('prefers-reduced-motion: menus snap open/close instantly', async ({ page }) => {

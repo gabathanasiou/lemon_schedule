@@ -98,6 +98,9 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       browse="accordion"
       groupToken={groupToken}
       theme={theme}
+      /* Bare check glyph instead of the checkbox box — the same tick-list look
+         as every EntityDropdown panel. */
+      indicator="check"
       collapsedWidth={160}
       expandedWidth={300}
       placeholder={placeholder}

@@ -251,7 +251,9 @@ const E2E_SPEC_CAP = 70;
 // 285 → 286: roadmap 172 — manager SearchMenu jump/flash
 // 286 → 288: roadmap 172 — Glide row filter (breakdown + shared DB shell)
 // share the manager's write paths (a stale selection or dropped edit is silent).
-const E2E_TEST_CAP = 288;
+// 288 → 289: roadmap 322 — a typed prefix must complete to a catalogue option
+// (type "I", Tab → INT); a dropped completion silently writes a partial value.
+const E2E_TEST_CAP = 289;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
