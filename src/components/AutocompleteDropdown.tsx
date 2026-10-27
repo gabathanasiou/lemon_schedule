@@ -43,6 +43,14 @@ export interface AutocompleteDropdownProps {
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: () => void;
   portalTarget?: HTMLElement | null;
+  /** The character that OPENED the editor, when the host starts editing from a
+   *  typed key (Glide's `initialValue`). The picker opens with it as the search
+   *  query, so the first letter lights its option. */
+  initialQuery?: string;
+  /** Whether the opening caret selects the whole field. False when the overlay
+   *  was opened BY a typed key — selecting then would make the next keystroke
+   *  replace that character (type "e", "e" → only one "e"). */
+  selectAllOnOpen?: boolean;
   /** Grow the inline editor's width with its content (`field-sizing: content`)
    *  instead of filling the cell — for spreadsheet overlay editors so long
    *  values stay visible while typing. */
@@ -64,6 +72,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   onTabExit,
   portalTarget,
   autoGrow = false,
+  initialQuery,
+  selectAllOnOpen,
 }) => {
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
@@ -89,6 +99,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       allowFreeText
       uppercase
       keepAllRows
+      initialQuery={initialQuery}
+      selectAllOnOpen={selectAllOnOpen}
       placeholder={placeholder}
       readOnly={readOnly}
       inputReadOnly={typingBlocked}

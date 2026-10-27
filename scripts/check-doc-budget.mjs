@@ -253,7 +253,10 @@ const E2E_SPEC_CAP = 70;
 // share the manager's write paths (a stale selection or dropped edit is silent).
 // 288 → 289: roadmap 322 — a typed prefix must complete to a catalogue option
 // (type "I", Tab → INT); a dropped completion silently writes a partial value.
-const E2E_TEST_CAP = 289;
+// 289 → 290: roadmap 322 — Glide's typed-open passes the first character as
+// `initialValue` (no input event); a picker that ignores it silently drops the
+// letter and opens on the wrong row.
+const E2E_TEST_CAP = 290;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
