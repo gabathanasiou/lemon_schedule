@@ -136,7 +136,7 @@ document, never window-mount the reading surface.
 
 ## Pop-out Windows (`PopoutWindow.tsx`)
 - Desktop-only (`!IS_COARSE`): tabs/sub-tabs open in separate windows sharing state via `createPortal` (window opened synchronously in the click handler to dodge popup blockers; `cascadePosition()` tiles).
-- App.tsx owns `poppedOutTabs`/`poppedOutSubTabs` + window refs; popups render `<VersionToolbar>` (+ decorative single-tab `PageToolbar` for sub-tabs). Scaffolding components: `popout/PopoutFrames.tsx` (`PopoutFrame`, `SubTabPopoutFrame`, `ReportCategorySidebar`).
+- App.tsx owns `poppedOutTabs`/`poppedOutSubTabs` + window refs; popups render `<VersionToolbar>` (+ decorative single-tab `PageToolbar` for sub-tabs). Scaffolding components: `popout/PopoutFrames.tsx` (`PopoutFrame`, `SubTabPopoutFrame`); the Reports category navigator is ONE component, `reports/ReportCategorySidebar.tsx` (main window + popouts).
 - Shift+click / right-click on tabs pop out (gated `!IS_COARSE`); cross-tab navigation skips `setActiveTab` when target is popped out (state still flows via context).
 - SceneSheet commits per field (dropdowns dispatch immediately; text inputs buffer in `edits`, flush on blur/navigation) so edits are live across windows.
 

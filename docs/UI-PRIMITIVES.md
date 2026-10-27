@@ -270,7 +270,23 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   dropdown. **App adapter**: `LocationSearchMenu` (`src/components/location/`) is the
   standalone location face — grouped by type, searches address/contact/phone, optional
   "add the typed name" action and clear button; used by the Day Manager master location,
-  Add location, and crew Report-to headers (roadmap 318).
+  Add location, and crew Report-to headers (roadmap 318). **Trigger fit**:
+  `clipTriggerLabel` (`src/lib/searchMenuTrigger.ts`) fits a long record name to the
+  collapsed width — use it for every expandable trigger, never re-derive the formula.
+  **Record-only lists**: pass `searchGroups={[]}` + `searchOpenOnFocus={false}` (the
+  `SidebarNav` props) so the panel opens on the first keystroke instead of showing an
+  empty browse state — the Script scene list does this.
+  **Adoption audit (318)**: Key Positions → Assign (crew grouped by department), the
+  Element View header picker (per category, one open group), the Script scene sidebar
+  (scene records — number/set/location/cast, jumping the script) and Trash (sections as
+  categories; picking expands + flashes the row, restore stays a click) are SearchMenu.
+  Audited and deliberately KEPT plain: **Day Types sidebar** (a 3-10 row registry — the
+  plain filter is enough), **Reports category sidebar** (a category navigator, not a
+  record picker; its main-window/popout copies are now ONE component,
+  `reports/ReportCategorySidebar.tsx`), the **day picker** (prev/next stepper is the
+  primary control and the list already groups by week + scrolls to the current day) and
+  the **nearby hospital/police** fields (in-cell `EntityDropdown`; item 171 deletes them).
+  Kit-dependent leftovers → roadmap **319**.
 - **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs into the
   kit input and keeps its term when collapsed (unlike SearchMenu's clear-on-close), Escape
   clears, click-away collapses. Pass `triggerLabel` / `triggerIcon` to name the active term
