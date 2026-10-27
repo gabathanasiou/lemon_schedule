@@ -78,12 +78,13 @@ Rows in the panel, top to bottom:
 **`mode="expandable"`** (default). A primary `triggerLabel` button morphs into
 the text field (animated `collapsedWidth` → `expandedWidth`, focus moves into
 the input, Escape/select/outside click collapses it and returns focus to the
-button). The panel opens **immediately**; the shared positioner watches the
-trigger's size, so it follows the width morph and stays anchored to the
-expanded field instead of waiting for a scroll. `triggerIcon` sets the
-collapsed button's leading icon: **MapPin** for locations, **Plus** for adders.
-The expanded field always carries the magnifier. `autoFocus` controls the
-focus-on-open.
+button). The panel opens **immediately at the final expanded rectangle**: the
+open measures the expanded layout once, so the panel snaps to its destination
+while the trigger is still animating. It never follows the moving left edge
+(the old "opens at the collapsed button, jumps later" bug). `triggerIcon` sets
+the collapsed button's leading icon: **MapPin** for locations, **Plus** for
+adders. The expanded field always carries the magnifier. `autoFocus` controls
+the focus-on-open.
 
 **`mode="inline"`.** The field is always visible (manager sidebars). Focus or
 click opens the panel when `openOnFocus` is true.
@@ -173,7 +174,7 @@ timezone.
   `buildSearchMenuRows`. The manager jump/flash uses `searchMenuContent` so the
   rows it flashes are exactly the rows the panel showed.
 
-## 6. Actions — three slots
+## 6. Actions — four slots
 
 `SearchMenuEmptyAction = { label: string | ((query) => string);
 onClick(query); icon?: ReactNode }`.
@@ -183,6 +184,14 @@ onClick(query); icon?: ReactNode }`.
 | `emptyActions` | In the empty state, below the “No matches” body | ONLY when the query yields no rows | “Add “typed name”…” (the typed text becomes the new record's name/address) |
 | `leadingActions` | Pinned above the list | Always, unless `hideLeadingOnEmpty` is set and the query has no results | The primary create action: **“New location…”** at the top of the Add-location menu |
 | `footerActions` | Pinned below the list | Always | A persistent management action that should stay reachable |
+| `fieldActions` | **Inside the expanded text field**, right edge | While the field is expanded | A quick action on the draft: **Plus → create from the typed query**, map-pin picker, etc. |
+
+`fieldActions` use the shared `MorphFieldAction` shape:
+`{ key, label, icon, onClick(value, { close }), keepOpen? }`. They sit before
+the built-in clear X and receive the current query; `keepOpen: true` leaves the
+panel open (the “add from search” pattern). They are separate from the panel
+actions above — a field button edits/submits the draft, a panel action acts on
+the list.
 
 Action rows are keyboard-reachable and receive the **current query**, so a
 leading “New location…” can prefill the map with what the user typed. The
@@ -285,12 +294,18 @@ labels (the panel always shows the full text).
 Single-select · synchronous items only · no async source · no inline
 create/rename (use actions) · no controlled `open` · no stored value ·
 trigger structure is icon + label (no custom trigger node) · actions only in
-the three slots.
+the field/leading/empty/footer slots.
 
 ## 12. Extending and releasing the kit
 
-1. Edit the kit source (`src/SearchMenu.tsx`, `src/searchMenuModel.ts`) and its
-   unit tests (`src/__tests__/searchMenu.test.ts`).
+The morph fields share one shell: `SearchMenu`'s expandable trigger,
+`MorphSearchField` (filter preset) and `MorphActionField` (create/rename preset
+with inline actions) all use `MorphFieldShell`. Never hand-roll a third
+button→field morph; the kit manual is `docs/MORPH-FIELDS.md`.
+
+1. Edit the kit source (`src/SearchMenu.tsx`, `src/searchMenuModel.ts`,
+   `src/MorphFieldShell.tsx`, `src/MorphSearchField.tsx`) and its unit tests
+   (`src/__tests__/searchMenu.test.ts`).
 2. `npm run build` (the committed `dist/` is what consumers install), `npm run
    lint`, `npm run test:unit`.
 3. Bump `package.json` (patch for fixes, minor for new props), commit, `git tag

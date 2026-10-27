@@ -691,6 +691,14 @@ set manually per day instead.
 need a kit capability or an adapter. Migrate them when the kit supplies it —
 never fork a second search panel.
 
+- **Kit groundwork (shipped 0.1.135)**: ONE `MorphFieldShell` backs the
+  SearchMenu expandable trigger, `MorphSearchField` (filter) and the new
+  `MorphActionField` (inline create/rename with actions inside the field);
+  SearchMenu `fieldActions` (buttons inside the expanded textbox); final-rect
+  panel positioning (width morph preserved, no wrong-position jump); coarse
+  icon buttons/chevrons (`useIconButtonSize`); dark/neutral checked controls
+  (black fill, white mark + 1px ring). The full-width trigger variant for
+  Add Crew Member → Role is still pending.
 - **Report field / collection / palette pickers** (`reports/ReportPalette.tsx`):
   flatten the grouped submenus into one searchable catalogue.
 - **Ribbon field palette + Change Field** (`RibbonDesigner`): same flattening.

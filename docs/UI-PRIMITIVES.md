@@ -230,8 +230,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   - **`inline`** — the field is always visible (manager sidebars); click/focus opens the panel.
   - **`expandable`** — the **button → textbox morph**: a primary `triggerLabel` button
     cross-fades into a field (animated `collapsedWidth` → `expandedWidth`), focuses it on open,
-    and collapses on select / Escape / outside click. `triggerIcon` = **MapPin for location
-    fields, Plus for adders**; the field keeps the magnifier.
+    and collapses on select / Escape / outside click. The panel measures the expanded layout
+    once and opens at the **final** rectangle while the width morph animates (never the
+    collapsed-edge jump). `triggerIcon` = **MapPin for location fields, Plus for adders**;
+    the field keeps the magnifier.
   - **Categories**: `browseExpanded` = plain, **non-interactive** headers with every record
     open (short catalogues); `expandableGroups` + `groupExpandMode="single"` = accordion
     (long catalogues). During a query every category is a plain header. A plain header has no
@@ -240,9 +242,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
     category keeps the field focused, so typing still filters.
   - **Actions**: `emptyActions` (no-match only — e.g. “Add “…”“”); `leadingActions` /
     `footerActions` are pinned, always-visible rows (e.g. leading **“New location…”**) whose
-    callbacks receive the query. Default icon Plus. `hideLeadingOnEmpty` drops the
-    leading row when the empty state's query-aware action already covers the same create
-    path (Add location: “hello” → only **“Add “hello”…”**).
+    callbacks receive the query. `fieldActions` are icon buttons INSIDE the expanded textbox
+    (right edge) for the draft — e.g. **Plus → create from the typed query**; the shared
+    `MorphFieldAction` shape (`{ key, label, icon, onClick(value, { close }), keepOpen? }`).
+    Default icon Plus. `hideLeadingOnEmpty` drops the leading row when the empty state's
+    query-aware action already covers the same create path (Add location: “hello” → only
+    **“Add “hello”…”**).
   - **Deep search**: comma tags AND-match label/`detail`/category/`keywords`/`fields[]`; the
     matched attribute becomes the row snippet. `detail` is searched, so it is a display
     **value**, never `"Label: value"` (field labels must not match). Reuse `parseSearchTags` /
@@ -285,7 +290,17 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   **Searchable menus need a no-match state**: the kit `DropdownMenu` renders
   `No matches for “…”` when a searchable query hides every row (in-panel box and
   trigger-as-search). **Theme gotcha**: a component calling `useKitTheme()` ABOVE its own
-  `<Modal>` reads the PAGE theme — pass the modal's theme explicitly.
+  `<Modal>` reads the PAGE theme — pass the modal's theme explicitly. Dark + neutral
+  (zinc) checked boxes/radios are **black with a white mark + 1px white ring** (kit
+  0.1.135); never the old light-gray fill that vanished on dark.
+- **Morph fields** (kit 0.1.135): **`MorphSearchField`** (filter preset) and
+  **`MorphActionField`** (inline create/rename preset) share ONE **`MorphFieldShell`** —
+  button → textbox, no dropdown. `MorphActionField` renders a primary trigger, an optional
+  field icon, and **action buttons inside the right edge** (Check = submit, X = cancel,
+  custom actions like MapPin); Enter submits, Escape/outside/X cancels, submit collapses.
+  `SearchMenu`'s expandable trigger uses the same shell and takes `fieldActions`. Icon
+  buttons/chevrons use **`useIconButtonSize()`** (20px/14px fine → 32px/18px at coarse 0.5,
+  max 36px/20px); widths are fixed px by design. Full manual: kit `docs/MORPH-FIELDS.md`.
 - **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs into the
   kit input and keeps its term when collapsed (unlike SearchMenu's clear-on-close), Escape
   clears, click-away collapses. Pass `triggerLabel` / `triggerIcon` to name the active term
