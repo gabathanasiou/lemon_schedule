@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
+import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, boardIdMapFor, boardLabel, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
 
 /**
  * AGENTS.md §Cast & Entities — the STRICT cast-vs-elements storage rule:
@@ -80,5 +80,25 @@ describe('Board IDs', () => {
   it('compareBoardIds sorts numerically with blanks last', () => {
     const values = ['10', '', '2', '1', 'x'];
     expect(values.sort(compareBoardIds)).toEqual(['1', '2', '10', '', 'x']);
+  });
+
+  it('boardLabel prefixes "N. NAME" and leaves unnumbered elements plain', () => {
+    expect(boardLabel('7', 'GUN')).toBe('7. GUN');
+    expect(boardLabel('', 'GUN')).toBe('GUN');
+    expect(boardLabel(undefined, 'GUN')).toBe('GUN');
+  });
+
+  it('boardIdMapFor keys name categories case-insensitively', () => {
+    const project = {
+      breakdownElements: {
+        props: [
+          { id: 'GUN', name: 'GUN', boardId: '7' },
+          { id: 'Mug', name: 'Mug' },
+        ],
+      },
+    };
+    const map = boardIdMapFor(project, 'props');
+    expect(map.get('gun')).toBe('7');
+    expect(map.has('mug')).toBe(false);
   });
 });

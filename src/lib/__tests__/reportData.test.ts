@@ -74,14 +74,19 @@ describe('flaggedIdsOf', () => {
 });
 
 describe('sortReportElements', () => {
-  const el = (id: string, name: string) => ({ id, name });
+  const el = (id: string, name: string, boardId?: string) => ({ id, name, boardId });
 
   it('orders cast by Board ID, numeric-aware', () => {
     const items = [el('10', 'TEN'), el('2', 'TWO'), el('1', 'ONE')];
     expect(sortReportElements(items, 'cast').map(e => e.id)).toEqual(['1', '2', '10']);
   });
 
-  it('orders non-cast categories by name, numeric-aware', () => {
+  it('orders non-cast categories by Board ID, ties by name', () => {
+    const items = [el('a', 'Zulu', '10'), el('b', 'Alpha', '2'), el('c', 'Beta', '2'), el('d', 'Apple', '1')];
+    expect(sortReportElements(items, 'props').map(e => e.name)).toEqual(['Apple', 'Alpha', 'Beta', 'Zulu']);
+  });
+
+  it('falls back to name order for unnumbered non-cast categories', () => {
     const items = [el('a', 'Prop 10'), el('b', 'prop 2'), el('c', 'Apple')];
     expect(sortReportElements(items, 'props').map(e => e.name)).toEqual(['Apple', 'prop 2', 'Prop 10']);
   });
@@ -89,6 +94,8 @@ describe('sortReportElements', () => {
   it('sorts blank keys last', () => {
     const items = [el('', ''), el('3', 'C'), el('1', 'A')];
     expect(sortReportElements(items, 'cast').map(e => e.id)).toEqual(['1', '3', '']);
+    const props = [el('x', 'No number'), el('y', 'Numbered', '4')];
+    expect(sortReportElements(props, 'props').map(e => e.name)).toEqual(['Numbered', 'No number']);
   });
 
   it('does not mutate the input array', () => {

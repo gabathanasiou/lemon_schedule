@@ -6,7 +6,7 @@ import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, Re
 import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, reportToIdForDay, resolveSlotCall, resolveSlotReportToId, rolesForDept, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
-import { loadCategoryElements, elementMatchId } from './elements';
+import { loadCategoryElements, elementMatchId, boardIdOf, boardLabel, compareBoardIds } from './elements';
 import { castDetailsOf, type CastDetails } from './castDetails';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
@@ -204,6 +204,8 @@ export interface ReportElementInfo {
   id: string;
   name: string;
   category: string;
+  /** The category's Board ID (roadmap 305) — every category, not just cast. */
+  boardId: string;
   sceneCount: number;
   attachedScenes: string;
   sceneIds: string[];
@@ -286,7 +288,8 @@ export interface ReportElementCallItem {
   id: string;
   name: string;
   category: string;
-  /** Cast Board ID (cast only) — the call-sheet ID column. */
+  /** The category's Board ID (roadmap 305) — the call-sheet "Board ID"
+   *  column for every staged category. */
   boardId?: string;
   /** Day-state code (status/card letter, else `W`). */
   code: string;
@@ -463,10 +466,16 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast':
       return `${(it as ReportSceneInfo).scene.sceneNumber} · ${(it as ReportSceneInfo).scene.set || (it as ReportSceneInfo).scene.description || (it as ReportSceneInfo).scene.intExt || ''}`.replace(/ · $/, '');
     case 'days': case 'daysOfCast': return `Day ${(it as ReportDayInfo).chronoDay} (${formatDateShort((it as ReportDayInfo).date)})`;
-    case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': return (it as ReportElementInfo).name;
+    case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': {
+      const el = it as ReportElementInfo;
+      return boardLabel(el.boardId, el.name);
+    }
     case 'categories': return (it as ReportCategoryInfo).label;
     case 'crew': case 'crewOfDay': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
-    case 'elementCallsOfDay': return (it as ReportElementCallItem).name;
+    case 'elementCallsOfDay': {
+      const el = it as ReportElementCallItem;
+      return boardLabel(el.boardId, el.name);
+    }
     case 'departmentCallsOfDay': return (it as ReportDepartmentCallItem).label;
     case 'departments': return (it as ReportDepartmentInfo).label;
     case 'violationTypes': return (it as ReportViolationTypeInfo).label;
@@ -760,7 +769,7 @@ export function buildReportCtx(
   for (const info of categoryInfos) {
     const elements = loadCategoryElements(project, info.key);
     info.elementCount = elements.length;
-    info.items = elements.map(e => info.key === 'cast' ? (castNames.get(e.id) || e.name || e.id) : (e.name || e.id));
+    info.items = elements.map(e => boardLabel(boardIdOf(e, info.key), info.key === 'cast' ? (castNames.get(e.id) || e.name || e.id) : (e.name || e.id)));
     for (const si of sceneInfos) {
       const items = getFieldItems(info.key, String((si.scene as any)[info.key] ?? ''));
       if (items.length > 0) info.sceneCount++;
@@ -854,18 +863,18 @@ export function getElementsFor(ctx: ReportCtx, category: string): ReportElementI
   return out;
 }
 
-/** Canonical report order for an element collection — cast by Board ID (the
- *  cast id behind "1. GEORGE"), every other category by name (numeric-aware);
- *  blank keys sort last. Shared by every surface that iterates elements
- *  (tables, repeats); `EntityDropdown`/pickers keep their own order. */
-export function sortReportElements<T extends { id: string; name: string }>(elements: T[], category: string): T[] {
-  const keyOf = (e: T) => elementMatchId(e, category) || '';
+/** Canonical report order for an element collection (roadmap 305): every
+ *  category sorts by its Board ID (numeric) — cast's id, `boardId` otherwise —
+ *  with ties by name (numeric-aware) and unnumbered elements last. Shared by
+ *  every surface that iterates elements (tables, repeats);
+ *  `EntityDropdown`/pickers keep their own order. */
+export function sortReportElements<T extends { id: string; name: string; boardId?: string }>(elements: T[], category: string): T[] {
   return [...elements].sort((a, b) => {
-    const av = keyOf(a);
-    const bv = keyOf(b);
-    if (!av) return bv ? 1 : 0;
-    if (!bv) return -1;
-    return naturalSortSceneStrings(av, bv);
+    const ab = boardIdOf(a, category);
+    const bb = boardIdOf(b, category);
+    const byBoard = (ab ? 0 : 1) - (bb ? 0 : 1) || (ab && bb ? compareBoardIds(ab, bb) : 0);
+    if (byBoard !== 0) return byBoard;
+    return naturalSortSceneStrings(a.name || a.id || '', b.name || b.id || '');
   });
 }
 
@@ -897,6 +906,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       id: e.id,
       name: category === 'cast' ? ctx.castNames.get(e.id) || e.id : e.name,
       category,
+      boardId: boardIdOf(e, category),
       sceneCount: scenesOf.length,
       attachedScenes: scenesOf.map(si => si.scene.sceneNumber).join(', '),
       sceneIds: scenesOf.map(si => si.scene.id),
@@ -1128,7 +1138,7 @@ export function resolveCollection(
               id: key,
               name: el.name,
               category: cat,
-              boardId: cat === 'cast' ? key : undefined,
+              boardId: boardIdOf(el, cat) || undefined,
               code: elementDayCode(ctx, day, cat, key),
               firstScene: si.scene.sceneNumber,
               callTimes: computeElementCallChain(settings.stages, stageKeys, si.callTime, overrides),
