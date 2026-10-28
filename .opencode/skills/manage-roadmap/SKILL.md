@@ -30,6 +30,17 @@ Flags live inside the heading parentheses (`(FUTURE, parked)`, `(big)`,
 `(NEEDS CONVERSATION FIRST)`) — the heading grep surfaces them. Read only the
 matched line range, never either file end-to-end.
 
+### Answering "what's next" / "quick wins"
+
+Parked is an answer, not a candidate. Never surface a parked item as work in a
+recommendation — not even as a "one-liner if you say yes" aside. Drop every
+heading carrying `parked` (and any body saying "parked knowingly / parked by
+owner"), then rank what remains by effort vs user-visible value. Surface a
+parked item ONLY when the user names its feature or asks what is parked; then
+give the item and its stated unpark trigger. Items flagged
+`NEEDS CONVERSATION FIRST` / `awaiting user detail` are decisions to raise, not
+workable wins — offer them as "needs your call", never as sized work.
+
 ## Invariants (MUST NOT)
 
 1. **Never leave a completed (`[x]`) item in `docs/ROADMAP.md`.** Writing `[x]` means
