@@ -405,6 +405,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
               }}
               reportToId={template.reportToId || ''}
+              reportToCustom={!!template.reportToId}
               deptReportTo={template.departmentReportTo}
               onReportToChange={id => setTemplate({ reportToId: id || undefined })}
               onDeptReportToChange={(dept, id) => {

@@ -110,6 +110,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
         onDeptPrecallChange={setDeptPrecall}
         reportToId={reportToId}
+        reportToCustom={!!day.meta.reportToId}
         deptReportTo={day.meta.departmentReportTo}
         onReportToChange={id => patchMeta({ reportToId: id || undefined })}
         onDeptReportToChange={setDeptReportTo}

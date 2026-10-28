@@ -81,6 +81,15 @@ export function resolvedLocationName(
   return '';
 }
 
+/** Compact CLOSED-STATE location label: the main street/place name only —
+ *  first comma segment, leading street number removed (no city/postcode/
+ *  country). The picker panel still shows the full record. */
+export function shortLocationLabel(label: string): string {
+  const first = (label || '').split(',')[0]?.trim() || '';
+  const withoutNumber = first.replace(/^\d+[A-Za-z]?\s+/, '').trim();
+  return withoutNumber || first;
+}
+
 /** A Locations-DB id → display name ('' when missing/dangling). One lookup for
  *  the crew "Report to" board, report items and any other id-keyed surface. */
 export function locationLabelById(project: Project, id?: string): string {

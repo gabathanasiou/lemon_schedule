@@ -359,7 +359,7 @@ test('row filter is display-only, survives collapsing, and restores every row (r
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await expect(trigger).toBeVisible();
   await expect(trigger).toContainText(term!); // the button names what is filtering
-  await expect(trigger.locator('svg.lucide-funnel')).toHaveCount(1);
+  await expect(trigger.locator('svg.lucide-list-filter')).toHaveCount(1);
   await expect(input).not.toBeFocused();
   await expect(filter.locator('[data-glide-filter-count]')).toHaveText(`${shown} / ${total}`);
   expect(Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(shown);

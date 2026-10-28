@@ -239,7 +239,7 @@ test.describe('Element Manager commit-on-blur', () => {
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
     const firstValue = await page.locator('tbody textarea[data-manager-name]').first().inputValue();
 
-    await page.getByRole('button', { name: 'Sort ▾' }).click();
+    await page.getByRole('button', { name: 'Sort', exact: true }).click();
     await page.getByRole('menuitem', { name: 'By Name' }).click();
     await expect(page.locator('tbody textarea[data-manager-name]').first()).not.toHaveValue(firstValue, { timeout: 5000 });
     const namesSorted = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));

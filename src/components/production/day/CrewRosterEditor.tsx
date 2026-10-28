@@ -67,6 +67,9 @@ export interface CrewRosterEditorProps {
   contacts?: boolean;
   /** Item 156: effective "Report to" LOCATION id for everyone (day → template). */
   reportToId?: string;
+  /** True when the everyone default is a local override (day meta / template),
+   *  not inherited — tints the picker as custom. */
+  reportToCustom?: boolean;
   /** Item 156: effective per-department "Report to" location ids (day → template). */
   deptReportTo?: Record<string, string>;
   /** Item 156: writes the everyone default (day meta / crew template).
@@ -143,6 +146,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
   presenceScope,
 }) => {
   const crewRoles = project.crewRoles || [];
+  /* A pre-call that differs from the project template is a local override. */
+  const customPrecall = precall !== templatePrecall;
   const gridMode = useKitTheme()?.mode ?? 'light';
   const cellColors = useMemo(() => dayTimesCellColors(gridMode), [gridMode]);
   const createTheme = useMemo(() => (fontSize: number) => createDayTimesTheme(fontSize, gridMode), [gridMode]);
@@ -221,6 +226,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
         // The list is pre-ordered (action row first, DB grouped by type):
         // never sort it alphabetically — that would split the group headers.
         sortItems: list => list,
+        // Same folded type groups as the department Report-to picker.
+        browse: 'accordion',
         // Typing a type ("set", "unit base") lists that whole group.
         searchFields: ['name', 'group'],
         renderItem: item => (
@@ -389,30 +396,38 @@ const DeptTable: React.FC<DeptTableProps> = ({
               <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Report to</span>
               <LocationSearchMenu
                 items={locationItems}
-                value={deptReportToId}
+                /* Show the ACTUAL report-to for this department: its own
+                   override, else the day-wide default (the same chain the
+                   slots resolve). Only a department override is clearable. */
+                value={deptReportToId || dayReportToId}
                 onSelect={id => onDeptReportToChange?.(dept, id)}
-                onClear={() => onDeptReportToChange?.(dept, '')}
+                onClear={deptReportToId && onDeptReportToChange ? () => onDeptReportToChange(dept, '') : undefined}
                 onAddNew={query => onNewLocation({ kind: 'dept', dept }, query)}
                 readOnly={readOnly}
                 placeholder="—"
                 browse="accordion"
-                collapsedWidth={176}
-                expandedWidth={240}
+                collapsedWidth="auto"
+                expandedWidth={320}
                 panelWidth={320}
                 theme={gridMode}
+                variant="outline"
+                custom={!!deptReportToId}
               />
             </span>
           )}
           <span className="flex items-center gap-1.5">
             <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Pre-call</span>
-            <TimeField
-              value={precall}
-              onChange={v => onDeptPrecallChange(dept, v)}
-              readOnly={readOnly}
-              placeholder="-"
-              boxed
-              className="w-24"
-            />
+            <span className="inline-flex shrink-0" title={customPrecall ? 'Custom value' : undefined}>
+              <TimeField
+                value={precall}
+                onChange={v => onDeptPrecallChange(dept, v)}
+                readOnly={readOnly}
+                placeholder="-"
+                boxed
+                hideOverrideDot={!customPrecall}
+                className="w-24"
+              />
+            </span>
             {dayCall && precall && <span className="text-[11px] text-[color:var(--ui-text-faint)]">{resolveCrewCall(null, precall, dayCall)}</span>}
           </span>
         </span>
@@ -443,6 +458,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
             groups={addRoleMenu.groups}
             triggerLabel="Add role"
             triggerIcon={<Plus className="w-3.5 h-3.5" />}
+            triggerVariant="subtle"
             placeholder="Search roles or people…"
             onSelect={addRoleFromItem}
             browseExpanded
@@ -522,6 +538,7 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
         groups={addRoleMenu.groups}
         triggerLabel="Add roles…"
         triggerIcon={<Plus className="w-3.5 h-3.5" />}
+        triggerVariant="primary"
         placeholder="Search roles…"
         onSelect={item => addRoles([item.id])}
         multiple={{
@@ -546,7 +563,7 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
 export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
-  onCreatePerson, contacts, reportToId = '', deptReportTo = EMPTY_DEPT_REPORT_TO,
+  onCreatePerson, contacts, reportToId = '', reportToCustom = false, deptReportTo = EMPTY_DEPT_REPORT_TO,
   onReportToChange, onDeptReportToChange, onCreateLocation,
   dataAttr, presenceScopePrefix, className = '',
 }) => {
@@ -604,10 +621,12 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
             readOnly={readOnly}
             placeholder="—"
             browse="accordion"
-            collapsedWidth={224}
-            expandedWidth={280}
+            collapsedWidth="auto"
+            expandedWidth={320}
             panelWidth={320}
             theme={ambientTheme}
+            variant="outline"
+            custom={reportToCustom}
           />
         </div>
       )}

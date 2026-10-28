@@ -68,6 +68,19 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   - **Search/filter → morph field**: Script search + `GlideFilter` use `MorphSearchField`
     (`triggerCollapse`/`triggerReveal`, `collapsedWidth="auto"`); an applied filter term keeps its
     label.
+  - **Record picker trigger faces**: `SearchMenu` `triggerVariant` = `primary` (hero adder, e.g.
+    bulk **Add roles…**), `subtle` (inline adder, e.g. **Add location** / per-department
+    **Add role**), `outline` (value field, e.g. **Report to**). `LocationSearchMenu` `variant`
+    wraps it, and `custom` tints the outline blue when the shown value is a local override. The
+    Day Crew **Report to** pickers display the resolved day default when the department has no own
+    value; the department override (or a day/template override at the all-crew field) gets the blue
+    custom tint and a **Custom value** tooltip. A department **pre-call** that differs from the
+    template likewise carries the tooltip and its amber override dot (inherited pre-calls show
+    neither). Location triggers are text-first: no pin icon, normal weight, the closed label is the
+    main place only (`shortLocationLabel` — no street number/city/postcode) and ellipsizes at the
+    button width; the panel keeps the full record. A picker holding a value opens on it (accordion
+    section expanded, row scrolled into view), and the per-crew Report-to cell uses the same
+    `EntityDropdown browse="accordion"` behaviour. Manual: `docs/SEARCH-MENU.md` §3.
   - **Icon-only stays icon-only** (Print, Help, sheet nav, undo/redo) with `title` + `aria-label`.
   - `keepLabelOnActive` is opt-in (kit 0.1.166); tabs always keep the selected label.
 - **Action icon canon** (`docs/DESIGN-LANGUAGE.md` §Action icon canon): Duplicate = `CopyPlus`,

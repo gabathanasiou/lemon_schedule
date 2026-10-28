@@ -3,7 +3,7 @@ import { Plus, X, MapPin } from 'lucide-react';
 import { SearchMenu, useKitTheme } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { ADD_LOCATION_SENTINEL, type LocationOption } from '../../lib/locationOptions';
-import { clipTriggerLabel } from '../../lib/searchMenuTrigger';
+import { shortLocationLabel } from '../../lib/locations';
 
 /**
  * The SearchMenu face of every STANDALONE location picker (roadmap 318).
@@ -42,12 +42,19 @@ export interface LocationSearchMenuProps {
   newActionFirst?: boolean;
   /** Trigger leading icon (default: a map pin — the location cue). */
   icon?: React.ReactNode;
-  /** Expandable-mode widths (px). */
-  collapsedWidth?: number;
+  /** Expandable-mode widths (px). `'auto'` hugs the value so a long location
+   *  name is shown in full instead of clipped to a fixed box. */
+  collapsedWidth?: number | 'auto';
   expandedWidth?: number;
   panelWidth?: number | string;
   maxMenuHeight?: number;
   theme?: 'light' | 'dark';
+  /** Trigger face: `primary` (default) for a hero field, `outline` for a value
+   *  field (Report to), `subtle` for an adder (Add location). */
+  variant?: 'primary' | 'subtle' | 'outline';
+  /** The shown value is a CUSTOM override (not inherited) — tint the trigger
+   *  blue so "changed here" reads at a glance (Report to). */
+  custom?: boolean;
   className?: string;
 }
 
@@ -61,7 +68,8 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
   onClear,
   readOnly,
   placeholder = 'Choose a location…',
-  icon = <MapPin className="w-3.5 h-3.5" />,
+  /* Location triggers are text-first — no decorative pin (roadmap 324). */
+  icon = null,
   browse = 'open',
   newActionFirst = false,
   collapsedWidth = 220,
@@ -69,9 +77,21 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
   panelWidth = 320,
   maxMenuHeight,
   theme,
+  variant = 'primary',
+  custom = false,
   className = '',
 }) => {
   const ambient = useKitTheme();
+  const resolvedTheme = theme ?? ambient?.mode ?? 'light';
+  /* A hand-edited value (a Report-to override) gets a soft blue trigger — the
+     outline field stays the same size, only the tint says "custom here". */
+  const customTint = custom
+    ? resolvedTheme === 'dark'
+      ? 'bg-blue-950/40! text-blue-200! hover:bg-blue-900/40!'
+      : 'bg-blue-50! text-blue-800! hover:bg-blue-100!'
+    : undefined;
+  /* Location fields read as values, not bold call-to-actions. */
+  const triggerFace = ['font-normal!', customTint].filter(Boolean).join(' ');
   const { groups, searchItems, labelById } = useMemo(() => {
     const labelById = new Map<string, string>();
     const groups: SearchMenuGroup[] = [];
@@ -106,31 +126,39 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
 
   const label = value ? labelById.get(value) || '' : '';
 
-  // The kit trigger is a fixed-width button and renders its label unclipped —
-  // keep long location names from spilling past the box (the panel shows the
-  // full name).
-  const triggerLabel = label || placeholder;
-  const clippedTriggerLabel = clipTriggerLabel(triggerLabel, collapsedWidth);
+  /* Closed state names the MAIN place ("Piccadilly Circus", "Great Queen St"),
+     never the whole address; CSS truncates it if the button is narrower. The
+     panel still lists every full location record. */
+  const shortLabel = label ? shortLocationLabel(label) : '';
+  const triggerLabel = shortLabel || placeholder;
 
   if (readOnly) {
     return (
       <div className={`flex min-h-[28px] items-center rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] px-2 text-xs ${className}`}>
-        <span className={`truncate ${label ? 'text-[color:var(--ui-text)]' : 'text-[color:var(--ui-text-faint)]'}`}>
-          {label || placeholder}
+        <span className={`truncate ${label ? 'text-[color:var(--ui-text)]' : 'text-[color:var(--ui-text-faint)]'}`} title={label || undefined}>
+          {shortLabel || placeholder}
         </span>
       </div>
     );
   }
 
   return (
-    <div className={`inline-flex min-w-0 items-center gap-1 ${className}`}>
+    <div
+      className={`inline-flex min-w-0 items-center gap-1 ${className}`}
+      title={custom ? 'Custom value' : (label || undefined)}
+    >
       <SearchMenu
         mode="expandable"
-        theme={theme ?? ambient?.mode ?? 'light'}
+        theme={resolvedTheme}
         items={searchItems}
         groups={groups}
-        triggerLabel={clippedTriggerLabel}
+        triggerLabel={triggerLabel}
         triggerIcon={icon}
+        triggerVariant={variant}
+        triggerClassName={triggerFace}
+        /* A picker that HOLDS a value opens ON it: the kit expands the
+           accordion section holding this id and scrolls the row into view. */
+        selectedId={value || undefined}
         placeholder="Search locations…"
         onSelect={item => onSelect(item.id)}
         expandableGroups={browse === 'accordion'}

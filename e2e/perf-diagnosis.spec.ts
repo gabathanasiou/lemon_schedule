@@ -575,9 +575,10 @@ test('@perf script tab: open + interactions with a full screenplay (roadmap 163)
 
   // The header search is a morph field: expand its icon trigger once, then the
   // input stays mounted (collapsed only on Escape/outside click).
-  const scriptSearchInput = page.locator('[data-morph-search-input]');
+  const scriptSearch = page.locator('[data-presence-anchor="toolbar:script:search"]');
+  const scriptSearchInput = scriptSearch.locator('[data-morph-search-input]');
   if (!(await scriptSearchInput.isVisible())) {
-    await page.locator('[data-morph-search-trigger]').click();
+    await scriptSearch.locator('[data-morph-search-trigger]').click();
   }
   await round('search type 6 chars', async () => {
     const input = scriptSearchInput;

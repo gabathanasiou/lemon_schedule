@@ -87,6 +87,30 @@ the collapsed button's leading icon: **MapPin** for locations, **Plus** for
 adders. The expanded field always carries the magnifier. `autoFocus` controls
 the focus-on-open.
 
+**`triggerVariant`** picks the collapsed trigger's Button face: `primary`
+(default — a hero adder such as the Crew section's bulk **Add roles…**),
+`subtle` (an inline adder — **Add location**, each department's **Add role**),
+or `outline` (a value field — **Report to**). `triggerClassName` adds a state
+tint; `LocationSearchMenu` exposes it as `custom`, which paints the outline
+Report-to field soft blue when the shown value is a LOCAL override and adds a
+**Custom value** tooltip. The Day Crew headers show the resolved day default
+when a department has no own value (no tint), and the blue tint when the
+department has one. The department **Pre-call** field follows the same rule: a
+day override gets the tooltip (and its amber dot); a template-inherited value
+shows neither.
+
+Location triggers are **text-first**: `LocationSearchMenu` defaults to no
+leading icon (Add location still passes Plus) and passes `font-normal` — no
+decorative pin and no bold toolbar weight. The closed label is the MAIN place
+only (`shortLocationLabel`: first comma segment, leading street number
+removed — "Piccadilly Circus", "Great Queen St"), and the kit trigger
+ellipsizes it at the button width; the panel still lists every full record. A
+picker that HOLDS a value opens on it (`selectedId`): the accordion section
+holding the value is expanded and the row is scrolled into view. The per-crew
+**Report To** cell in the Day Manager crew grid uses the SAME folded type
+groups and open-on-value behaviour (`EntityDropdown browse="accordion"`), so
+both location pickers behave alike.
+
 **`mode="inline"`.** The field is always visible (manager sidebars). Focus or
 click opens the panel when `openOnFocus` is true.
 

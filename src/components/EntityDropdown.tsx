@@ -97,6 +97,10 @@ export interface EntityDropdownProps {
   onEscape?: () => void;
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: (el?: HTMLElement) => void;
+  /** Grouped panels: `open` (default; every group visible) or `accordion`
+   *  (folded type/role groups, one open) — the location Report-to cell uses
+   *  the same accordion as the department picker. */
+  browse?: 'open' | 'accordion';
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
@@ -177,6 +181,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   onExit,
   onTabExit,
   onEscape,
+  browse,
   uppercase = false,
   portalTarget,
   skipComma = false,
@@ -369,7 +374,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       onExit={onExit}
       onEscape={onEscape}
       onTabExit={onTabExit}
-      browse={groups.length > 0 ? 'open' : undefined}
+      browse={browse ?? (groups.length > 0 ? 'open' : undefined)}
       /* Tick list, not a form: a bare check glyph in the fixed slot (the old
          panel's look) instead of a checkbox box. */
       indicator="check"

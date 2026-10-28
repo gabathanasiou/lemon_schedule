@@ -42,8 +42,23 @@ function visibleBox(el: Element): DOMRect | null {
   const cs = getComputedStyle(el);
   if (cs.display === 'none' || cs.visibility === 'hidden') return null;
   if (cs.position === 'absolute' || cs.position === 'fixed') return null;
-  const r = el.getBoundingClientRect();
+  let r = el.getBoundingClientRect();
   if (r.width < 0.5 || r.height < 0.5) return null;
+  /* Clipped descendants (a collapsed tab/menu label lives in a 0-width
+     overflow-hidden track) have a layout rect outside their clip box. The
+     audit must measure what is VISIBLE, or the hidden label's chevron reads as
+     content past the bar's rail (roadmap 324). */
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const ps = getComputedStyle(p);
+    if (ps.overflowX === 'visible' && ps.overflowY === 'visible') continue;
+    const pr = p.getBoundingClientRect();
+    const left = Math.max(r.left, pr.left);
+    const top = Math.max(r.top, pr.top);
+    const right = Math.min(r.right, pr.right);
+    const bottom = Math.min(r.bottom, pr.bottom);
+    if (right - left < 0.5 || bottom - top < 0.5) return null;
+    r = new DOMRect(left, top, right - left, bottom - top);
+  }
   return r;
 }
 

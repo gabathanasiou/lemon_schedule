@@ -242,6 +242,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         expandedWidth={280}
         panelWidth={320}
         theme="light"
+        variant="subtle"
       />
     </div>
   );

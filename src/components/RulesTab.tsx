@@ -7,7 +7,8 @@ import { RuleCard } from './rules/RuleCard';
 import { RuleEditorPanel } from './rules/RuleEditorPanel';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import Modal from './Modal';
-import { ThemeScope } from '@gabriel/ui-kit';
+import Button from './Button';
+import { inputCls, Seg, ThemeScope } from '@gabriel/ui-kit';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
@@ -99,14 +100,9 @@ export const RulesTab: React.FC = () => {
                   Violations flag red on day headers and scene strips in your schedule.
                 </p>
               </div>
-              <button
-                onClick={handleAdd}
-                disabled={locked}
-                className="bg-[var(--ui-text-strong)] hover:bg-[var(--ui-text)] text-[var(--ui-panel-bg)] px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-4 h-4" />
+              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAdd} disabled={locked} className="shrink-0">
                 New Rule
-              </button>
+              </Button>
             </div>
 
             {totalRules > 0 && (
@@ -117,36 +113,23 @@ export const RulesTab: React.FC = () => {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search by cast ID or rule..."
-                    className="w-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ui-text-strong)] focus:border-[color:var(--ui-text-strong)]"
+                    className={`${inputCls('md')} w-full pl-8`}
                   />
                 </div>
-                <div className="flex bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md p-0.5">
-                  <button
-                    onClick={() => setTypeFilter('ALL')}
-                    className={cn(
-                      'px-2.5 py-1 text-xs font-medium rounded transition-colors',
-                      typeFilter === 'ALL' ? 'bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]'
-                    )}
-                  >
-                    All
-                  </button>
-                  {(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
-                    const m = RULE_TYPE_META[t];
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => setTypeFilter(t)}
-                        className={cn(
-                          'px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1',
-                          typeFilter === t ? 'bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]'
-                        )}
-                      >
-                        <m.icon className="w-3 h-3" />
-                        {m.short}
-                      </button>
-                    );
-                  })}
-                </div>
+                <Seg
+                  variant="track"
+                  theme="light"
+                  value={typeFilter}
+                  options={[
+                    { v: 'ALL', l: 'All' },
+                    ...(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
+                      const m = RULE_TYPE_META[t];
+                      return { v: t, l: m.short, icon: <m.icon className="w-3 h-3" /> };
+                    }),
+                  ]}
+                  onChange={v => setTypeFilter(v as RuleType | 'ALL')}
+                  ariaLabel="Filter rules by type"
+                />
               </div>
             )}
 
@@ -160,14 +143,9 @@ export const RulesTab: React.FC = () => {
                   Rules let you flag cast unavailability, hour limits, and time windows.
                   Violations will appear as red flags on your schedule and calendar.
                 </p>
-                <button
-                  onClick={handleAdd}
-                  disabled={locked}
-                  className="bg-[var(--ui-text-strong)] hover:bg-[var(--ui-text)] text-[var(--ui-panel-bg)] px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-4 h-4" />
+                <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={handleAdd} disabled={locked}>
                   Add your first rule
-                </button>
+                </Button>
                 <div className="mt-8 grid grid-cols-3 gap-3 max-w-xl mx-auto text-left">
                   {(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
                     const m = RULE_TYPE_META[t];
