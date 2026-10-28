@@ -1163,10 +1163,18 @@ direction-aware icon change), the morph trigger (`MorphSearchField` /
   footers and trigger buttons. The user's starters: the search trigger in the
   PageToolbar mini-tab bar, the Schedule tab's **Edit** key, the **Boneyard**
   button.
+- **Both directions:** a labelled button that could become an icon that
+  reveals the label on hover / active (`collapse` + `revealOnHover`), and a
+  control that is really a VALUE could morph into a field instead of swapping
+  DOM on click. First candidate: the **project name** in the AppHeader — today
+  a bare `<span>` that swaps to an `<input>`, which reads as two different
+  things; make it a text-only button (`subtle`, no box at rest) that morphs
+  into the title field (`MorphActionField` / `MorphFieldShell`), same dismiss
+  paths as the other morphs.
 - For each control decide and apply ONE of: keep the plain button, reveal on
-  hover, a real toggle (2+ states, stable width, icon roll), or morph into a
-  field. A face change only — no routing, labels or new components; keep
-  `go()`-driven navigation in the tabs.
+  hover, a real toggle (2+ states, stable width, icon roll), a morph into a
+  field, or the Seg icon-swap face. A face change only — no routing, labels
+  or new components; keep `go()`-driven navigation in the tabs.
 - Where the same pattern repeats, capture it as a shared recipe (design doc
   + the control manual's examples), not a per-call-site copy.
 
