@@ -2,6 +2,40 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-10-28 — Sharper controls, searchable days
+
+**Features**
+- **Schedule** — Edit is now a blue Done button that stays put while you edit; Print, the view and filter menus, and the violations pill tuck their labels away until you need them, and the project name edits in place.
+- **Rules** — the Rules tab uses the app's standard text field, type switch and primary button.
+- **Day Manager** — the day selector is now a searchable list: days are grouped by week, every week opens at once, the current day is highlighted, and you can type a day number, a date or a weekday.
+- **Day Manager** — Report-to reads as a proper field: the all-crew choice is a primary field with a location pin, department fields keep a readable width, and a hand-set department value turns blue with a "Custom value" hint while inherited values stay neutral.
+- **Day Manager** — Day Details now carries the day's main Report to beside the master location; both fields look the same and clear with an X.
+- **Crew** — Add roles… can add several roles at once, and the address field searches as you type.
+- **Day Manager** — crew Report-to cells show the location name instead of an internal id, and open on the location that actually applies to that person.
+
+**Bug fixes**
+- **Tabs** — a tab's icon-to-label swap no longer squishes the tab.
+- **Day Manager** — a pre-call inherited from the template no longer shows the custom marker.
+
+**Changes**
+- **Controls** — buttons, inputs and menus share one 30px control scale, and the same action uses the same icon everywhere — duplicate, copy, import, sort, calendar, crew and help included.
+
+## 2026-10-27 — Pickers, numbers and lighter screens
+
+**Features**
+- **Scene Sheet** — INT/EXT and Day/Night are now pills you change in place, and a picker opens on the current value.
+- **Crew** — the crew picker can tag a whole department at once, and department rows are ticked instead of repeated "All …" entries.
+- **Breakdown** — Board IDs show for cast by default (with a setting for every element), appear before names in pickers and managers, and every element category can sort by them.
+- **Reports** — element categories sort by Board ID and the number has its own column; Day Out of Days, Element Breakdown and Breakdown Sheet print the numbers.
+- **Search** — Key Positions, Element View, Script scenes and Trash use the deep search: type a name or number, pick a result and jump there; pickers open already scrolled to the current value.
+- **Breakdown** — the Glide Breakdown row filter covers every scene field and follows you between grids; typed tags match Colors and the element database.
+- **Locations** — the Add-location menu puts New location first and offers a single create action when a search finds nothing.
+- **Day Manager** — the location and crew pickers show their icons and browse modes, and the pre-call field has a box.
+- **Calendar / managers / Reports** — a consistent light surface across the Calendar, Rules, managers, Breakdown, Reports, modals and scripts.
+
+**Bug fixes**
+- **Schedule** — the stripboard canvas is back to its light grey.
+
 ## 2026-10-26 — Numbers, links and a sharper day sheet
 
 **Features**
