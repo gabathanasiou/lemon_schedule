@@ -21,23 +21,23 @@
  * - In `store.tsx:ADD_ELEMENT`: cast uses `element.id`, non-cast uses `element.name`
  *
  * **Never mix ID-based matching with name-based matching for the same category.**
+ *
+ * ## Architecture (roadmap 322)
+ *
+ * This module is now a **thin adapter**: the kit's `PickerField` owns the
+ * field, the searchable panel, commit-on-close and the key↔label model; this
+ * file only maps the app's storage contract (a comma-separated string, cast by
+ * Board ID, non-cast by name) onto it. There is no second picker
+ * implementation — `inline`/`wrap` are the cell editors, `chip` the modal
+ * trigger.
  */
 
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { ChevronDown, Anchor } from 'lucide-react';
+import React, { useCallback, useMemo } from 'react';
+import { PickerField, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
 import { Scene } from '../types';
-import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB, DD_TOKEN_TRIGGER_CLASS, DD_CHIP_WRAP_EDITOR_PAD } from '../lib/dropdown';
-import { buildDropdownItems } from '../lib/dropdownItems';
-import DropdownPanel from './DropdownPanel';
-
-export const DD_ITEM_BASE = DD_ITEM_BASE_LIB;
-export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
-export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
-export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
-import { boardLabel, resolveTypedElementKey } from '../lib/elements';
+import { boardLabel } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode, useBoardIdDisplay } from '../lib/persist';
-import { revealRowInScroller } from '@gabriel/ui-kit';
 
 export interface EntityItem {
   id: string;
@@ -51,9 +51,12 @@ export interface EntityItem {
    *  default renderer prefixes "N. " in name mode and the closed chip reads
    *  "N. NAME"; it is display-only — commits stay name/id valued. */
   boardId?: string;
+  /** Extra searchable text (an email in the people picker) shown as the row
+   *  subtitle when it matches. */
+  detail?: string;
 }
 
-interface EntityDropdownProps {
+export interface EntityDropdownProps {
   value: string;
   onChange: (val: string) => void;
   className?: string;
@@ -71,10 +74,8 @@ interface EntityDropdownProps {
   searchFields?: ('id' | 'name' | 'group')[];
   /** Custom item renderer. Defaults to "id. name". */
   renderItem?: (item: EntityItem, selected: boolean) => React.ReactNode;
-  /** Custom sorter. Defaults to selected-first then numeric id. */
+  /** Custom sorter. Defaults to catalogue order. */
   sortItems?: (items: EntityItem[], selectedIds: string[]) => EntityItem[];
-  /** Custom filter. Defaults to substring match on searchFields. */
-  filterItem?: (item: EntityItem, query: string) => boolean;
   /** Called per item in the dropdown - e.g. to show a badge count. */
   itemBadge?: (item: EntityItem) => string | null;
   /** Start with the dropdown open (editors that should show suggestions immediately) */
@@ -145,105 +146,13 @@ interface EntityDropdownProps {
   anchoredKeys?: Set<string>;
 }
 
-/**
- * EntityDropdown - shared multi/single-select dropdown for cast, props, sets, shoot days, etc.
- *
- * ## Modes (prop: `mode`)
- *
- * ### `multi` (default) - comma-separated input, click-to-toggle
- * The input IS the comma-separated value. Users type IDs/names separated by commas.
- * The last comma-separated segment acts as the search query.
- * Clicking an item toggles it in/out of the comma-separated list.
- * Commit normalises the list (trims, dedupes, joins with `', '`).
- *
- * **Where to use:** cast (everywhere), non-set breakdown categories (props, wardrobe,
- * stunts, etc.), shoot day selections, location filters, any multi-value field.
- *
- * **Used in:**
- * - SceneSheet cast field
- * - BreakdownTab cast editors
- * - BreakdownTab generic element editors (following the fix to use multi)
- * - SortableRibbon cast fields
- * - PrintDialog shoot day picker
- * - Various dialog cast pickers (RuleEditorPanel, DoodDialog, etc.)
- *
- * ### `single` - search-then-select, commas allowed in value
- * The input is a free-text query that filters items. Clicking an item immediately
- * commits `onChange(id)` and closes the dropdown. **Commas in the value are not
- * treated as delimiters** - the entire value is kept as one unit. On Enter/Tab/blur
- * without clicking, the query text is committed as-is.
- *
- * **Where to use:** set fields (scene set names can contain commas like
- * "KITCHEN, FIRST FLOOR"), any single-value field where the value may contain
- * special characters.
- *
- * **Used in:**
- * - SceneSheet set field
- * - BreakdownTab SetEditor
- * - SortableRibbon set fields (dynamic ENTITY_FIELDS and explicit set column)
- *
- * ### `select` - single selection, immediate commit
- * Like multi but single-value. Entire `val` is the search query (not the last segment).
- * Clicking an item immediately commits `onChange(id)` and closes. On commit,
- * the value is normalised (split on commas, trimmed). Commas ARE treated as
- * delimiters in `select` mode.
- *
- * **Where to use:** legacy single-select fields that don't accept commas.
- * **Prefer `single` mode for new code** - it handles commas safely.
- *
- * **Used in:** SortableRibbon dynamic ENTITY_FIELDS for non-set fields (fallback
- * when text editing is disabled).
- *
- * ## Display Modes (prop: `displayMode`)
- *
- * - `'id'` - item keys are matched by `itemKey()` returning `m.id`. Used for cast
- *   where cast members have numeric IDs.
- * - `'name'` (default) - item keys are matched by `itemKey()` returning `m.name`.
- *   Used for props, wardrobe, sets, and all non-cast categories.
- *
- * ## Items (prop: `items`)
- *
- * When `items` is omitted, the dropdown uses `state.present.castMembers` from the
- * Zustand store. Pass a custom `EntityItem[]` for non-cast categories (sets,
- * props, wardrobe, etc.).
- *
- * ## Positioning (prop: `positioning`)
- *
- * - `'relative'` (default) - panel positioned below the input via absolute + top-full.
- *   Use for inline form fields, spreadsheet cells.
- * - `'fixed'` - panel positioned with fixed coordinates (avoids overflow clipping).
- *   Use in compact layouts where the parent has overflow:hidden.
- *
- * ## Editor vs Form Usage
- *
- * **Spreadsheet cell editors** (defaultOpen + autoFocus):
- * ```tsx
- * <EntityDropdown
- *   value={cell?.value || ''}
- *   onChange={val => { committedRef.current = true; onChange({ value: val }); exitEditMode(); }}
- *   defaultOpen autoFocus
- * />
- * ```
- * The `committedRef` pattern prevents double-commit from `toggle()` firing both
- * `onChange` and `handleClose()`.
- *
- * **Form fields** (interactive, no defaultOpen):
- * ```tsx
- * <EntityDropdown
- *   value={val('props')}
- *   onChange={v => update('props', v)}
- *   items={breakdownItems.props}
- *   mode="multi"
- * />
- * ```
- *
- * ## Synthetic Items ("Add" new items)
- * When the search query doesn't match any existing item by id or name, a
- * synthetic "Add" item appears at the top of the dropdown. Clicking it calls
- * `toggle(itemKey(m))` with the search query as the item key. The parent's
- * `onChange` receives the raw text value and is responsible for dispatching
- * `ADD_ELEMENT` if needed.
- */
+/** `panelMinWidth` is a Tailwind class ("min-w-[220px]"); the kit takes a
+ *  number. Read the px value, ignore anything else. */
+function panelWidthOf(panelMinWidth?: string): number | undefined {
+  const match = panelMinWidth?.match(/\[(\d+)px\]/);
+  return match ? Number(match[1]) : undefined;
+}
+
 export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   value,
   onChange: onChangeProp,
@@ -258,13 +167,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   searchFields = ['id', 'name'],
   renderItem,
   sortItems,
-  filterItem,
   itemBadge,
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
   selectAllOnOpen = true,
   displayMode = 'name',
-  commitHint = false,
   keepAlphabetical = false,
   panelMinWidth,
   onExit,
@@ -283,642 +190,189 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   resolveBy,
 }) => {
   const items = externalItems ?? [];
-  const [open, setOpen] = useState(defaultOpen);
-  const ref = useRef<HTMLDivElement>(null);
-  const committedRef = useRef(false);
-  const syntheticRef = useRef(false);
-  /** Whether the dropdown was open when the editor was last mousedowned —
-   *  focus fires forceOpen() BEFORE click, so `open` in the click handler is
-   *  already true for the click that opened it; capturing at mousedown (which
-   *  precedes focus) is the only reliable "was this the opening click?" test. */
-  const openAtMousedownRef = useRef(open);
-  const [keyboardMode] = useKeyboardMode();
-  /** Device pref (roadmap 321): name-mode items carry a number unless the user
-   *  chose Cast only. Cast `displayMode="id"` is always numbered. */
   const [boardIdDisplay] = useBoardIdDisplay();
+  const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
-  // Who moved the highlight last — pointer hover or the keyboard arrows. The
-  // highLighter state is shared, so the latest interaction wins; leaving the
-  // list clears a POINTER-driven highlight so it can't linger next to a
-  // keyboard one (single-highlight rule for chip panels).
-  const hoverRef = useRef(false);
+  /* Keyboard OFF on a touch device: the field still opens the picker but the
+     text is not editable (no soft keyboard pops over the grid). */
+  const typingBlocked = IS_COARSE && !hwKeyboard && keyboardMode === 'off';
 
-  const forceOpen = useCallback(() => {
-    committedRef.current = false;
-    setOpen(true);
-  }, [setOpen]);
-
-  // Escape dismisses ONLY this dropdown — never the enclosing modal.
-  useEscapeCapture(open, () => {
-    committedRef.current = true;
-    setOpen(false);
-    setQuery('');
-    setHighlightedIndex(-1);
-    onEscape?.();
-  });
-
-  // --- Multi mode: val = full comma-separated text (like CastEditor) ---
-  // --- Single mode: query + localIds (search-then-select pattern) ---
-  const [val, setVal] = useState(() => {
-    const hasExisting = !skipComma && (value.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(value.trim())));
-    if (mode === 'multi' && hasExisting && value.trimEnd().at(-1) !== ',') {
-      return value.trimEnd() + ', ';
-    }
-    return value;
-  });
-  useEffect(() => {
-    if (syntheticRef.current) { syntheticRef.current = false; return; }
-    if (mode === 'multi' || mode === 'select') {
-      let v = value;
-      const hasExisting = !skipComma && (v.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(v.trim())));
-      if (mode === 'multi' && hasExisting && v.trimEnd().at(-1) !== ',') {
-        v = v.trimEnd() + ', ';
-      }
-      setVal(v);
-    }
-    if (mode === 'single') setLocalIds(value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : []);
-  }, [value, mode]);
-  const [query, setQuery] = useState('');
-  const [localIds, setLocalIds] = useState<string[]>(() => {
-    if (mode === 'single') return value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : [];
-    return (value || '').split(',').map(x => x.trim()).filter(Boolean);
-  });
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    committedRef.current = false;
-    if (open) {
-      // Only name-keyed single selects (e.g. Set) highlight the current
-      // option on open; anything ID-keyed or multi (Cast, entities) keeps
-      // the original -1 behavior untouched.
-      if (mode === 'single' && displayMode === 'name') {
-        const currentKey = (value || '').trim();
-        const idx = currentKey
-          ? dropdownItems.findIndex((m) => itemKey(m).toUpperCase() === currentKey.toUpperCase())
-          : -1;
-        setHighlightedIndex(idx >= 0 ? idx : 0);
-      } else {
-        setHighlightedIndex(-1);
-      }
-    }
-  }, [open]);
-
-  // Spreadsheet cell editor (defaultOpen/autoFocus): select the current value
-  // ON THE OPEN EDGE so typing REPLACES it (the single-select contract, like
-  // Set cells). Two guards: never re-run while already open (Glide re-renders
-  // the overlay during typing — a re-select swallowed the next keystroke), and
-  // never select when the overlay was opened BY the first typed key
-  // (`selectAllOnOpen` false: that key already replaced the value; selecting
-  // would make the second key replace it again, "MARY" → "ARY").
-  const didSelectOnOpenRef = useRef(false);
-  useEffect(() => {
-    if (!open) {
-      didSelectOnOpenRef.current = false;
-      return;
-    }
-    if (didSelectOnOpenRef.current) return;
-    didSelectOnOpenRef.current = true;
-    if (!selectAllOnOpen || mode !== 'single' || wrapValue || variant === 'chip') return;
-    const el = ref.current?.querySelector('input') as HTMLInputElement | null;
-    if (!el || document.activeElement !== el) return;
-    el.setSelectionRange(0, el.value.length);
-  }, [open, selectAllOnOpen, mode, wrapValue, variant]);
-
-  useLayoutEffect(() => {
-    // Keep the active row visible for KEYBOARD navigation only — a pointer
-    // hover must not scroll the list (the row under the cursor would move
-    // while the user aims at it). Hover still lights the row via hoverRef.
-    if (highlightedIndex < 0 || hoverRef.current || !panelRef.current) return;
-    const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
-    revealRowInScroller(btn, 'nearest', scrollRef.current);
-  }, [highlightedIndex]);
-
-  useLayoutEffect(() => {
-    // A picker that holds a value opens ON it: the checked row is revealed
-    // BEFORE the panel's first paint and the list never moves again once the
-    // pointer engages it (the shared preselected-surface contract).
-    if (!open || !keepAlphabetical || !panelRef.current) return;
-    const checked = panelRef.current.querySelector('[data-checked="true"]') as HTMLElement;
-    revealRowInScroller(checked, 'nearest', scrollRef.current);
-  }, [open, keepAlphabetical]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!open || !el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (el.scrollHeight > el.clientHeight) {
-        e.preventDefault();
-        el.scrollTop += e.deltaY;
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [open]);
-
+  /* The key space: cast (and id-valued catalogs like crew/locations) store
+     Board IDs; every other category stores the name. */
   const valueById = (resolveBy ?? (displayMode === 'id' ? 'id' : 'name')) === 'id';
-  const itemKey = useCallback((m: EntityItem) => valueById ? (m.id || m.name) : m.name, [valueById]);
+  const keyOf = useCallback(
+    (item: EntityItem) => (valueById ? item.id || item.name : item.name),
+    [valueById],
+  );
 
-  /** Fires `onCreateItem` for every committed segment with no matching entry
-   *  in `items` — the shared "type a new element and it appears" flow. Split
-   *  mirrors the value semantics: comma-list in multi/select, whole string in
-   *  single (commas are literal, e.g. set names). Runs on EVERY commit, so a
-   *  pick, a free-typed Enter and a blur all create missing elements. */
-  const ensureNew = useCallback((newVal: string) => {
-    if (!onCreateItem || !newVal) return;
-    const segments = mode === 'multi' || mode === 'select'
-      ? newVal.split(',').map(s => s.trim()).filter(Boolean)
-      : [newVal];
-    for (const seg of segments) {
-      const exists = items.some(m => {
-        const key = itemKey(m);
-        return valueById ? String(key) === seg : key.toLowerCase() === seg.toLowerCase();
-      });
-      if (!exists) onCreateItem(seg);
+  const byKey = useMemo(() => {
+    const map = new Map<string, EntityItem>();
+    for (const item of items) map.set(keyOf(item), item);
+    return map;
+  }, [items, keyOf]);
+
+  const pickerItems = useMemo<PickerItem[]>(() => items.map(item => ({
+    id: keyOf(item),
+    label: item.name || item.id,
+    group: item.group,
+    detail: item.detail,
+    /* The contract's second search field: Board ID / element id. */
+    keywords: searchFields.includes('id') ? item.id : undefined,
+  })), [items, keyOf, searchFields]);
+
+  const pickerByKey = useMemo(
+    () => new Map(pickerItems.map(item => [item.id, item])),
+    [pickerItems],
+  );
+
+  const groups = useMemo<SearchMenuGroup[]>(() => {
+    const seen = new Map<string, number>();
+    for (const item of items) {
+      if (!item.group) continue;
+      seen.set(item.group, (seen.get(item.group) ?? 0) + 1);
     }
-  }, [onCreateItem, items, mode, valueById, itemKey]);
+    return [...seen].map(([key, count]) => ({ key, label: key, count }));
+  }, [items]);
 
-  /* All commits route through this wrapper so creation stays in ONE place —
-     every internal `onChange(...)` call now auto-creates missing items. Cast
-     segments are resolved FIRST (AGENTS.md §Cast & Entities): `scene.cast`
-     stores Board IDs, so typing an existing member's display name binds their
-     id instead of creating a duplicate blank member + naming modal. */
-  const normalizeCommitValue = useCallback((v: string): string => {
-    if (valueById) {
-      const resolve = (seg: string): string => {
-        const byId = items.find(i => String(i.id) === seg);
-        if (byId) return String(byId.id);
-        const byName = items.find(i => (i.name || '').toLowerCase() === seg.toLowerCase());
-        return byName ? String(byName.id) : seg;
+  const selected = useMemo(() => {
+    if (mode !== 'multi') return value.trim() ? [value.trim()] : [];
+    return value.split(',').map(segment => segment.trim()).filter(Boolean);
+  }, [value, mode]);
+
+  /* One commit path: the kit reports keys; the app stores a comma string.
+     `uppercase` uppercases a picked single value (set fields) — typed text is
+     already uppercased by the kit. */
+  const handleChange = useCallback((next: string[]) => {
+    const values = uppercase && mode !== 'multi' ? next.map(v => v.toUpperCase()) : next;
+    onChangeProp(values.join(', '));
+  }, [uppercase, mode, onChangeProp]);
+
+  /* Show the create row on every surface (the old behaviour), even where the
+     host only wants the typed value committed (no naming flow). */
+  const handleCreate = useCallback((item: string) => { onCreateItem?.(item); }, [onCreateItem]);
+
+  const pickerSort = useMemo(() => {
+    if (sortItems) {
+      return (list: PickerItem[], ids: string[]) => {
+        const original = list.map(item => byKey.get(item.id)).filter(Boolean) as EntityItem[];
+        return sortItems(original, ids)
+          .map(item => pickerByKey.get(keyOf(item)))
+          .filter(Boolean) as PickerItem[];
       };
-      if (mode === 'multi' || mode === 'select') {
-        return v.split(',').map(s => s.trim()).filter(Boolean).map(resolve).join(', ');
-      }
-      return resolve(v.trim());
     }
-    if (displayMode !== 'id') return v;
-    if (mode === 'multi' || mode === 'select') {
-      return v.split(',').map(s => s.trim()).filter(Boolean)
-        .map(s => resolveTypedElementKey(items, displayMode, s))
-        .join(', ');
+    if (keepAlphabetical) {
+      return (list: PickerItem[]) => [...list].sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { numeric: true }));
     }
-    return resolveTypedElementKey(items, displayMode, v);
-  }, [valueById, displayMode, mode, items]);
-
-  const onChange = useCallback((v: string) => {
-    const resolved = normalizeCommitValue(v);
-    ensureNew(resolved);
-    onChangeProp(resolved);
-  }, [ensureNew, onChangeProp, normalizeCommitValue]);
-
-  const currentIds = useMemo(() => {
-    if (mode === 'multi' || mode === 'select') {
-      const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-      if (mode === 'multi' && ids.length > 0 && val.trim().at(-1) !== ',') {
-        return ids.slice(0, -1);
-      }
-      return ids;
+    /* The old panel's order: checked rows first (they stay at the top while
+       you work the list), then the catalogue's own order. Grouped lists keep
+       their sections intact — floating rows across groups would split them. */
+    if (groups.length === 0) {
+      const byId = displayMode === 'id';
+      return (list: PickerItem[], selectedIds: string[]) => {
+        const checked = new Set(selectedIds);
+        return [...list].sort((a, b) => {
+          const as = checked.has(a.id);
+          const bs = checked.has(b.id);
+          if (as !== bs) return as ? -1 : 1;
+          if (byId) {
+            const na = parseInt(a.id, 10);
+            const nb = parseInt(b.id, 10);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          }
+          return a.label.localeCompare(b.label, undefined, { numeric: true });
+        });
+      };
     }
-    return localIds;
-  }, [val, mode, localIds]);
+    return undefined;
+  }, [sortItems, keepAlphabetical, groups.length, displayMode, byKey, pickerByKey, keyOf]);
 
-  const sortAndJoin = useCallback((raw: string) => {
-    const ids = raw.split(',').map(x => x.trim()).filter(Boolean);
-    if (displayMode === 'id' && mode === 'multi') {
-      ids.sort((a, b) => {
-        const na = parseInt(a, 10);
-        const nb = parseInt(b, 10);
-        if (!isNaN(na) && !isNaN(nb)) return na - nb;
-        if (!isNaN(na)) return -1;
-        if (!isNaN(nb)) return 1;
-        return a.localeCompare(b, undefined, { numeric: true });
-      });
-    }
-    return ids.join(', ');
-  }, [displayMode, mode]);
-
-  const handleClose = useCallback(() => {
-    if (committedRef.current) return;
-    committedRef.current = true;
-    const newVal = mode === 'multi' || mode === 'select'
-      ? sortAndJoin(val)
-      : (query || (localIds.length > 0 ? localIds[0] : ''));
-    if (newVal !== value) onChange(newVal);
-    setOpen(false);
-    setQuery('');
-    onExit?.();
-  }, [mode, val, localIds, query, onChange, sortAndJoin, onExit, value]);
-
-  useDropdown(open, ref, handleClose, panelRef);
-
-  const toggle = useCallback((id: string) => {
-    if (mode === 'single') {
-      const sel = uppercase ? id.toUpperCase() : id;
-      setLocalIds([sel]);
-      setQuery('');
-      committedRef.current = true;
-      onChange(sel);
-      setOpen(false);
-      onExit?.();
-      return;
-    }
-    if (mode === 'select') {
-      setVal(id);
-      committedRef.current = true;
-      onChange(id);
-      setOpen(false);
-      onExit?.();
-      return;
-    }
-    setVal(prev => {
-      const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
-      const idx = ids.indexOf(id);
-      if (idx >= 0) ids.splice(idx, 1);
-      else ids.push(id);
-      return ids.join(', ') + (ids.length > 0 ? ', ' : '');
-    });
-  }, [mode, onChange, onExit, uppercase]);
-
-  const commit = useCallback(() => {
-    if (committedRef.current) return;
-    committedRef.current = true;
-    const newVal = mode === 'multi' || mode === 'select'
-      ? sortAndJoin(val)
-      : (query || (localIds.length > 0 ? localIds[0] : ''));
-    if (newVal !== value) onChange(newVal);
-    onExit?.();
-    setOpen(false);
-    setQuery('');
-  }, [mode, val, localIds, query, onChange, sortAndJoin, value, onExit]);
-
-  const { dropdownItems, hasExactMatch, effectiveQuery, syntheticItem } = buildDropdownItems(
-    items, currentIds, itemKey,
-    mode === 'multi' || mode === 'select' ? (mode === 'select' ? val.trim() : val.split(',').map(x => x.trim()).filter(Boolean).pop() || '') : query,
-    val, query, mode,
-    { mode, displayMode, keepAlphabetical, searchFields, filterItem, sortItems },
-  );
-  const searchQuery = mode === 'multi' || mode === 'select'
-    ? (mode === 'select' ? val.trim() : val.split(',').map(x => x.trim()).filter(Boolean).pop() || '')
-    : query;
-  useEffect(() => {
-    if (open && effectiveQuery && !hasExactMatch) {
-      setHighlightedIndex(0);
-    }
-  }, [open, effectiveQuery, hasExactMatch]);
-
-
-  const defaultRenderer = (item: EntityItem, checked: boolean) => (
-    <>
-      {/* Board ID prefix: id mode already carries the number in `id` (cast);
-          name mode reads the element's per-category number (roadmap 305). The
-          PANEL is a lookup surface — it always shows every number; only the
-          closed/committed display follows the Cast-only pref (roadmap 321). */}
-      {(displayMode === 'id' ? item.id : item.boardId) && (
-        <span className="text-[color:var(--ui-text-muted)] shrink-0">{displayMode === 'id' ? item.id : item.boardId}.</span>
-      )}
-      <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}</span>
-      {showSceneCounts && scenes && (
-        <span className="text-[10px] text-[color:var(--ui-text-muted)]">
-          {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(item.id)).length} scenes
-        </span>
-      )}
-      {itemBadge && itemBadge(item) && (
-        <span className="text-[10px] text-[color:var(--ui-text-muted)]">{itemBadge(item)}</span>
-      )}
-    </>
-  );
-
-  // Anchored elements (element-link anchors) get an Anchor icon next to the
-  // name — cast keys are exact IDs, name keys match case-insensitively.
-  const anchoredLower = useMemo(() => new Set([...(anchoredKeys || [])].map(v => v.toLowerCase())), [anchoredKeys]);
-  const isAnchored = useCallback((item: EntityItem): boolean => {
-    if (!anchoredKeys || anchoredKeys.size === 0) return false;
-    const key = itemKey(item);
-    return valueById ? anchoredKeys.has(key) : anchoredLower.has(key.toLowerCase());
-  }, [anchoredKeys, anchoredLower, valueById, itemKey]);
-
-  const itemRenderer = useCallback((item: EntityItem, checked: boolean) => {
-    const content = renderItem ? renderItem(item, checked) : defaultRenderer(item, checked);
+  const renderPickerItem = useCallback((pickerItem: PickerItem, checked: boolean) => {
+    const item = byKey.get(pickerItem.id);
+    if (!item) return pickerItem.label;
+    if (renderItem) return renderItem(item, checked);
+    const number = displayMode === 'id' ? item.id : item.boardId;
+    const sceneCount = showSceneCounts && scenes
+      ? scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(item.id)).length
+      : null;
     return (
       <>
-        {content}
-        {isAnchored(item) && (
-          <span
-            title="Element link anchor — linked elements follow this one"
-            aria-label="Element link anchor"
-            className="shrink-0 inline-flex"
-          >
-            <Anchor className="w-3.5 h-3.5 text-amber-500" />
-          </span>
+        {/* Board ID prefix: id mode already carries the number in `id` (cast);
+            name mode reads the element's per-category number (roadmap 305). */}
+        {number && <span className="shrink-0 text-[color:var(--ui-text-muted)]">{number}.</span>}
+        <span className="flex-1 truncate">
+          {displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}
+        </span>
+        {sceneCount !== null && (
+          <span className="text-[10px] text-[color:var(--ui-text-muted)]">{sceneCount} scenes</span>
+        )}
+        {itemBadge?.(item) && (
+          <span className="text-[10px] text-[color:var(--ui-text-muted)]">{itemBadge(item)}</span>
         )}
       </>
     );
-  }, [renderItem, defaultRenderer, isAnchored]);
+  }, [byKey, renderItem, displayMode, showSceneCounts, scenes, itemBadge]);
 
-  const displayValue = open
-    ? (mode === 'multi' || mode === 'select' ? val : (standalone ? query : (query || localIds.join(', '))))
-    : (value || '');
-
-  // Chip trigger (closed): resolve values against the passed items so cast
-  // reads like the Glide breakdown ("1. FISHERMAN") instead of raw ids. The
-  // underlying committed value stays untouched. Also used by cell displays
-  // that opt in via `resolveClosed` (SceneSheet cast). NOTE: hooks MUST stay
-  // above the readOnly early return — a conditional hook breaks the hook order.
-  const chipDisplay = useMemo(() => {
-    if ((variant !== 'chip' && !resolveClosed) || open || !displayValue) return '';
-    return displayValue.split(',').map((segRaw: string) => {
-      const seg = segRaw.trim();
-      if (!seg) return '';
-      const item = valueById
-        ? items.find(i => String(i.id) === seg)
-        : items.find(i => (i.name || i.id) === seg);
-      if (!item) return seg;
+  /* Closed face: raw committed values by default (cast reads "1, 2"); the chip
+     and `resolveClosed` resolve them to "N. NAME" like the old chip did. */
+  const formatDisplay = useCallback((values: string[]) => {
+    const resolveNumbers = (variant === 'chip' || resolveClosed) && !readOnly;
+    return values.map(segment => {
+      if (!resolveNumbers) return segment;
+      const item = byKey.get(segment);
+      if (!item) return segment;
       if (displayMode === 'id') return `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`;
       return boardLabel(boardIdDisplay === 'all' ? item.boardId : undefined, item.name || item.id);
     }).filter(Boolean).join(', ');
-  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed, boardIdDisplay]);
+  }, [variant, resolveClosed, readOnly, byKey, displayMode, boardIdDisplay]);
 
-  if (readOnly && !open) {
-    return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;
-  }
-
-  // Shared editor handlers — rendered on an <input> by default, a wrapping
-  // <textarea> (wrapValue) so the caret tracks wrapped lines and click-to-
-  // position/selection work in the multi-line cells.
-  const onChangeEditor = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
-    if (mode === 'multi' || mode === 'select') { setVal(raw); } else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
-    setHighlightedIndex(-1);
-    forceOpen();
-  };
-  const onClickEditor = (e: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    // Clicking an open picker prepares the text SYNCHRONOUSLY (no rAF —
-    // a deferred selection can land between e.g. Cmd+A and the next
-    // keystroke, turning a replace into an append): single (search-then-
-    // select) selects all so typing replaces; multi (comma list) puts
-    // the caret at the end so typing appends a new segment.
-    forceOpen();
-    if (wrapValue) {
-      // Multi-line cell editor: the click that OPENS the editor moves the
-      // caret to the end (ready to type a new segment); once open, the caret
-      // stays where the user clicked so click-to-position/selection work.
-      if (!openAtMousedownRef.current) {
-        const el = e.currentTarget;
-        const len = el.value.length;
-        el.setSelectionRange(len, len);
-      }
-      return;
-    }
-    const el = e.currentTarget;
-    const len = el.value.length;
-    if (mode === 'single') el.setSelectionRange(0, len);
-    else el.setSelectionRange(len, len);
-  };
-  const onKeyDownEditor = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); onEscape?.(); }
-          if (e.key === 'Tab') {
-            e.preventDefault();
-            let forceCommit = false;
-            let selectedValue: string | null = null;
-            if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
-              const item = dropdownItems[highlightedIndex];
-              const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
-              const key = itemKey(item);
-              if (isSynth) {
-                if (mode === 'single') {
-                  selectedValue = uppercase ? key.toUpperCase() : key;
-                } else {
-                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const committedIds = segments.slice(0, -1);
-                  if (!committedIds.includes(key)) committedIds.push(key);
-                  selectedValue = sortAndJoin(committedIds.join(', '));
-                  forceCommit = true;
-                }
-              } else if (mode === 'multi') {
-                const trimmed = val.trim();
-                const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
-                if (hasQuery) {
-                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const committedIds = segments.slice(0, -1);
-                  const idx = committedIds.indexOf(key);
-                  if (idx >= 0) committedIds.splice(idx, 1);
-                  else committedIds.push(key);
-                  selectedValue = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
-                } else {
-                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const idx = ids.indexOf(key);
-                  if (idx >= 0) ids.splice(idx, 1);
-                  else ids.push(key);
-                  selectedValue = sortAndJoin(ids.join(', '));
-                }
-              } else {
-                selectedValue = uppercase ? key.toUpperCase() : key;
-              }
-              setHighlightedIndex(-1);
-            }
-            const newVal = selectedValue !== null
-              ? selectedValue
-              : mode === 'multi' || mode === 'select'
-                ? sortAndJoin(val)
-                : (query || (localIds.length > 0 ? localIds[0] : ''));
-            if (newVal !== value || forceCommit) { committedRef.current = true; onChange(newVal); }
-            (onTabExit || onExit)?.(ref.current?.querySelector('input, textarea') as HTMLInputElement);
-            setOpen(false);
-            setQuery('');
-          }
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            if (dropdownItems.length === 0) return;
-            hoverRef.current = false;
-            setHighlightedIndex(prev => Math.min(prev + 1, dropdownItems.length - 1));
-          }
-          if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (dropdownItems.length === 0) return;
-            hoverRef.current = false;
-            setHighlightedIndex(prev => Math.max(prev - 1, 0));
-          }
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            e.stopPropagation();
-            if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
-              const item = dropdownItems[highlightedIndex];
-              const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
-              const key = itemKey(item);
-              if (isSynth) {
-                if (mode === 'single') {
-                  const sel = uppercase ? key.toUpperCase() : key;
-                  setVal(sel);
-                  setTimeout(() => {
-                    if (sel !== value) { syntheticRef.current = true; onChange(sel); }
-                    setOpen(false);
-                    onExit?.();
-                  }, 0);
-                } else {
-                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const committedIds = segments.slice(0, -1);
-                  if (!committedIds.includes(key)) committedIds.push(key);
-                  const joined = sortAndJoin(committedIds.join(', '));
-                  setVal(joined + ', ');
-                  syntheticRef.current = true;
-                  onChange(joined);
-                }
-              } else if (mode === 'multi') {
-                const trimmed = val.trim();
-                const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
-                if (hasQuery) {
-                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const committedIds = segments.slice(0, -1);
-                  const idx = committedIds.indexOf(key);
-                  if (idx >= 0) committedIds.splice(idx, 1);
-                  else committedIds.push(key);
-                  const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
-                  setVal(joined + ', ');
-                  if (joined !== value) onChange(joined);
-                } else {
-                  toggle(key);
-                }
-              } else {
-                toggle(key);
-              }
-              setHighlightedIndex(-1);
-            } else {
-              commit();
-            }
-          }
-  };
-
-  const isWrapEditor = wrapValue && !standalone && !autoGrow;
-  const editorCls = `${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? (isWrapEditor ? 'cursor-pointer' : 'cursor-pointer pr-5') : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow || wrapValue) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`;
-  const editorStyle = standalone
-    ? style
-    : autoGrow
-      ? { ...style, color: 'inherit', caretColor: '#2563eb', width: 'auto', fieldSizing: 'content', maxWidth: 400, minWidth: 72 } as React.CSSProperties
-      : { ...style, color: 'transparent', caretColor: '#2563eb' };
-  const editorProps = {
-    autoFocus: autoFocusProp,
-    readOnly: IS_COARSE && !hwKeyboard && keyboardMode === 'off',
-    value: displayValue,
-    onChange: onChangeEditor,
-    onFocus: forceOpen,
-    onMouseDown: () => { openAtMousedownRef.current = open; },
-    onClick: onClickEditor,
-    onBlur: () => commit(),
-    placeholder: standalone || autoGrow ? placeholder : '',
-    onKeyDown: onKeyDownEditor,
-  };
+  /* Cast edits as Board IDs ("1, 2, ") even though the closed face resolves
+     names — the comma list stays the same id-value contract as the cell's raw
+     value, and the search still matches names. */
+  const formatEditing = useCallback((values: string[]) => {
+    const joined = values.join(', ');
+    if (mode !== 'multi') return joined;
+    return skipComma || !joined ? joined : `${joined}, `;
+  }, [mode, skipComma]);
 
   return (
-    <div
-      ref={ref}
-      className={
-        variant === 'chip'
-          ? `${DD_TOKEN_TRIGGER_CLASS} relative ${className || ''}`
-          : (standalone ? '' : `relative ${wrapValue ? 'min-h-[1lh] w-full pb-[1lh]' : 'h-[1lh]'} ${autoGrow ? 'w-max ' : ''}${className || ''}`)
-      }
-      onMouseDown={e => e.stopPropagation()}
-      onClick={wrapValue ? () => {
-        // Full-box write hitbox: the editor (a wrapping textarea) only shows
-        // the caret on the value's first line until it's focused, so a click
-        // on the empty box below the text focuses + opens it.
-        const el = ref.current?.querySelector('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
-        if (el && document.activeElement !== el) {
-          forceOpen();
-          const len = el.value.length;
-          el.focus();
-          if (mode === 'single') el.setSelectionRange(0, len);
-          else el.setSelectionRange(len, len);
-        }
-      } : undefined}
-      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
-      onAuxClick={forceOpen}
-    >
-      {isWrapEditor ? (
-        <textarea
-          {...editorProps}
-          rows={1}
-          className={`${editorCls} ${variant === 'chip' ? DD_CHIP_WRAP_EDITOR_PAD : 'leading-relaxed'} absolute inset-0 resize-none overflow-hidden whitespace-pre-wrap break-words`}
-          style={editorStyle}
-        />
-      ) : (
-        <input {...editorProps} className={editorCls} style={editorStyle} />
-      )}
-      {!standalone && !autoGrow && (
-        <span
-          className={wrapValue
-            ? `block pointer-events-none text-left whitespace-pre-wrap break-words ${variant === 'chip' ? 'pr-4' : 'leading-relaxed'} ${displayValue ? '' : 'italic opacity-50'}`
-            : `absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
-          style={style}
-        >
-          {chipDisplay || displayValue || placeholder}
-        </span>
-      )}
-      {variant === 'chip' && (
-        <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0 absolute right-2 pointer-events-none" />
-      )}
-      {open && (
-        <DropdownPanel
-          anchorRef={ref}
-          panelRef={panelRef}
-          scrollRef={scrollRef}
-          panelMinWidth={panelMinWidth}
-          dropdownItems={dropdownItems}
-          currentIds={currentIds}
-          highlightedIndex={highlightedIndex}
-          itemKey={itemKey}
-          searchQuery={searchQuery}
-          hasExactMatch={hasExactMatch}
-          renderItem={itemRenderer}
-          defaultRenderer={itemRenderer}
-          onItemClick={(m, isSynthetic) => {
-            if (isSynthetic) {
-              const key = itemKey(m);
-              if (mode === 'single') {
-                const sel = uppercase ? key.toUpperCase() : key;
-                setVal(sel);
-                setTimeout(() => {
-                  if (sel !== value) { syntheticRef.current = true; onChange(sel); }
-                  setOpen(false);
-                  onExit?.();
-                }, 0);
-              } else {
-                const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                const committedIds = segments.slice(0, -1);
-                if (!committedIds.includes(key)) committedIds.push(key);
-                const joined = sortAndJoin(committedIds.join(', '));
-                setVal(joined + ', ');
-                syntheticRef.current = true;
-                onChange(joined);
-              }
-            } else if (mode === 'multi') {
-              const trimmed = val.trim();
-              const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
-              if (hasQuery) {
-                const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                const committedIds = segments.slice(0, -1);
-                const key = itemKey(m);
-                const idx = committedIds.indexOf(key);
-                if (idx >= 0) committedIds.splice(idx, 1);
-                else committedIds.push(key);
-                const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
-                setVal(joined + ', ');
-                if (joined !== value) onChange(joined);
-              } else {
-                toggle(itemKey(m));
-              }
-            } else {
-              toggle(itemKey(m));
-            }
-          }}
-          onItemHover={(idx) => { hoverRef.current = true; setHighlightedIndex(idx); }}
-          onHoverLeave={() => { if (hoverRef.current) { hoverRef.current = false; setHighlightedIndex(-1); } }}
-          commitHint={commitHint}
-          onCommit={() => commit()}
-          portalTarget={portalTarget}
-          dark={variant === 'chip'}
-        />
-      )}
-    </div>
+    <PickerField
+      values={selected}
+      onChange={handleChange}
+      items={pickerItems}
+      groups={groups}
+      resolveBy={valueById ? 'id' : 'label'}
+      mode={mode === 'multi' ? 'multiple' : 'single'}
+      appearance={variant === 'chip' ? 'chip' : wrapValue ? 'wrap' : 'inline'}
+      display="names"
+      formatDisplay={formatDisplay}
+      formatEditing={displayMode === 'id' ? formatEditing : undefined}
+      renderItem={renderPickerItem}
+      anchoredKeys={anchoredKeys}
+      placeholder={placeholder}
+      readOnly={readOnly}
+      inputReadOnly={typingBlocked}
+      defaultOpen={defaultOpen || autoFocusProp}
+      selectAllOnOpen={selectAllOnOpen}
+      uppercase={uppercase}
+      theme={variant === 'chip' ? 'dark' : undefined}
+      className={className}
+      style={style}
+      panelWidth={panelWidthOf(panelMinWidth)}
+      panelMinWidth={panelWidthOf(panelMinWidth) ?? 200}
+      portalTarget={portalTarget}
+      autoGrow={autoGrow}
+      skipComma={skipComma}
+      sortItems={pickerSort}
+      onCreateItem={handleCreate}
+      createLabel={typed => `Add "${typed}"`}
+      onExit={onExit}
+      onEscape={onEscape}
+      onTabExit={onTabExit}
+      browse={groups.length > 0 ? 'open' : undefined}
+      /* Tick list, not a form: a bare check glyph in the fixed slot (the old
+         panel's look) instead of a checkbox box. */
+      indicator="check"
+    />
   );
 };

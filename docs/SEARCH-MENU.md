@@ -18,25 +18,26 @@ App adapter: `src/components/location/LocationSearchMenu.tsx`.
 
 ## 1. What it is — and what it is not
 
-**Use `SearchMenu` for** a standalone, single-select catalogue where the user
-picks one record and categories or deep fields matter: locations, crew roles,
-people, days, report fields.
+**Use `SearchMenu` for** a standalone catalogue where the user picks a record
+(or SEVERAL — `multiple` mode: draft + footer hero, `docs/PICKER-FIELD.md`)
+and categories or deep fields matter: locations, crew roles, people, days,
+report fields.
 
 **Do not use it for:**
 
 | Need | Use instead |
 |---|---|
-| A grid/cell editor (Tab/Enter commit, comma multi, free-text create) | `EntityDropdown` |
+| A grid/cell editor (Tab/Enter commit, comma multi, free-text create) | `EntityDropdown` (a `PickerField` adapter) |
 | A short fixed option list (status, type) | `SelectDropdown` / `AutocompleteDropdown` |
-| Async place search (a geocoder request per keystroke) | `AsyncResultsDropdown` |
+| Async place search (a geocoder request per keystroke) | `PickerField` with `loadItems` |
 | A toolbar row filter that keeps its term | `MorphSearchField` |
-| A grouped single/multi select in a form row | `GroupedSelect` |
+| A grouped single/multi select in a form row | `GroupedSelect` (a `PickerField` adapter) |
 | A second search dropdown for a new surface | the existing `SearchMenu` or `LocationSearchMenu` — never fork one |
 
-A `SearchMenu` is **single-select, synchronous, and creates nothing inline**.
-“Create” is an action (see §6), not a record row. It has no controlled `open`
-prop, no async source and no stored value of its own: the caller owns the value
-and passes the current one as the trigger label.
+A `SearchMenu` is **synchronous and creates nothing inline** (multi-select is a
+draft; see §4c). “Create” is an action (see §6), not a record row. It has no
+controlled `open` prop, no async source and no stored value of its own: the
+caller owns the value and passes the current one as the trigger label.
 
 ## 2. The model — items, groups, rows
 
@@ -162,6 +163,25 @@ dropped the click ("I have to click it twice"). Every picker that opens with a
 current value MUST use the same hook (`SearchMenu` `selectedId`,
 `ItemManagerDropdown`, `CategoryDropdown`, `DayPickerList`, `EntityDropdown`
 `keepAlphabetical`) — never a hand-rolled rAF/`scrollIntoView` reveal.
+
+### 4c. Multiple mode — bulk actions
+
+`multiple={{ selectedIds, mode, onCommit, commitLabel, clear, … }}` turns the
+list into a selection surface (`SelectionApi` in `src/selection.ts`):
+
+- **A row click TOGGLES and the panel stays open.** Checked ≠ highlighted: the
+  committed rows carry the selected wash + tick, the keyboard cursor stays the
+  neutral highlight.
+- **`mode: 'draft'`** (default) — the sticky footer hero is the ONLY commit
+  (`commitLabel(count)`, e.g. "Add 6 roles"); Escape or a click-away drops the
+  draft. This is the bulk-action contract; the caller commits ONE batch.
+- **`mode: 'live'`** is `PickerField`'s value mode (the field commits on close).
+- Enter/Space toggle; ⌘A stays native (never intercepted); group headers become
+  select-all in this mode only; selected-but-filtered rows stay selected and the
+  footer notes "N hidden by filter".
+- App proof: Day Crew / Call Times **"Add roles…"** (`CrewRosterEditor.tsx`) —
+  tick several roles across departments and the hero adds them in one undo
+  entry. Manual: `docs/PICKER-FIELD.md`.
 
 ## 5. Search semantics
 

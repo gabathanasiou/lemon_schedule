@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Crosshair } from 'lucide-react';
@@ -20,9 +20,10 @@ import {
   OSM_TILES,
   OSM_ATTRIBUTION,
 } from '../map/MapPrimitives';
-import { AsyncResultsDropdown, type AsyncResultItem } from './AsyncResultsDropdown';
+import { PickerField } from '@gabriel/ui-kit';
+import type { PickerItem } from '@gabriel/ui-kit';
 
-type PlaceHit = AsyncResultItem & { result: PlaceResult };
+type PlaceHit = { key: string; label: string; result: PlaceResult };
 
 // Location picker for map surfaces: ONE address field — typing searches places
 // and picking fills the field; unpicked text commits as the manual address (the
@@ -119,12 +120,32 @@ export const LocationPickerModal: React.FC<{
     };
   }, []);
 
-  const search = async (q: string): Promise<PlaceHit[]> => {
+  const search = useCallback(async (q: string): Promise<PlaceHit[]> => {
     const found = await getPlacesProvider().forwardGeocode(q);
     return found.map(r => ({ key: `${r.lat}|${r.lng}|${r.label}`, label: r.label, result: r }));
-  };
+  }, []);
 
-  const pickResult = (hit: PlaceHit) => {
+  /** Picked results by the address they store (the field's value space) — a
+   *  pick carries the coordinates/parts the async item can't. */
+  const resultsByAddress = useRef(new Map<string, PlaceHit>());
+
+  /** Async source for the shared picker (roadmap 322 — replaces the last
+   *  bespoke async dropdown). Typing over the field is an explicit address
+   *  edit, so it also stops the map's reverse geocode from overwriting it. */
+  const loadPlaces = useCallback(async (query: string): Promise<PickerItem[]> => {
+    addressTouched.current = true;
+    const hits = await search(query);
+    const byAddress = new Map<string, PlaceHit>();
+    const items = hits.map(hit => {
+      const value = hit.result.parts.address || hit.result.label;
+      if (!byAddress.has(value)) byAddress.set(value, hit);
+      return { id: value, label: hit.label, detail: value };
+    });
+    resultsByAddress.current = byAddress;
+    return items;
+  }, [search]);
+
+  const pickResult = useCallback((hit: PlaceHit) => {
     const { result } = hit;
     skipNextGeocode.current = true;
     pinTouched.current = true;
@@ -138,7 +159,20 @@ export const LocationPickerModal: React.FC<{
     // A pick is an explicit choice — let the map's reverse geocode take over
     // again until the user types over it.
     addressTouched.current = false;
-  };
+  }, []);
+
+  /** Field commit (close): a picked result re-centres the map; anything else
+   *  is the manual address override (streets the geocoder can't match). */
+  const commitAddress = useCallback((next: string[]) => {
+    const value = (next[0] ?? '').trim();
+    const hit = resultsByAddress.current.get(value);
+    if (hit) {
+      pickResult(hit);
+      return;
+    }
+    addressTouched.current = true;
+    setAddress(value);
+  }, [pickResult]);
 
   const onCenterMove = (lat: number, lng: number) => {
     const [clat, clng] = centerRef.current;
@@ -221,12 +255,21 @@ export const LocationPickerModal: React.FC<{
             />
           </div>
         )}
-        <AsyncResultsDropdown
-          value={address}
-          onValueChange={v => { addressTouched.current = true; setAddress(v); }}
-          search={search}
-          onPick={pickResult}
+        <PickerField
+          values={address ? [address] : []}
+          onChange={commitAddress}
+          items={[]}
+          resolveBy="id"
+          mode="single"
+          appearance="chip"
+          display="names"
+          allowFreeText
           placeholder="Search or type an address…"
+          loadItems={loadPlaces}
+          emptyTitle="Search an address"
+          emptyHint="Type a street, city or venue — or drag the map."
+          theme="dark"
+          panelMinWidth={320}
         />
         <div className="rounded-md overflow-hidden border border-[color:var(--ui-card-border)] relative">
           <MapContainer

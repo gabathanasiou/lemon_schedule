@@ -70,7 +70,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
 
   // Pick a cast member (chip dropdown), then a date (kit calendar grid), save
   await pickMember();
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab'); // commits the pick, keeps the dialog open
   await navPickerTo(page, monthLabel);
   await page.getByRole('dialog').getByRole('button', { name: String(day1), exact: true }).click();
   await clickAddRule(page);
@@ -84,7 +84,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByText('Every day', { exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: String(day2), exact: true })).toBeVisible();
   await pickMember();
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab'); // commits the pick, keeps the dialog open
   await navPickerTo(page, monthLabel);
   await page.getByRole('dialog').getByRole('button', { name: String(day2), exact: true }).click();
   await clickAddRule(page);

@@ -30,25 +30,21 @@ function fixture(): any {
 
 describe('crewTargetItems', () => {
   it('groups people by department with the role as the hint', () => {
-    const items = crewTargetItems(fixture()).filter(i => !i.tag);
+    const items = crewTargetItems(fixture());
     expect(items.find(i => i.id === 'p1')).toMatchObject({ name: 'MAT', group: 'Camera', hint: 'DoP' });
     expect(items.find(i => i.id === 'p3')).toMatchObject({ group: 'Transport', hint: 'Driver' });
   });
 
-  it('offers one accent "All <department>" tag per department, above its people', () => {
+  it('lists people only — a department is selected by its header tick, not a row', () => {
     const items = crewTargetItems(fixture());
-    const tags = items.filter(i => i.tag);
-    expect(tags.map(i => i.name)).toEqual(['All Camera', 'All Transport']);
-    expect(tags.every(i => i.id.startsWith('dept:'))).toBe(true);
-    expect(items.findIndex(i => i.id === crewDeptTargetId('Camera')))
-      .toBeLessThan(items.findIndex(i => i.id === 'p1'));
+    expect(items.map(i => i.id)).toEqual(['p1', 'p2', 'p3']);
+    expect(items.every(i => !i.id.startsWith('dept:'))).toBe(true);
   });
 
-  it('offers the department tag even when the department has no people yet', () => {
+  it('a department with no people adds no rows', () => {
     const project = fixture();
     project.crewRoles.push({ key: 'emptyrole', label: 'Runner', department: 'Production' });
-    const tag = crewTargetItems(project).find(i => i.id === crewDeptTargetId('Production'));
-    expect(tag).toMatchObject({ name: 'All Production', tag: true });
+    expect(crewTargetItems(project).map(i => i.id)).toEqual(['p1', 'p2', 'p3']);
   });
 
   it('handles a project with no crew roster', () => {

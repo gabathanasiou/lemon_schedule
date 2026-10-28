@@ -41,13 +41,16 @@ test('positions: defaults ship and toggling a category persists', async ({ page 
 
   // Defaults: Makeup maps to the Makeup & Hair element category.
   const makeupRow = modal.locator('[data-position="makeup"]');
+  const categories = makeupRow.locator('[data-picker-field] button');
   await expect(makeupRow).toBeVisible();
-  await expect(makeupRow.getByRole('button')).toContainText('Makeup & Hair');
+  await expect(categories).toContainText('1 selected');
 
-  // Toggle Props on — the mapping is stored explicitly on the role.
-  await makeupRow.getByRole('button').click();
-  await page.locator('[data-ei]').filter({ hasText: /^Props$/ }).click();
-  await expect(makeupRow.getByRole('button')).toContainText('Props');
+  // Toggle Props on — the mapping is stored explicitly on the role when the
+  // picker closes (value fields commit on close, Escape cancels the draft).
+  await categories.click();
+  await page.locator('[data-search-item="props"]').click();
+  await modal.getByRole('heading', { name: 'Crew Links' }).click();
+  await expect(categories).toContainText('2 selected');
   await expect.poll(() => page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
     return (p.crewRoles.find((r: any) => r.key === 'makeup') || {}).categories || null;
@@ -74,7 +77,10 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   const modal = await openCrewLinks(page);
   await expect(modal).toContainText('ZZZ ALPHA');
   await expect(modal.locator('[data-el-dropdown] input').first()).toHaveValue(String(anchor.id));
-  await expect(modal.getByText('ZZZ BETA', { exact: true })).toBeVisible();
+  // The linked row summarizes the selection ("1 selected"); the person is the
+  // value behind it.
+  const alphaCard = modal.locator('[data-crew-link-card]').filter({ hasText: 'ZZZ ALPHA' });
+  await expect(alphaCard.locator('[data-picker-field] button')).toContainText('1 selected');
   await modal.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(modal).toBeHidden();
 
@@ -86,10 +92,17 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   const emModal = page.getByRole('dialog');
   await emModal.getByRole('tab', { name: 'Links' }).click();
   const crewRow = emModal.locator('[data-link-row="crew"]');
-  await expect(crewRow).toContainText('ZZZ ALPHA');
-  // Grouped crew picker (names, grouped by department) — untick the person.
-  await crewRow.getByRole('button', { name: 'ZZZ ALPHA' }).click();
-  await page.locator('[data-ei]').filter({ hasText: 'ZZZ ALPHA' }).click();
+  await expect(crewRow).toContainText('1 selected');
+  // Button picker: the search lives in the panel (typing never edits the
+  // value). Its role subtitle is searchable, so "ZZZ Role" finds its people.
+  // Untick the person, then click away to commit the draft.
+  await crewRow.locator('[data-picker-field] button').click();
+  const crewField = crewRow.locator('[data-picker-field] input');
+  await crewField.press('End');
+  await crewField.pressSequentially('ZZZ Role');
+  await expect(page.locator('[data-search-item]').filter({ hasText: 'ZZZ ALPHA' })).toBeVisible();
+  await page.locator('[data-search-item]').filter({ hasText: 'ZZZ ALPHA' }).click();
+  await emModal.getByRole('tab', { name: 'Links' }).click();
   await expect.poll(() => page.evaluate(() =>
     ((window as any).__lemonSchedule.getProject().links || []).some((l: any) => l.id === 'zzz-cl-1'),
   )).toBe(false);

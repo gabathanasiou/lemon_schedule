@@ -483,9 +483,17 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
   const ambient = useKitTheme();
 
-  const addRoleSlot = useCallback((roleKey: string) => {
+  const addRoles = useCallback((roleKeys: string[]) => {
+    if (roleKeys.length === 0) return;
     const used = new Set(slots.map(s => s.personId).filter(Boolean) as string[]);
-    onSlotsChange(addSlotToList(slots, roleKey, peopleForRole(project, roleKey).find(p => !used.has(p.id))?.id));
+    let next = slots;
+    for (const roleKey of roleKeys) {
+      const person = peopleForRole(project, roleKey).find(p => !used.has(p.id));
+      if (person?.id) used.add(person.id);
+      next = addSlotToList(next, roleKey, person?.id);
+    }
+    /* ONE call → one undo entry for the whole bulk add (roadmap 322). */
+    onSlotsChange(next);
   }, [project, slots, onSlotsChange]);
 
   /** Every role as one catalogue (roadmap 318): departments are the
@@ -512,15 +520,23 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
         theme={ambient?.mode ?? 'light'}
         items={addRoleMenu.items}
         groups={addRoleMenu.groups}
-        triggerLabel="Add role…"
+        triggerLabel="Add roles…"
         triggerIcon={<Plus className="w-3.5 h-3.5" />}
         placeholder="Search roles…"
-        onSelect={item => addRoleSlot(item.id)}
+        onSelect={item => addRoles([item.id])}
+        multiple={{
+          selectedIds: [],
+          mode: 'draft',
+          onCommit: addRoles,
+          commitLabel: count => `Add ${count} role${count === 1 ? '' : 's'}`,
+          clear: false,
+          indicator: 'check',
+        }}
         expandableGroups
         groupExpandMode="single"
         collapsedWidth={110}
         expandedWidth={240}
-        panelWidth={320}
+        panelWidth={340}
         emptyHint="Try a role or department."
       />
     </div>

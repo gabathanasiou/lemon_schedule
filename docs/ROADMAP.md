@@ -1113,87 +1113,67 @@ Split out of 297 (archived), where it was explicitly deferred.
 - **Relations**: `follows` **297** (archived); `pairs with` **285** (CSP
   allowlist); `feeds` **288** (privacy data-flow list).
 
-## 322. Picker architecture — multi-select menus + ONE value picker (`[ ]`, big)
+## 323. Seg icon-swap face in the app — retire icon-only Segs (`[ ]`)
 
-**Asked 2026-10-27 (user):** multi-select is only possible through
-`EntityDropdown` today; both kit menus should support it ("keeps open, you keep
-selecting, commit when you close"), everything the dropdowns already do
-(categories, accordions, actions, morphing) must come along, and the entity
-dropdown should eventually move into the kit so the three picker families stop
-being used interchangeably. Real use case: adding crew-template roles one modal
-at a time is painfully slow.
+**Asked 2026-10-28 (user):** the icon-only Seg has no real use; the
+**icon-swap** face (icon at rest → TEXT ONLY on hover / for the selected
+segment) is the one worth keeping — adopt it in the app, especially in the
+header/tab chrome.
 
-**Contract (locked with the user):**
+**Kit (already in the playground, `seg-icon-swap`):** `Seg` `iconCollapse` +
+`iconWithLabel={false}` renders options through `TabFace` — icon-only at rest,
+the icon collapses to a 0-width column on hover/selection and the label shows.
+No new kit API needed beyond the release that carries it (`Seg` icon face +
+`DropdownThemeAttrsContext`).
 
-- **Menus that DO something (bulk action)** = draft + explicit footer hero
-  ("Add 6 roles"); Escape / click-away CANCELS the draft, the hero commits ONE
-  undo entry.
-- **Fields that STORE a value** = commit on close (blur/Escape/outside), one
-  batched dispatch, and only when the value actually changed (no empty undo
-  entries).
-- In BOTH: a row click TOGGLES and the panel stays open; checked ≠ highlighted;
-  select-all in the footer AND per group; ⌘A selects the visible (filtered) set;
-  selection is emitted in catalogue order.
-- **Field trigger display supports ALL modes**: `names` | `chips` | `count`
-  presets, `formatDisplay(values, items) => string` for arbitrary selected text,
-  `renderTrigger` for custom JSX. Menus need none (button label + panel footer
-  count).
-- Naming: `PickerField` (value field), `selection.ts` / `SelectionFooter` /
-  `SelectionCheck` (shared model). Panels keep `DropdownMenu` / `SearchMenu`.
+**Work:**
+- Audit every `<Seg>` call site (~22 today) for icon-only segments; swap those
+  to the icon-swap face (or plain labels where an icon adds nothing).
+- Header/tab surfaces: use the same icon-swap reveal where a tab set has icons
+  (AppHeader tabs + PageToolbar sub-tabs currently use `Button` `collapse`,
+  which keeps the icon while revealing the label). Prefer one behaviour across
+  both so a tab row and a Seg never look like two systems.
+- Keep navigation untouched: header tabs stay `go()`-driven (`Button
+  variant="tab|tab-header"`); this is a face change only — never move routing
+  into `Seg`.
 
-**Phases (each ships independently; 1→4 is the prerequisite chain):**
+**Verify:** `npm run lint`; full suite (tab navigation + Seg specs); manual pass
+on the app header, one PageToolbar, and the Call Times modal tabs (dark).
 
-1. **Selection model** — new `src/selection.ts` in the kit: `SelectionProps`
-   (mode, selectedIds, onChange/onToggle, max, disabledIds, footer),
-   `useSelection` (toggle / toggleGroup / setAll / clear / count / order),
-   `SelectionFooter` (sticky: `N selected · Clear · hero`), `SelectionCheck`.
-   Pure logic → `src/__tests__/selection.test.ts`.
-2. **`DropdownMenu` multiple mode** — a selection context flips rows from
-   activate→toggle; check affordance; sticky footer; Enter/Space toggle; ⌘A;
-   per-group select-all (group headers become actionable in this mode ONLY);
-   Escape/outside = cancel. Extend `playground/specs/dropdown-menu.spec.ts`.
-3. **`SearchMenu` multiple mode** — the accordion stays an accordion (expand ≠
-   select); category rows show `x/y selected` + per-group select-all; footer
-   count with a "N hidden by filter" note; Enter toggles; selected-but-filtered
-   rows stay selected. Extend
-   `playground/specs/searchable-dropdown.spec.ts`.
-4. **Crew roles bulk-add (app proof)** — an "Add roles" multi-picker in the Call
-   Times modal / Day Crew: grouped by department, searchable, select-all per
-   department, one batch dispatch (one undo entry). Replaces the one-role-at-a-
-   time flow.
-5. **`PickerField` (kit, the big one)** — the value layer extracted from
-   `EntityDropdown`: single/multi + comma list + typed-segment query,
-   create-from-typed, commit-on-close, `display` presets + `formatDisplay` +
-   `renderTrigger`, trigger faces `inline` (cell) / `chip` / `wrap` / `morph`,
-   id↔label (`resolveBy`), custom row renderer/badge/trailing/anchor icon, Tab
-   hand-off, `selectAllOnOpen`, async source (replaces `AsyncResultsDropdown`).
-   Built on the catalogue face (`SearchMenu`) — **NO `face` prop and no second
-   panel implementation**. Needs ONE small backward-compatible seam: controlled
-   `open`/`onOpenChange` + `renderTrigger`/`hideTrigger` on `SearchMenu`. The app
-   keeps a thin adapter (`src/components/EntityDropdown.tsx`) for the domain:
-   cast Board IDs, other categories name-keyed, `addNewElement` + naming modal,
-   `useLinkedEditGuard`.
-6. **Retire the zoo** — `GroupedSelect`, `SelectDropdown`, `AutocompleteDropdown`
-   and `AsyncResultsDropdown` become faces of `PickerField`; migration order by
-   risk: Link Manager / Color Rules (chip) → Scene Sheet (inline wrap) →
-   stripboard inline → **Glide cell editors LAST** (Tab hand-off + focus timing).
+**Relations:** `depends on` the kit release carrying the Seg icon face;
+`relates to` **322** (picker/control architecture), **258** (icon-first
+collapsing tabs — the `TabFace` mechanics).
 
-**Non-goals:** no `PickerField` over `DropdownMenu` (menus are for commands);
-submenus stay out of value fields; the comma-string storage format and cast-by-ID
-stay app-side (the kit models an array, adapters serialise).
+## 324. Control-face audit — use the new kit faces where they earn their place (`[ ]`)
 
-**Docs per phase:** `docs/SEARCH-MENU.md` §4b loses "single-select by design";
-`docs/DESIGN-LANGUAGE.md` gains the selection contract (checked ≠ highlighted,
-never close on toggle, sticky footer); `PickerField` gets
-`docs/PICKER-FIELD.md` at phase 5; the kit `AGENTS.md` is at its 200-line cap —
-point at `selection.ts` instead of adding a section.
+**Asked 2026-10-28 (user):** "audit the app especially headers and modals to
+see if we can use some of the new UI like morphing icons where they make
+sense or toggle icons — search in page mini tab bars, edit key on schedule
+tab, boneyard button etc."
 
-**Verify:** kit — `npm run lint` + `npm run test:playground` (new selection specs)
-+ Vitest for the pure model; app — `npm run lint` + the full suite at phases 4 and
-6; manual pass (menu: tick 6 roles, Escape cancels, the hero adds them in one
-undo; field: reopening shows the committed value in names / chips / count / custom
-text; iPad tap targets and the sticky footer).
+The kit now carries faces the app does not use yet: `revealOnHover` (bare
+icon → its box on hover), `collapse` + `keepLabelOnActive={false}` (a toggle
+that collapses back to its icon), `reserveLabel` + `iconRoll` (stable width,
+direction-aware icon change), the morph trigger (`MorphSearchField` /
+`MorphActionField`) and the Seg icon-swap face (323 owns adoption there).
 
-**Relations:** `follows` **56** (promote shared components into the kit) and
-**318** (SearchMenu adoption); `relates to` **172** (search family), **302**
-(modal theming); `supersedes` the remaining EntityDropdown part of **56**.
+**Work:**
+- Walk the headers first — AppHeader, PageToolbar (sub-tabs + actions), the
+  Schedule/Calendar toolbars, the Day Manager header — then the shared modal
+  footers and trigger buttons. The user's starters: the search trigger in the
+  PageToolbar mini-tab bar, the Schedule tab's **Edit** key, the **Boneyard**
+  button.
+- For each control decide and apply ONE of: keep the plain button, reveal on
+  hover, a real toggle (2+ states, stable width, icon roll), or morph into a
+  field. A face change only — no routing, labels or new components; keep
+  `go()`-driven navigation in the tabs.
+- Where the same pattern repeats, capture it as a shared recipe (design doc
+  + the control manual's examples), not a per-call-site copy.
+
+**Verify:** `npm run lint`; the suites covering each touched surface; manual
+pass over every audited header + one modal per family (faces are visual —
+rule 7 manual, no new e2e).
+
+**Relations:** `relates to` **323** (Seg icon-swap face in the app), **322**
+(picker/control architecture), **258** (collapsing tabs / `TabFace`); kit
+manual `docs/CONTROLS.md`.

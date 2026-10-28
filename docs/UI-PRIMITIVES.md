@@ -194,8 +194,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   dim per window — stacked modals zero non-top dims), `ContextMenu`/`ContextMenuItem`/
   `ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel;
   **commits on blur only — never per keystroke**), `EntityDropdown` (see below), `PageToolbar`,
-  `Button` (ui-kit toolbar button — `subtle`/`primary`/`danger-ghost` variants, `cloud` prop for
-  cloud coloring, `theme="dark"`, `iconOnly` for the square icon-only shape; status pills stay
+  `Button` (ui-kit toolbar button — `subtle`/`primary`/`outline`/`danger-ghost` variants, `cloud`
+  prop for cloud coloring, `theme="dark"`, `iconOnly` for the square icon-only shape; **`outline`**
+  is the quiet button that reads as a button at rest — 1px edge as an inset shadow (no size
+  change, so it is also the resting face of a morphing button→field control); status pills stay
   bespoke), `Seg` (`variant="track"` — padded-track segmented control with the sliding pill,
   `theme="light|dark"`, `stretch`, per-option `icon`/`ariaLabel`, `tablist`; `variant="chrome"`
   stays the Reports Designer look), `FloatingToggle` (the round pinned device toggle),
@@ -262,12 +264,20 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   - **Keyboard**: ↑↓ actionable rows (plain headers skipped), **→/←** expands/collapses a
     category in accordion browse, Enter activates the highlight (opening highlights the first
     list row, not a pinned create action), Esc closes.
-  **Limits (by design)**: single-select · synchronous items only · no inline create/rename
+  **Limits (by design)**: single-select OR `multiple` (draft + footer hero, below) ·
+  synchronous items only (async lives on `PickerField.loadItems`) · no inline create/rename
   (actions instead) · no controlled `open` · fixed trigger structure (icon + label).
-  **Use for**: standalone single-record catalogue pickers (locations, crew roles/people,
-  days, report fields). **Do NOT use for**: grid/cell editors (`EntityDropdown`), short fixed
-  option lists (`SelectDropdown`/`AutocompleteDropdown`), async place search
-  (`AsyncResultsDropdown`), or toolbar filters (`MorphSearchField`).
+  **Use for**: standalone catalogue pickers (locations, crew roles/people,
+  days, report fields) and bulk ACTIONS ("Add roles…"). **Do NOT use for**: grid/cell editors
+  (`EntityDropdown`), short fixed option lists (`SelectDropdown`/`AutocompleteDropdown`),
+  async place search (`PickerField`), or toolbar filters (`MorphSearchField`).
+  **`multiple` mode** (`selection.ts`): a row click TOGGLES and the panel stays open; checked
+  rows keep the selected wash, the keyboard cursor stays the neutral highlight; the sticky
+  footer hero (`commitLabel(count)`) is the ONLY commit (`mode: 'draft'`), Escape/outside
+  cancels, group headers become per-group select-all, ⌘A stays native. `mode: 'live'` is
+  `PickerField`'s value mode (commit on close). Never close the panel on a toggle.
+  **Value pickers = `PickerField` (322)**: `EntityDropdown`/`AutocompleteDropdown`/
+  `SelectDropdown`/`GroupedSelect` are thin adapters; manual `docs/PICKER-FIELD.md`.
   **App adapter**: `LocationSearchMenu` (`src/components/location/`) — grouped by location
   type, searches address/contact/phone, id-keyed values, optional add-the-typed-name + clear.
   Current map: master location = `browse="open"`; **all Report-to pickers = `browse="accordion"`**;

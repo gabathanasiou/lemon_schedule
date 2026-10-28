@@ -118,6 +118,55 @@ test.describe('Glide Breakdown Tab', () => {
     expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
   });
 
+  test('typing a letter on a selected cell opens the picker ON that letter (I/E + D/N)', async ({ page }) => {
+    // Glide handles the first keystroke itself: it opens the overlay with the
+    // typed character as `initialValue` and the cell data already replaced, so
+    // NO input event reaches React. The picker must take that character as its
+    // search query — otherwise the first letter is silently lost and the panel
+    // opens on its first row ("e" leaving INT lit instead of EXT).
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    const scroller = page.locator('.dvn-scroller');
+    await expect(scroller).toBeAttached({ timeout: 5000 });
+    const sr = await scroller.boundingBox();
+    expect(sr).not.toBeNull();
+
+    // Row marker 50 + actions 36 + sceneNumber 60 + pageCount 80 + scriptDay 80
+    // = I/E left 306 (width 80); Set 180; D/N 90.
+    const ieX = sr!.x + 306 + 40;
+    const dnX = sr!.x + 306 + 80 + 180 + 45;
+    const headerH = 36;
+    const rowH = 34;
+    const y0 = sr!.y + headerH + rowH / 2;
+    const lit = () => page.locator('#search-menu-panel .ui-item-highlighted').innerText();
+    const sceneValue = (key: 'intExt' | 'dayNight', row = 0) => page.evaluate(
+      ([k, r]) => (window as any).__lemonSchedule.getProject().scenes[r][k],
+      [key, row] as const,
+    );
+
+    await page.mouse.click(ieX, y0);
+    await waitForGlideCellSelected(page, glideCellId(5, 0));
+    await page.keyboard.type('e');
+    await expect.poll(lit).toBe('EXT');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => sceneValue('intExt')).toBe('EXT');
+
+    // A second row proves the letter COMMITS (row 1 is not already INT).
+    await page.mouse.click(ieX, y0 + rowH);
+    await waitForGlideCellSelected(page, glideCellId(5, 1));
+    await page.keyboard.type('i');
+    await expect.poll(lit).toBe('INT');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => sceneValue('intExt', 1)).toBe('INT');
+
+    await page.mouse.click(dnX, y0);
+    await waitForGlideCellSelected(page, glideCellId(7, 0));
+    await page.keyboard.type('m');
+    await expect.poll(lit).toBe('MORNING');
+    await page.keyboard.press('Tab');
+    await expect.poll(() => sceneValue('dayNight')).toBe('MORNING');
+  });
+
   test('range fill: a single-value entity column (Set) fills vertically with no confirm (roadmap 144)', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Glide Breakdown' }).click();
@@ -223,22 +272,49 @@ test.describe('Glide Breakdown Tab', () => {
     // §E select-first open — Cast = a11y col 9, row 0 (fresh grid: no drag).
     const input = await openGlideCellEditor(page, { x: castX, y: y0 }, glideCellId(9, 0));
     await input.click(); // open the suggestions panel on the overlay editor
-    await expect(page.locator('.click-outside-ignore')).toBeVisible({ timeout: 4000 });
+    await expect(page.locator('#search-menu-panel')).toBeVisible({ timeout: 4000 });
 
-    const item = page.locator('.click-outside-ignore button:not([data-checked="true"])').first();
+    const item = page.locator('#search-menu-panel [data-search-item]:not([aria-selected="true"])').first();
     const pickId = (await item.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
     expect(pickId).toBeTruthy();
     await item.click();
 
     // Panel stays open (the pick must not leak into the canvas' handlers) …
-    await expect(page.locator('.click-outside-ignore')).toBeVisible();
+    await expect(page.locator('#search-menu-panel')).toBeVisible();
     // … and Enter on the refocused editor input commits the toggled Cast list.
-    await input.click();
+    await input.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('.click-outside-ignore')).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0, { timeout: 4000 });
     await expect.poll(() => page.evaluate(() =>
       (window as any).__lemonSchedule.getProject().scenes[0].cast,
     ), { timeout: 5000 }).toContain(pickId);
+
+    // Keyboard flow on the same cell: Enter opens, arrows pick (keeping the
+    // panel open and RESUMING below the pick), Enter commits.
+    await page.keyboard.press('Enter');
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel).toBeVisible({ timeout: 5000 });
+    await page.keyboard.press('ArrowDown');
+    const first = await panel.locator('.ui-item-highlighted').getAttribute('data-search-item');
+    expect(first).toBeTruthy();
+    await page.keyboard.press('Enter');
+    await expect(panel).toBeVisible();
+    // The open field edits as Board IDs (the closed face resolves names).
+    const openValue = await page.locator('#portal input').first().inputValue();
+    expect(openValue).toContain(`${first}, `);
+    await page.keyboard.press('ArrowDown');
+    const second = await panel.locator('.ui-item-highlighted').getAttribute('data-search-item');
+    expect(second).toBeTruthy();
+    expect(second).not.toBe(first);
+    await page.keyboard.press('Enter');
+    // The pick consumed the highlight — the next Enter commits and closes.
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(panel).toHaveCount(0);
+    const cast = await page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes[0].cast);
+    expect(cast).toContain(first);
+    expect(cast).toContain(second);
   });
 });
 
@@ -374,3 +450,4 @@ test('row filter is display-only, survives collapsing, and restores every row (r
     (window as any).__lemonSchedule.getProject().scenes.map((s: any) => s.id));
   expect(idsAfter).toEqual(idsBefore);
 });
+

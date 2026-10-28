@@ -2,7 +2,7 @@ import React from 'react';
 import type { CustomCategoryDef, Project, ProjectElement } from '../../types';
 import { getFieldItems } from '../../lib/categories';
 import { CREW_TARGET, LOCATION_TARGET } from '../../lib/linkDrafts';
-import { crewPickerIds, crewTargetItems, locationTargetItems } from '../../lib/linkTargets';
+import { crewDeptTargetId, crewPickerIds, crewTargetItems, locationTargetItems } from '../../lib/linkTargets';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ElementPickerRow } from '../rules/ElementPicker';
 import { GroupedSelect } from '../production/day/GroupedSelect';
@@ -74,6 +74,7 @@ export const LinkRow: React.FC<{
           selectedIds={selectedIds}
           onChange={ids => onChange(ids.join(', '))}
           placeholder={placeholder || (isCrew ? 'Select crew…' : 'Select locations…')}
+          groupToken={isCrew ? crewDeptTargetId : undefined}
         />
 
         {onRemove && (

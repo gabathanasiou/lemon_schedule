@@ -112,7 +112,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     let Editor = components.get(colKey);
     if (!Editor) {
       Editor = (p: any) => {
-        const { value: cellValue, onChange, onFinishedEditing, isHighlighted, validatedSelection } = p;
+        const { value: cellValue, onChange, onFinishedEditing, isHighlighted, validatedSelection, initialValue } = p;
         const { cfg, align, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
         const isTouch = useTouchMode();
         const currentVal = cellValue?.data ?? '';
@@ -158,7 +158,12 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
           );
         }
         if (cfg.kind === 'enum') {
-          return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
+          // `initialValue` is the character that OPENED the overlay (Glide
+          // handles that first key itself — no input event ever fires), so the
+          // picker must take it as its search query or the first letter is
+          // silently lost and the list opens on its first row. `selectAllOnOpen`
+          // false keeps that character out of the next keystroke's way.
+          return <AutocompleteDropdown value={currentVal} initialQuery={initialValue} selectAllOnOpen={selectAllOnOpen} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
         if (cfg.kind === 'text') {
           // Plain text editor (Glide's own is unavailable to custom editors):

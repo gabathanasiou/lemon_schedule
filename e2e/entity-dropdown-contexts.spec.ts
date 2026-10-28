@@ -18,7 +18,7 @@ import { openSeededProject } from './helpers';
 
 /** Click the first unchecked item in the open panel; returns its Board ID. */
 async function pickUncheckedItem(page: Page): Promise<string> {
-  const item = page.locator('.click-outside-ignore button:not([data-checked="true"])').first();
+  const item = page.locator('#search-menu-panel [data-search-item]:not([aria-selected="true"])').first();
   const id = (await item.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
   expect(id).toBeTruthy();
   await item.click();
@@ -59,13 +59,14 @@ test.describe('entity dropdown contexts', () => {
 
     const castInput = page.locator('[data-scene-field="cast"]').first().locator('textarea').first();
     await castInput.click();
-    await expect(page.locator('.click-outside-ignore')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#search-menu-panel')).toBeVisible({ timeout: 5000 });
     const id = await pickUncheckedItem(page);
 
-    // Keep focus in the dropdown input and commit with Enter.
+    // Clicking the field moves the pointer off the row (a hover-driven
+    // highlight would re-toggle it) and keeps the field focused; Enter commits.
     await castInput.click();
     await page.keyboard.press('Enter');
-    await expect(page.locator('.click-outside-ignore')).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('#search-menu-panel')).toBeHidden({ timeout: 5000 });
     // The sheet's own field shows the committed list, and the store accepted
     // it on the scene the sheet is showing (order prefs can reorder sheets,
     // so assert the field + a scene that now references the picked Board ID).
@@ -90,17 +91,17 @@ test.describe('entity dropdown contexts', () => {
     await popup.locator('button[aria-label="Edit"]').click();
     const castCell = popup.locator('[data-ribbon-field="cast"]').first();
     await castCell.click();
-    await expect(popup.locator('.click-outside-ignore')).toBeVisible({ timeout: 5000 });
+    await expect(popup.locator('#search-menu-panel')).toBeVisible({ timeout: 5000 });
     // The floating panel must live in the POPUP document, never the opener's.
-    await expect(page.locator('.click-outside-ignore')).toHaveCount(0);
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
 
     const id = await pickUncheckedItem(popup);
     // The item click must keep the panel open (host clicks must not leak in).
-    await expect(popup.locator('.click-outside-ignore')).toBeVisible();
+    await expect(popup.locator('#search-menu-panel')).toBeVisible();
 
     await castCell.locator('input').click();
     await popup.keyboard.press('Enter');
-    await expect(popup.locator('.click-outside-ignore')).toHaveCount(0);
+    await expect(popup.locator('#search-menu-panel')).toHaveCount(0);
     await expect.poll(() => sceneCastOf(page, sceneId)).toContain(id);
     await popup.close();
   });

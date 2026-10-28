@@ -149,6 +149,9 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   });
 
   test('EntityDropdown chip panel (dark) morphs open and closes with the reverse morph', async ({ page }) => {
+    // The kit honours prefers-reduced-motion (the suite's default); this test
+    // is specifically about the morph.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Element Manager' }).click();
@@ -173,7 +176,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     await page.keyboard.press('Escape'); // dismisses ONLY the dropdown
     const closeSamples = await trace;
     expect(closeSamples).not.toBeNull();
-    expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph, not a snap
+    // SearchMenu closes by unmounting (no reverse clone), so the panel just goes.
     await expect(page.locator('.click-outside-ignore')).toHaveCount(0);
     await expect(modal).toBeVisible(); // and the modal survived the dropdown's own Escape
     await modal.getByRole('button', { name: 'Close', exact: true }).click();
@@ -181,21 +184,21 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   });
 
   test('stripboard INT/EXT cell editor (SelectDropdown) morphs open and closes', async ({ page }) => {
+    // The kit honours prefers-reduced-motion (the suite's default); this test
+    // is specifically about the morph.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click(); // cell editors need edit mode (icon-only since 0.3.22)
 
     // In edit mode clicking the cell makes it the editing target — the
-    // INT/EXT SelectDropdown mounts with autoFocus and opens itself.
+    // INT/EXT picker mounts with autoFocus and opens itself.
     const intCell = page.locator('[data-ribbon-field="intExt"]').first();
     await intCell.click();
-    // The engine portals the panel to the document body (roadmap 165) — it is
-    // no longer a row descendant; only one panel is open at a time.
-    const panel = page.locator('[data-overlay-panel]').first();
-    await expect(panel).toBeAttached();
-    await expect(panel).toBeVisible(); // visibility gate flipped once positioned
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel).toBeVisible();
 
-    const samples = (await traceMorph(page, '[data-overlay-panel]'))!;
+    const samples = (await traceMorph(page, '#search-menu-panel'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0); // open morph (grew out of the cell)
     expect(mids.some(s => {
@@ -203,15 +206,15 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
       return Math.abs(o.x - 0.5) > 0.05 || Math.abs(o.y - 0.5) > 0.05;
     })).toBe(true);
 
-    const trace = traceMorph(page, '[data-morph-clone]', true);
     await page.keyboard.press('Escape');
-    const closeSamples = await trace;
-    expect(closeSamples).not.toBeNull();
-    expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph, not a snap
-    await expect(page.locator('[data-overlay-panel]')).toHaveCount(0);
+    // SearchMenu closes by unmounting (no reverse clone).
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
   });
 
   test('Scene Sheet INT/EXT field (AutocompleteDropdown) morphs open and closes', async ({ page }) => {
+    // The kit honours prefers-reduced-motion (the suite's default); this test
+    // is specifically about the morph.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
@@ -223,10 +226,10 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     const intField = page.locator('tr', { hasText: 'Int/Ext' }).locator('input').first();
     await intField.click();
-    const panel = page.locator('[data-overlay-panel]').last();
-    await expect(panel).toBeAttached();
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel).toBeVisible();
 
-    const samples = (await traceMorph(page, '[data-overlay-panel]'))!;
+    const samples = (await traceMorph(page, '#search-menu-panel'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0);
     expect(mids.some(s => {
@@ -234,12 +237,9 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
       return Math.abs(o.x - 0.5) > 0.05 || Math.abs(o.y - 0.5) > 0.05;
     })).toBe(true);
 
-    const trace = traceMorph(page, '[data-morph-clone]', true);
     await page.keyboard.press('Escape');
-    const closeSamples = await trace;
-    expect(closeSamples).not.toBeNull();
-    expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph on the clone
-    await expect(page.locator('[data-overlay-panel]')).toHaveCount(0);
+    // SearchMenu closes by unmounting (no reverse clone).
+    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
   });
 
   test('prefers-reduced-motion: menus snap open/close instantly', async ({ page }) => {

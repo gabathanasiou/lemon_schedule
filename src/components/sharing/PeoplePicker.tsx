@@ -31,6 +31,9 @@ export function PeoplePicker({ suggestions, placeholder = 'Invite by name or ema
     id: s.userId,
     name: s.name || s.email || 'Member',
     group: s.source === 'team' ? 'Team' : 'People you collaborate with',
+    /* The picker searches the subtitle too, so typing an email finds the
+       account (the old EntityDropdown `filterItem` did the same). */
+    detail: s.email ?? undefined,
   })), [suggestions]);
 
   return (
@@ -45,13 +48,12 @@ export function PeoplePicker({ suggestions, placeholder = 'Invite by name or ema
       items={items}
       mode="single"
       variant="chip"
-      displayMode="id"
+      /* People ids are the value space, names the face (the documented
+         id-valued catalog shape — NOT cast's numbered display mode). */
+      displayMode="name"
+      resolveBy="id"
       placeholder={placeholder}
       className="text-xs flex-1 min-w-0"
-      filterItem={(item, q) => {
-        const s = byId.get(item.id);
-        return `${s?.name ?? ''} ${s?.email ?? ''}`.toLowerCase().includes(q.toLowerCase());
-      }}
       sortItems={list => [...list].sort((a, b) =>
         (GROUP_ORDER[a.group || ''] ?? 0) - (GROUP_ORDER[b.group || ''] ?? 0)
         || a.name.localeCompare(b.name))}
