@@ -175,6 +175,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
         email: person?.email || '',
         role: roleLabel,
         reportToId: slot.reportToId || '',
+        /** Effective id (own → department → everyone) — the editor's seed. */
+        reportToEffectiveId: resolvedReportToId,
         reportTo: locationLabelById(project, resolvedReportToId),
         isOverride: slot.callTime ? 'true' : '',
         isNoCall: slot.noCall ? 'true' : '',
@@ -228,6 +230,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
         sortItems: list => list,
         // Same folded type groups as the department Report-to picker.
         browse: 'accordion',
+        // The cell renders the NAME but the picker is id-keyed — seed it with
+        // the effective id so the panel opens on the selected location.
+        seedValue: r.reportToEffectiveId,
         // Typing a type ("set", "unit base") lists that whole group.
         searchFields: ['name', 'group'],
         renderItem: item => (
@@ -314,7 +319,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
         const byId = value ? project.locations?.find(l => l.id === value) : undefined;
         const byName = value ? project.locations?.find(l => locationLabelById(project, l.id) === value) : undefined;
         const id = byId?.id ?? byName?.id ?? '';
-        if (id === r.reportToId) continue;
+        // Unchanged against the EFFECTIVE value (own → department → everyone)
+        // — opening the cell and pressing Enter must not create an override.
+        if (id === (r.reportToId || r.reportToEffectiveId)) continue;
         next = setSlotReportToId(next, r.slotId, id);
         changed = true;
         continue;

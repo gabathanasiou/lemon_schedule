@@ -30,6 +30,9 @@ export type GlideColumnEditor =
       onCreateItem?: (val: string) => void;
       /** Grouped panels: `open` (default) or `accordion` (folded groups). */
       browse?: 'open' | 'accordion';
+      /** Seed the editor with this value instead of the cell's display text —
+       *  an id-keyed picker whose cell renders a NAME still opens on the row. */
+      seedValue?: string;
     }
   | {
       /** Plain text cell with optional live uppercase (e.g. crew names). */
@@ -233,7 +236,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow />;
+        return <EntityDropdown value={cfg.seedValue ?? currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow />;
       };
       components.set(colKey, Editor);
     }
