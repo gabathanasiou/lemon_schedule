@@ -249,7 +249,7 @@ test.describe('Locations', () => {
     await page.locator('tr', { has: nameCell(page, '99 New Rd') }).getByTitle('Set address').click();
     const picker = page.getByRole('dialog');
     await expect(picker.getByText('51.5000, -0.1200')).toBeVisible();
-    await expect(picker.getByPlaceholder('Search or type an address…')).toHaveValue('99 New Rd');
+    await expect(picker.locator('[data-picker-field] input').last()).toHaveValue('99 New Rd');
     await picker.getByRole('button', { name: 'Cancel' }).click();
 
     // ---- saving an untouched blank-name row persists the resolved name ----
@@ -279,7 +279,7 @@ test.describe('Locations', () => {
     await page.locator('tr', { has: nameCell(page, 'No Pin Place') }).getByTitle('Set address').click();
     const pinless = page.getByRole('dialog');
     await expect(pinless.getByText('Edit location')).toBeVisible();
-    await expect(pinless.getByPlaceholder('Search or type an address…')).toHaveValue('12 Somewhere Road');
+    await expect(pinless.locator('[data-picker-field] input').last()).toHaveValue('12 Somewhere Road');
     await pinless.getByRole('button', { name: 'Save location' }).click();
     // The manager commits the buffered row on the next field blur.
     await page.getByPlaceholder('Phone').last().fill('777');

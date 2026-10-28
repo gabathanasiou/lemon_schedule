@@ -161,12 +161,37 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     const card = modal.locator(`[data-crew-dept="${dept}"]`);
     await expect(card).toHaveCount(0);
     const addRoleMenu = modal.locator('[data-crew-add-role]');
-    await addRoleMenu.getByRole('button', { name: 'Add role…' }).click();
+    await addRoleMenu.getByRole('button', { name: 'Add roles…' }).click();
     const roleSearch = addRoleMenu.locator('[data-search-input]');
     await expect(roleSearch).toBeVisible({ timeout: 4000 });
+    // Multi-select bulk add (roadmap 322): a row click TOGGLES and the panel
+    // stays open until the footer hero commits — one undo entry for the batch.
     await roleSearch.fill(role.label);
     await page.locator('#search-menu-panel').getByRole('option', { name: role.label }).first().click();
+    const picked: string[] = [role.key];
+    const other = (seed.crewRoles || []).find((r: any) =>
+      r.key !== role.key && !(seed.crewTemplate?.slots || []).some((s: any) => s.role === r.key));
+    if (other) {
+      await roleSearch.fill(other.label);
+      await page.locator('#search-menu-panel').getByRole('option', { name: other.label }).first().click();
+      picked.push(other.key);
+    }
+    const undoBefore = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+    await page.locator('#search-menu-panel').getByRole('button', { name: `Add ${picked.length} role${picked.length === 1 ? '' : 's'}` }).click();
     await expect(card).toBeVisible({ timeout: 5000 });
+    await expect.poll(() => page.evaluate((keys) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      const roles = new Set((p.crewTemplate?.slots || []).map((s: any) => s.role));
+      return keys.every(key => roles.has(key));
+    }, picked), { timeout: 5000 }).toBe(true);
+    // The whole batch is ONE undo entry.
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(undoBefore + 1);
+    await page.evaluate(() => (window as any).__lemonSchedule.undo());
+    await expect.poll(() => page.evaluate((key) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.crewTemplate?.slots || []).some((s: any) => s.role === key);
+    }, role.key), { timeout: 5000 }).toBe(false);
+    await page.evaluate(() => (window as any).__lemonSchedule.redo());
     await expect.poll(() => page.evaluate((key) => {
       const p = (window as any).__lemonSchedule.getProject();
       return (p.crewTemplate?.slots || []).some((s: any) => s.role === key);
