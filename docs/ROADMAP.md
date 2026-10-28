@@ -1138,3 +1138,33 @@ Split out of 297 (archived), where it was explicitly deferred.
 - **Relations**: `follows` **297** (archived); `pairs with` **285** (CSP
   allowlist); `feeds` **288** (privacy data-flow list).
 
+## 323. Seg icon-swap face in the app — retire icon-only Segs (`[ ]`)
+
+**Asked 2026-10-28 (user):** the icon-only Seg has no real use; the
+**icon-swap** face (icon at rest → TEXT ONLY on hover / for the selected
+segment) is the one worth keeping — adopt it in the app, especially in the
+header/tab chrome.
+
+**Kit (already in the playground, `seg-icon-swap`):** `Seg` `iconCollapse` +
+`iconWithLabel={false}` renders options through `TabFace` — icon-only at rest,
+the icon collapses to a 0-width column on hover/selection and the label shows.
+No new kit API needed beyond the release that carries it (`Seg` icon face +
+`DropdownThemeAttrsContext`).
+
+**Work:**
+- Audit every `<Seg>` call site (~22 today) for icon-only segments; swap those
+  to the icon-swap face (or plain labels where an icon adds nothing).
+- Header/tab surfaces: use the same icon-swap reveal where a tab set has icons
+  (AppHeader tabs + PageToolbar sub-tabs currently use `Button` `collapse`,
+  which keeps the icon while revealing the label). Prefer one behaviour across
+  both so a tab row and a Seg never look like two systems.
+- Keep navigation untouched: header tabs stay `go()`-driven (`Button
+  variant="tab|tab-header"`); this is a face change only — never move routing
+  into `Seg`.
+
+**Verify:** `npm run lint`; full suite (tab navigation + Seg specs); manual pass
+on the app header, one PageToolbar, and the Call Times modal tabs (dark).
+
+**Relations:** `depends on` the kit release carrying the Seg icon face;
+`relates to` **322** (picker/control architecture), **258** (icon-first
+collapsing tabs — the `TabFace` mechanics).
