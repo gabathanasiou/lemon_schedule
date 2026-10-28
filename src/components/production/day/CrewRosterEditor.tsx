@@ -231,8 +231,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
         // Same folded type groups as the department Report-to picker.
         browse: 'accordion',
         // The cell renders the NAME but the picker is id-keyed — seed it with
-        // the effective id so the panel opens on the selected location.
+        // the effective id and resolve it back to the name in the edit text.
         seedValue: r.reportToEffectiveId,
+        resolveEditing: true,
         // Typing a type ("set", "unit base") lists that whole group.
         searchFields: ['name', 'group'],
         renderItem: item => (

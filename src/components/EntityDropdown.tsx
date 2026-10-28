@@ -101,6 +101,10 @@ export interface EntityDropdownProps {
    *  (folded type/role groups, one open) — the location Report-to cell uses
    *  the same accordion as the department picker. */
   browse?: 'open' | 'accordion';
+  /** ID-keyed catalogue whose EDITING text should read the item NAME (a
+   *  location cell displays "113 Maryland Street", not its id). Commits still
+   *  carry the id. */
+  resolveEditing?: boolean;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
@@ -182,6 +186,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   onTabExit,
   onEscape,
   browse,
+  resolveEditing = false,
   uppercase = false,
   portalTarget,
   skipComma = false,
@@ -335,10 +340,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
      names — the comma list stays the same id-value contract as the cell's raw
      value, and the search still matches names. */
   const formatEditing = useCallback((values: string[]) => {
-    const joined = values.join(', ');
+    const shown = resolveEditing ? values.map(v => byKey.get(v)?.name || v) : values;
+    const joined = shown.join(', ');
     if (mode !== 'multi') return joined;
     return skipComma || !joined ? joined : `${joined}, `;
-  }, [mode, skipComma]);
+  }, [mode, skipComma, resolveEditing, byKey]);
 
   return (
     <PickerField
