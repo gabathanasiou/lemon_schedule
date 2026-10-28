@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThemeScope, useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
-import { ArrowLeft, CalendarDays, ChevronDown, Clapperboard, Clock, Copy, ExternalLink, Flag, Info, LayoutGrid, MapPin, Plus, UsersRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, Clapperboard, Clock, CopyPlus, ExternalLink, Flag, Info, LayoutGrid, MapPin, Plus, Users } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject, useProjectTheme } from '../../../store';
@@ -57,7 +57,7 @@ const DAY_TAB_OPTIONS: { id: DayManagerTab; label: string; title: string; icon: 
   { id: 'locations', label: DAY_MANAGER_TAB_LABELS.locations, title: 'Locations', icon: <MapPin className="w-3.5 h-3.5" /> },
   { id: 'scenes', label: DAY_MANAGER_TAB_LABELS.scenes, title: 'Scenes', icon: <Clapperboard className="w-3.5 h-3.5" /> },
   { id: 'callTimes', label: DAY_MANAGER_TAB_LABELS.callTimes, title: 'Call times', icon: <Clock className="w-3.5 h-3.5" /> },
-  { id: 'crew', label: DAY_MANAGER_TAB_LABELS.crew, title: 'Crew', icon: <UsersRound className="w-3.5 h-3.5" /> },
+  { id: 'crew', label: DAY_MANAGER_TAB_LABELS.crew, title: 'Crew', icon: <Users className="w-3.5 h-3.5" /> },
 ];
 
 export interface DayManagerPageProps {
@@ -467,7 +467,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           <DropdownItem icon={<Clock className="w-3.5 h-3.5" />} onClick={() => { setSettingsOpen(false); setCallTimesOpen(true); }}>
             Call Times
           </DropdownItem>
-          <DropdownItem icon={<Copy className="w-3.5 h-3.5" />} onClick={() => { setSettingsOpen(false); setCopyOpen(true); }}>
+          <DropdownItem icon={<CopyPlus className="w-3.5 h-3.5" />} onClick={() => { setSettingsOpen(false); setCopyOpen(true); }}>
             Copy from day
           </DropdownItem>
           {!IS_COARSE && (

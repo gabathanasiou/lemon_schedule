@@ -3,7 +3,7 @@ import { useProject, DEFAULT_CATEGORY_LABELS, makeBlankProject } from '../store'
 import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildProjectFromImport, buildCastIdMap, firstFreeCastId, fileBaseTitle, collectUnknownHeadingValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues, knownDayNightPhrases } from '../lib/import';
 import type { HeadingMapping, AppliedHeadingMapping } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
-import { Upload, Loader2 } from 'lucide-react';
+import { FileUp, Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -203,7 +203,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
       {stage === 'review' && (
         <ModalFooterButton onClick={handleImport}>
-          <Upload className="w-3.5 h-3.5" />
+          <FileUp className="w-3.5 h-3.5" />
           {isNewProject ? 'Create Project' : `Import ${result?.scenes.length || 0} Scenes`}
         </ModalFooterButton>
       )}
@@ -215,7 +215,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       open
       onClose={onClose}
       title={isNewProject ? 'New Project from Script' : fileFilter === '.csv' ? 'Import CSV' : 'Import Screenplay / CSV'}
-      icon={<Upload className="w-4 h-4" />}
+      icon={<FileUp className="w-4 h-4" />}
       width="max-w-2xl"
       footer={footer}
     >
@@ -228,7 +228,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-[color:var(--ui-card-border)] rounded-xl p-8 text-center cursor-pointer hover:border-[color:var(--ui-border-strong)] transition-colors"
             >
-              <Upload className="w-8 h-8 text-[color:var(--ui-text-faint)] mx-auto mb-3" />
+              <FileUp className="w-8 h-8 text-[color:var(--ui-text-faint)] mx-auto mb-3" />
               <p className="text-[color:var(--ui-text-muted)] text-sm font-medium">Drop a screenplay file here</p>
               <p className="text-[color:var(--ui-text-faint)] text-xs mt-1">{fileFilter === '.csv' ? '.csv' : '.fdx, .fountain, .txt, .csv'}</p>
               <input

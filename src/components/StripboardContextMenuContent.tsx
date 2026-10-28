@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScheduleRow } from '../types';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink, Send, Sunset } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, CopyPlus, Eye, Trash2, Palette, ExternalLink, Send, Sunset } from 'lucide-react';
 
 import { IS_COARSE } from '../lib/device';
 
@@ -104,7 +104,7 @@ export const StripboardContextMenuContent: React.FC<{
           {row && !row.pinned && <ContextMenuDivider />}
           {row?.type === 'SCENE' && (
             <>
-              <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
+              <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
               <ContextMenuDivider />
               {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
@@ -123,12 +123,12 @@ export const StripboardContextMenuContent: React.FC<{
             <>
               {row?.type === 'NOTE' && (
                 <>
-                  <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_note'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_note'); }} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
                   <ContextMenuItem onClick={() => { handleContextMenuAction('change_color'); }} icon={<Palette className="w-3.5 h-3.5" />}>Edit Banner</ContextMenuItem>
                 </>
               )}
               {row?.type === 'BREAK' && (
-                <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_break'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
+                <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_break'); }} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
               )}
               {(row?.type === 'NOTE' || row?.type === 'BREAK') && <ContextMenuDivider />}
               {row?.type !== 'DAYBREAK' && row?.containerId != null && (

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, PanelRight } from 'lucide-react';
+import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, PanelRight, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -634,7 +634,10 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       </Button>
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
-          <Button data-presence-anchor="toolbar:elements:sort">Sort ▾</Button>
+          <Button data-presence-anchor="toolbar:elements:sort">
+            <ArrowUpDown className="w-3.5 h-3.5 shrink-0" /> Sort
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
+          </Button>
         }
       >
         <DropdownItem onClick={() => applySort('id')} icon={sortMode === 'id' ? <Check className="w-3.5 h-3.5" /> : undefined}>

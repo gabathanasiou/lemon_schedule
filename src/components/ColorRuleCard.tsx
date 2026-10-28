@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ColorRule } from '../types';
 import { IS_COARSE } from '../lib/device';
-import { Check, Copy, GripVertical, X } from 'lucide-react';
+import { Check, CopyPlus, GripVertical, X } from 'lucide-react';
 import { getCatIcon, getCategoryLabel, getElementName } from './ColorRuleCardMeta';
 import { Project } from '../types';
 
@@ -72,7 +72,7 @@ export default function ColorRuleCard({ project, rule, onToggle, onEdit, onDupli
           onClick={(e) => { e.stopPropagation(); onDuplicate(rule); }}
           className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors opacity-0 group-hover:opacity-100 p-1.5"
         >
-          <Copy className={SECO} />
+          <CopyPlus className={SECO} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(rule.id); }}

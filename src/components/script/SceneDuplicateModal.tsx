@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy } from 'lucide-react';
+import { CopyPlus } from 'lucide-react';
 import { useProject } from '../../store';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -54,7 +54,7 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
       open
       onClose={onClose}
       title={`Duplicate Scene ${scene.sceneNumber}`}
-      icon={<Copy className="w-4 h-4" />}
+      icon={<CopyPlus className="w-4 h-4" />}
       width="max-w-md"
       footer={
         <ModalFooter>

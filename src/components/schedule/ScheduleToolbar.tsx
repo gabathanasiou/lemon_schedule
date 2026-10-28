@@ -1,6 +1,6 @@
 import React from 'react';
 import ToolbarDivider from '../ToolbarDivider';
-import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2, Eye } from 'lucide-react';
+import { Pencil, Printer, CircleHelp, Clock, Eye, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2 } from 'lucide-react';
 import { useProject } from '../../store';
 import { useDialog } from '../Dialog';
 import { RibbonDesign } from '../../types';
@@ -15,7 +15,8 @@ import { ItemManagerDropdown } from '../DropdownMenu';
 import SortDropdown, { SortCriterion } from '../SortDropdown';
 import { formatDuration, generateUUID } from '../../lib/utils';
 import type { ProjectAccent } from '../../lib/projectTheme';
-import { BoneyardExpandButton, BoneyardCollapseButton } from '../BoneyardExpandButton';
+import { BoneyardToggle } from '../BoneyardToggle';
+import { revealMenuTrigger } from '../revealMenuTrigger';
 
 interface SelectionSummary {
   count: number;
@@ -146,22 +147,21 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     />
   );
 
-  /* The View menu (ribbon layout / stripboard view / cell borders). Phone
-     portrait (roadmap 267 PoC): it is one of the two surviving toolbar
-     controls and its trigger carries the "View" label beside the eye icon. */
+  /* The View menu (ribbon layout / stripboard view / cell borders). Its
+     trigger is the shared icon-first face: the eye alone at rest, "View ▾" on
+     hover/open (roadmap 324). Phone portrait (roadmap 267 PoC) keeps it as one
+     of the two surviving toolbar controls. */
   const viewMenu = (
     <DropdownMenu
       open={ribbonMenuOpen}
       onOpenChange={setRibbonMenuOpen}
       width="w-48"
       theme="light"
-      trigger={
-        <Button title="View" aria-label="View" data-presence-anchor="toolbar:schedule:view">
-          <Eye className="w-3.5 h-3.5 shrink-0" />
-          {phone && <span className="text-xs font-semibold">View</span>}
-          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-muted)]" />
-        </Button>
-      }
+      trigger={revealMenuTrigger({
+        icon: <Eye className="w-3.5 h-3.5 shrink-0" />,
+        label: 'View',
+        presenceAnchor: 'toolbar:schedule:view',
+      })}
     >
       <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
         {ribbonDesigns.map(d => (
@@ -207,11 +207,17 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           onClick={onShowViolations}
           aria-label="View All Violations"
           data-presence-anchor="toolbar:schedule:violations"
-          className="flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none bg-red-100 text-red-600 hover:bg-red-200"
+          className="group flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none bg-red-100 text-red-600 hover:bg-red-200"
           title="View All Violations"
         >
           <Flag className="w-3.5 h-3.5 text-red-500" />
-          <span className="shrink-0">{shootViolations.length}</span>
+          <span className="flex shrink-0 items-center">
+            {shootViolations.length}
+            {/* Hover/active reveal, same 0fr↔1fr mechanic as the tab face. */}
+            <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-150 group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr] motion-reduce:transition-none">
+              <span className="min-w-0 overflow-hidden whitespace-nowrap">&nbsp;Violations</span>
+            </span>
+          </span>
         </button>
       )}
       <ToolbarDivider />
@@ -286,37 +292,53 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         dayNightLabel={sortState.dayNightSortLabel}
       />
       <ToolbarDivider />
-      {viewMenu}
+      {/* Edit mode: primary with the icon at rest, the label revealed on
+          hover; while editing the label stays open and the fill turns the
+          edit-mode blue (never the neutral pressed tint). */}
       <Button
         variant="primary"
         cloud={accent}
+        icon={isEditPending
+          ? <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+          : textEditingEnabled
+            ? <Check className="w-3.5 h-3.5 shrink-0" />
+            : <Pencil className="w-3.5 h-3.5 shrink-0" />}
+        collapse
+        keepLabelOnActive
+        reserveLabel="Done"
+        iconRoll={textEditingEnabled ? 'down' : 'up'}
+        active={textEditingEnabled}
+        activeTone="info"
         onClick={() => !readOnly && onToggleEdit()}
         disabled={readOnly}
-        title="Edit"
-        aria-label="Edit"
+        title={textEditingEnabled ? 'Done' : 'Edit'}
+        aria-label={textEditingEnabled ? 'Done' : 'Edit'}
         data-presence-anchor="toolbar:schedule:edit"
-        className={textEditingEnabled ? 'bg-blue-600! hover:bg-blue-500!' : ''}
       >
-        {isEditPending ? (
-          <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
-        ) : (
-          <Pencil className="w-3.5 h-3.5 shrink-0" />
-        )}
+        {textEditingEnabled ? 'Done' : 'Edit'}
       </Button>
-      <ToolbarDivider />
+      {viewMenu}
       {onPrint && (
-        <Button variant="primary" cloud={accent} onClick={onPrint} title="Print" aria-label="Print" data-presence-anchor="toolbar:schedule:print">
-          <Printer className="w-3.5 h-3.5 shrink-0" />
+        <Button
+          variant="subtle"
+          icon={<Printer className="w-3.5 h-3.5 shrink-0" />}
+          collapse
+          revealOnHover
+          onClick={onPrint}
+          title="Print"
+          aria-label="Print"
+          data-presence-anchor="toolbar:schedule:print"
+        >
+          Print
         </Button>
       )}
-      <ToolbarDivider />
       <button
         onClick={onShowHelp}
         data-presence-anchor="toolbar:schedule:help"
         className="flex items-center justify-center w-7 h-7 rounded-full text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-row-hover-bg)] transition-colors cursor-pointer select-none"
         title="Keyboard Shortcuts & Help"
       >
-        <HelpCircle className="w-4 h-4" />
+        <CircleHelp className="w-4 h-4" />
       </button>
       <ToolbarDivider />
       {versionPicker}
@@ -340,9 +362,10 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     <PageToolbar
       theme="light"
       justify="between"
-      children={boneyardCollapsed
-        ? <BoneyardExpandButton onClick={onExpandBoneyard} />
-        : <BoneyardCollapseButton onClick={onCollapseBoneyard} />}
+      children={<BoneyardToggle
+        collapsed={boneyardCollapsed}
+        onToggle={boneyardCollapsed ? onExpandBoneyard : onCollapseBoneyard}
+      />}
       rightContent={controls}
     />
   );

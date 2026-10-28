@@ -13,7 +13,7 @@ import DataEditor, {
 import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject } from '../store';
 import { generateUUID, clipboardWrite, clipboardRead } from './utils';
-import { ChevronDown, FileDown, Download, ZoomIn, ZoomOut, RotateCcw, CheckSquare, Square, Copy, Scissors, ClipboardPaste, Trash2, ArrowUp, ArrowDown, Eye } from 'lucide-react';
+import { ChevronDown, FileUp, Download, ZoomIn, ZoomOut, RotateCcw, CheckSquare, Square, Copy, Scissors, ClipboardPaste, Trash2, ArrowUp, ArrowDown, Eye, Info } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../components/ContextMenu';
 import DropdownMenu from '../components/DropdownMenu';
 import DropdownItem from '../components/DropdownItem';
@@ -38,6 +38,7 @@ import { useFollowView } from './supabase/useFollowView';
 import type { AppPlace } from './appNav';
 import { effectiveGridRange } from './glideSelection';
 import Button from '../components/Button';
+import { revealMenuTrigger } from '../components/revealMenuTrigger';
 import { GlideFilter } from '../components/GlideFilter';
 import { filterGlideRows } from './glideFilter';
 import type { Project } from '../types';
@@ -685,7 +686,7 @@ export const GlideGridShell: React.FC<{
           </Button>
         }
       >
-        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={locked}>
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />} disabled={locked}>
           Import {config.labels.importTitle.replace(/^Import\s+/, '')} CSV
         </DropdownItem>
         <DropdownDivider />
@@ -695,12 +696,11 @@ export const GlideGridShell: React.FC<{
       </DropdownMenu>
 
       <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
-        trigger={
-          <Button>
-            View
-            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-          </Button>
-        }
+        trigger={revealMenuTrigger({
+          icon: <Eye className="w-3.5 h-3.5 shrink-0" />,
+          label: 'View',
+          presenceAnchor: `toolbar:${config.presenceScope}:view`,
+        })}
       >
         <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
           Bigger
@@ -719,12 +719,11 @@ export const GlideGridShell: React.FC<{
       </DropdownMenu>
 
       <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
-        trigger={
-          <Button>
-            Info
-            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-          </Button>
-        }
+        trigger={revealMenuTrigger({
+          icon: <Info className="w-3.5 h-3.5 shrink-0" />,
+          label: 'Info',
+          presenceAnchor: `toolbar:${config.presenceScope}:info`,
+        })}
       >
         <div className="px-4 py-2.5 text-xs text-[color:var(--ui-text-muted)] space-y-1.5">
           {infoCounts.map(ic => (

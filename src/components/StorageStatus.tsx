@@ -9,7 +9,7 @@ import {
 import type { ProjectIndexEntry } from '../lib/persistentStorage';
 import { useDialog } from './Dialog';
 export type { ProjectIndexEntry };
-import { HardDrive, FolderOpen, Check, AlertTriangle, Loader2, X, RefreshCw } from 'lucide-react';
+import { HardDrive, FolderOpen, Check, TriangleAlert, Loader2, X, RefreshCw } from 'lucide-react';
 
 export type SaveStatus = 'unsupported' | 'idle' | 'saving' | 'saved' | 'error' | 'no-permission';
 
@@ -91,7 +91,7 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
         title="Folder-based autosave requires Chrome, Edge, or Brave. Projects are saved to browser cache only."
         className="flex items-center gap-1.5 text-amber-400/80 text-xs px-2.5 py-1 rounded cursor-not-allowed"
       >
-        <AlertTriangle className="w-3.5 h-3.5" />
+        <TriangleAlert className="w-3.5 h-3.5" />
         Cache only
       </button>
     );
@@ -115,7 +115,7 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
   const icon = status === 'saving'
     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
     : status === 'error' || status === 'no-permission'
-    ? <AlertTriangle className="w-3.5 h-3.5" />
+    ? <TriangleAlert className="w-3.5 h-3.5" />
     : <Check className="w-3.5 h-3.5" />;
 
   const colorClass = status === 'saving'

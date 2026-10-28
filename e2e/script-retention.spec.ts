@@ -543,7 +543,9 @@ test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
     await expect(page.locator('[data-sidebar-row="1"]')).toBeVisible();
 
     // Full-text search highlights matches inline + reports the scene count.
-    await page.getByLabel('Search script').fill('coffee');
+    // The search is a morph field now: open the icon trigger, then type.
+    await page.locator('[data-morph-search-trigger]').click();
+    await page.locator('[data-morph-search-input]').fill('coffee');
     await expect(page.locator('mark')).toHaveCount(1);
     await expect(page.getByText('1/1')).toBeVisible();
 

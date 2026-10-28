@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, UserRound, FileText } from 'lucide-react';
+import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, Users, FileText } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { CardSection, SearchMenu } from '@gabriel/ui-kit';
@@ -41,7 +41,7 @@ const KIND_META: Record<TrashKind, { label: string; icon: React.ReactNode; iconC
   element: { label: 'Elements', icon: <Package className="w-3.5 h-3.5" />, iconClass: 'text-orange-400' },
   category: { label: 'Custom Categories', icon: <Tags className="w-3.5 h-3.5" />, iconClass: 'text-pink-400' },
   colorrule: { label: 'Color Rules', icon: <Palette className="w-3.5 h-3.5" />, iconClass: 'text-teal-400' },
-  crew: { label: 'Crew', icon: <UserRound className="w-3.5 h-3.5" />, iconClass: 'text-cyan-400' },
+  crew: { label: 'Crew', icon: <Users className="w-3.5 h-3.5" />, iconClass: 'text-cyan-400' },
   report: { label: 'Report Designs', icon: <FileText className="w-3.5 h-3.5" />, iconClass: 'text-blue-400' },
 };
 

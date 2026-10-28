@@ -18,14 +18,15 @@ import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import {
-  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
-  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download, ExternalLink,
+  Trash2, Copy, CopyPlus, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, ArrowUpDown, Eye, Info, Square, CheckSquare,
+  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileUp, Download, ExternalLink,
 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { isMultiValue } from '../lib/categories';
 import { boardIdOf, getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
+import { revealMenuTrigger } from './revealMenuTrigger';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -1153,7 +1154,7 @@ export function GlideBreakdownTab({
         placeholder="Filter scenes…"
       />
       <Button variant="primary" cloud={accent} onClick={addScene} disabled={locked} data-presence-anchor="toolbar:glide:add-scene">
-        + Add Scene
+        <Plus className="w-3.5 h-3.5 shrink-0" /> Add Scene
       </Button>
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
         trigger={
@@ -1163,14 +1164,14 @@ export function GlideBreakdownTab({
           </Button>
         }
       >
-        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />} disabled={locked}>
+        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<ArrowUpDown className="w-3.5 h-3.5" />} disabled={locked}>
           Sort by #
         </DropdownItem>
         <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />} disabled={locked}>
           Clean Empty
         </DropdownItem>
         <DropdownDivider />
-        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={locked}>
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />} disabled={locked}>
           Import CSV
         </DropdownItem>
         <DropdownItem onClick={() => { setActionsOpen(false); exportBreakdownCSV(project); }} icon={<Download className="w-3.5 h-3.5" />}>
@@ -1179,12 +1180,11 @@ export function GlideBreakdownTab({
       </DropdownMenu>
 
       <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
-        trigger={
-          <Button data-presence-anchor="toolbar:glide:view">
-            View
-            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-          </Button>
-        }
+        trigger={revealMenuTrigger({
+          icon: <Eye className="w-3.5 h-3.5 shrink-0" />,
+          label: 'View',
+          presenceAnchor: 'toolbar:glide:view',
+        })}
       >
         <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
           Bigger
@@ -1203,12 +1203,11 @@ export function GlideBreakdownTab({
       </DropdownMenu>
 
       <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
-        trigger={
-          <Button data-presence-anchor="toolbar:glide:info">
-            Info
-            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-          </Button>
-        }
+        trigger={revealMenuTrigger({
+          icon: <Info className="w-3.5 h-3.5 shrink-0" />,
+          label: 'Info',
+          presenceAnchor: 'toolbar:glide:info',
+        })}
       >
         <div className="px-4 py-2.5 text-xs text-[color:var(--ui-text-faint)] space-y-1.5">
           <div className="flex items-center justify-between gap-6">
@@ -1308,7 +1307,7 @@ export function GlideBreakdownTab({
             )}
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
-            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<CopyPlus className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { openSheetInPopoutAt(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}>Open in New Window</ContextMenuItem>

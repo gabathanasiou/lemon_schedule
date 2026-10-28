@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ToolbarDivider from '../../ToolbarDivider';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Check, ChevronDown, Clock, Eye, EyeOff, Printer, RotateCcw, Sheet } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Clock, Eye, Pencil, Printer, RotateCcw, Sheet } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
 import DayReportPreview from '../../reports/DayReportPreview';
@@ -181,27 +181,36 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
             <Clock className="w-3.5 h-3.5" /> Times
           </Button>
         )}
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          theme="dark"
+          icon={preview ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          collapse
+          revealOnHover
+          keepLabelOnActive={false}
+          reserveLabel="Preview"
+          iconRoll={preview ? 'down' : 'up'}
+          active={preview}
           onClick={() => { follow.noteUserChange(); setPreview(v => !v); }}
           title={preview ? 'Edit the call sheet' : 'Preview the day call sheet'}
           aria-label={preview ? 'Edit' : 'Preview'}
           data-presence-anchor="toolbar:callsheet:preview"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
-          {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {preview ? 'Edit' : 'Preview'}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="subtle"
+          theme="dark"
+          icon={<Printer className="w-3.5 h-3.5 shrink-0" />}
+          collapse
+          revealOnHover
           onClick={onPrint}
           title="Print the call sheet"
           aria-label="Print"
           data-presence-anchor="toolbar:callsheet:print"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
-          <Printer className="w-3.5 h-3.5" />
-        </button>
+          Print
+        </Button>
       </div>
     </>
   );

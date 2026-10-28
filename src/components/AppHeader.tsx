@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, Calendar1, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, CalendarDays, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
 import { useProject, useProjectTheme } from '../store';
 import { projectAccentNameOf } from '../lib/projectTheme';
-import { useSlidingPill } from '@gabriel/ui-kit';
+import { MorphActionField, useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
 import { ReportDesign } from '../types';
@@ -28,7 +28,7 @@ export type { AppTabId };
 const TAB_ICONS: Record<AppTabId, React.ReactNode> = {
   breakdown: <NotebookText className="w-3.5 h-3.5" />,
   schedule: <Rows3 className="w-3.5 h-3.5" />,
-  calendar: <Calendar1 className="w-3.5 h-3.5" />,
+  calendar: <CalendarDays className="w-3.5 h-3.5" />,
   design: <Palette className="w-3.5 h-3.5" />,
   rules: <Scale className="w-3.5 h-3.5" />,
   production: <Clapperboard className="w-3.5 h-3.5" />,
@@ -103,9 +103,8 @@ export default function AppHeader(props: AppHeaderProps) {
   } = props;
   const hasPhoneChrome = !!phone;
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [editingTitle, setEditingTitle] = useState(false);
   // Local draft while renaming: the store (and the index meta / Drive / online
-  // push) see ONE commit on blur/Enter, never a per-character UPDATE_PROJECT.
+  // push) see ONE commit on submit, never a per-character UPDATE_PROJECT.
   const [titleDraft, setTitleDraft] = useState('');
   const [tabScrollMask, setTabScrollMask] = useState('none');
   // Dock mode (roadmap 258): icon-first tabs collapse their labels ONLY when
@@ -319,28 +318,41 @@ export default function AppHeader(props: AppHeaderProps) {
             )}
           </DropdownMenu>
           {!hasPhoneChrome && <SaveIndicator isCloudProject={isCloud} />}
-          {editingTitle ? (
-            <input 
-              autoFocus
-              value={titleDraft} 
-              onChange={e => setTitleDraft(e.target.value)}
-              onBlur={() => {
-                setEditingTitle(false);
-                if (titleDraft !== project.title) renameProject(currentProjectId!, titleDraft, currentDriveFileId);
-              }}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-              className="bg-transparent border-none text-[color:var(--ui-text-strong)] font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] focus:ring-1 focus:ring-[color:var(--ui-accent-600)]"
-            />
-          ) : (
-            <span
-              onClick={() => { if (!locked) { setTitleDraft(project.title); setEditingTitle(true); } }}
-              data-presence-anchor="header:project-title"
-              className={`text-[color:var(--ui-text-strong)] font-medium px-1 mr-2 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
-              title={project.title}
-            >
-              {project.title}
-            </span>
-          )}
+          {/* Project name (roadmap 324): a VALUE that morphs into its field —
+              one control, not a span that swaps to an unrelated-looking input.
+              Enter/✓ commits one rename; Esc/outside cancels. */}
+          <span
+            data-presence-anchor="header:project-title"
+            title={project.title}
+            className="mr-2 inline-flex min-w-0"
+          >
+            {locked ? (
+              <span className="text-[color:var(--ui-text-strong)] font-medium px-1 truncate max-w-[60px] md:max-w-[120px]">
+                {project.title}
+              </span>
+            ) : (
+              <MorphActionField
+                triggerLabel={project.title}
+                triggerIcon={null}
+                fieldIcon={null}
+                value={titleDraft}
+                onChange={setTitleDraft}
+                onExpandedChange={(open) => { if (open) setTitleDraft(project.title); }}
+                onSubmit={(next) => {
+                  const trimmed = next.trim();
+                  if (trimmed && trimmed !== project.title) {
+                    renameProject(currentProjectId!, trimmed, currentDriveFileId);
+                  }
+                }}
+                onCancel={() => setTitleDraft('')}
+                placeholder="Project title"
+                variant="subtle"
+                theme="dark"
+                collapsedWidth={phone ? 60 : 120}
+                expandedWidth={phone ? 200 : 260}
+              />
+            )}
+          </span>
         </div>
         <div ref={topTabContainerRef} onScroll={syncTabLayout} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
           <div ref={tabContentRef} className={`relative flex items-center ${CHROME_TAB_GAP} mx-auto shrink-0 w-fit`}>

@@ -4,8 +4,9 @@ import { Scene } from '../types';
 import { ArrowUpDown, ChevronDown, Eye, Sunrise, FileText, Clock, Building2, Sun, Lock, LockOpen } from 'lucide-react';
 import DropdownMenu, { getDropdownClasses } from './DropdownMenu';
 import DropdownDivider from './DropdownDivider';
+import Button from './Button';
 import { useProjectTheme } from '../store';
-import { projectAccentNameOf } from '../lib/projectTheme';
+import { projectAccentNameOf, projectAccentOf } from '../lib/projectTheme';
 import { IS_COARSE } from '../lib/device';
 
 export interface SortCriterion {
@@ -74,7 +75,9 @@ const BTN_ICON = 'w-3.5 h-3.5';
 
 function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel, compact, presenceKey }: SortDropdownProps) {
   const d = getDropdownClasses('light');
-  const accentName = projectAccentNameOf(useProjectTheme());
+  const projectTheme = useProjectTheme();
+  const accentName = projectAccentNameOf(projectTheme);
+  const accent = projectAccentOf(projectTheme);
   const actionCls = 'bg-[var(--ui-accent-950)] hover:bg-[var(--ui-accent-900)] text-white';
 
   const isLocked = (key: string) => lockedCriteria.includes(key);
@@ -169,9 +172,17 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
       theme="light"
       trigger={
         compact ? (
-          <button data-accent={accentName} data-presence-anchor={presenceKey} className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${actionCls}`} title="Sort" aria-label="Sort">
-            <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-          </button>
+          <Button
+            variant="primary"
+            cloud={accent}
+            icon={<ArrowUpDown className="w-3.5 h-3.5 shrink-0" />}
+            collapse
+            data-presence-anchor={presenceKey}
+            title="Sort"
+            aria-label="Sort"
+          >
+            Sort
+          </Button>
         ) : (
           <button data-accent={accentName} data-presence-anchor={presenceKey} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${actionCls}`}>
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />

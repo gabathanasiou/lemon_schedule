@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Cloud, Users, CheckCircle2, Pencil, Copy, Save, CloudUpload, HardDriveDownload, Trash2, Check } from 'lucide-react';
+import { Loader2, Cloud, Users, CheckCircle2, Pencil, CopyPlus, Save, CloudUpload, HardDriveDownload, Trash2, Check } from 'lucide-react';
 import { ProjectMeta } from '../store';
 import { useDialog } from './Dialog';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
@@ -111,7 +111,7 @@ export default function ProjectCard({
               className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
               title="Duplicate"
             >
-              <Copy className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
+              <CopyPlus className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
             </button>
             <button
               onClick={e => onExport(e, p)}

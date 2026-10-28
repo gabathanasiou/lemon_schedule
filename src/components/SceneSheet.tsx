@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered, Hash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CopyPlus, Trash2, Check, ChevronDown, ListOrdered, Hash } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import Button from './Button';
 import DropdownMenu from './DropdownMenu';
@@ -450,7 +450,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           <Plus className="w-3.5 h-3.5" />
         </Button>
         <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
-          <Copy className="w-3.5 h-3.5" />
+          <CopyPlus className="w-3.5 h-3.5" />
         </Button>
       </div>
       <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
@@ -551,7 +551,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           <Plus className="w-3 h-3" />
         </Button>
         <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
-          <Copy className="w-3 h-3" />
+          <CopyPlus className="w-3 h-3" />
         </Button>
         <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
           <Trash2 className="w-3 h-3" />

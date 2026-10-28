@@ -8,7 +8,7 @@ import { readOnlineProject } from '../lib/supabase/onlineProjects';
 import { onlineProjectListForDisplay } from '../lib/supabase/onlineProjectList';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
-import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check, LogOut } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, TriangleAlert, Loader2, RefreshCw, Skull, FileUp, Check, LogOut } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -411,7 +411,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
                 disabled={importing || !!parsingSchedule}
                 title="Import a project, schedule or screenplay as a new project"
               >
-                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </ModalFooterButton>
               <ModalFooterButton
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(false); }}
@@ -427,7 +427,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
                 disabled={importing || !!parsingSchedule}
                 title="Import a project, schedule or screenplay as a new project"
               >
-                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </ModalFooterButton>
               <ModalFooterButton
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(true); }}
@@ -546,7 +546,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
         {activeTab === 'cloud' && driveCorrupt && (
           <div className="mb-3 p-3 rounded-md border border-amber-800 bg-amber-950/50">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <TriangleAlert className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="text-xs font-semibold text-amber-300">Drive Data Corrupted</span>
             </div>
             <p className="text-[10px] text-amber-400/80 mb-3">{driveError}</p>
@@ -620,7 +620,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
         ) : activeTab === 'cloud' && driveError && !driveCorrupt ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
-            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+            <TriangleAlert className="w-10 h-10 mx-auto mb-3 text-amber-600" />
             <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Failed to load</p>
             <p className="text-xs mt-1 text-[color:var(--ui-text-faint)] mb-3">{driveError}</p>
             {driveAuthError ? (
@@ -658,7 +658,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
         ) : activeTab === 'online' && onlineError ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
-            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+            <TriangleAlert className="w-10 h-10 mx-auto mb-3 text-amber-600" />
             <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Failed to load</p>
             <p className="text-xs mt-1 text-[color:var(--ui-text-faint)] mb-3">{onlineError}</p>
             <button

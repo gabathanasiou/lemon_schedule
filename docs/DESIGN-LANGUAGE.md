@@ -263,6 +263,49 @@ test; call `window.__lemonSchedule.auditChrome()` to see violations interactivel
 **MUST NOT**: hand-copy an inset or gap into the icon-dock math — `AppHeader.syncTabLayout` and
 `PageToolbar.syncTabsDock` derive from the `_PX` values, so a spacing change moves them together.
 
+### Control faces — choose one per control (roadmap 324)
+
+Every chrome control DECIDES what it really is, then uses the shared face — never a one-off copy:
+
+| The control is really… | Face | Recipe / source |
+|---|---|---|
+| a **value** (project name, page size) | morph into its field | kit `MorphActionField` (rename/create) or `MorphFieldShell`; Enter/✓ commits, Esc/outside cancels. AppHeader project title is the reference (`AppHeader.tsx`) |
+| a **mode** (2+ states) | toggle | kit `Button` + icon swap + `collapse` + `reserveLabel` + `iconRoll` + `active`; `keepLabelOnActive` only when the ON label must stay readable; `activeTone="info|success|warning|danger"` for a strong ON colour (Schedule **Edit** → blue `Done`) |
+| a **panel** (open/close) | icon-first toggle | kit `Button` outline + `PanelLeftOpen/Close` + `collapse` + `revealOnHover` + `iconRoll` — `BoneyardToggle.tsx` |
+| a **menu** (View / Info / Filter) | icon-first trigger | `revealMenuTrigger()` (`src/components/revealMenuTrigger.tsx`) — returns the `Button` ELEMENT (never a wrapper component: Radix clones the trigger, so a wrapper swallows the click) |
+| a **search / filter** | morph field | kit `MorphSearchField` + `triggerCollapse` + `triggerReveal` + `collapsedWidth="auto"`; the applied term keeps the label. Script search (`ScriptView`) and Glide filter (`GlideFilter.tsx`) are the references |
+| already **icon-only** | keep icon-only | `title` + `aria-label`; no hover label (Print, Help, sheet nav, undo/redo) |
+
+- **Both directions** are allowed: a labelled control may collapse to its icon and reveal the label on hover/open (View/Info/Filter/Print/Boneyard), and a value may morph into its field instead of swapping DOM (project name).
+- **Navigation stays `go()`-driven**: tabs are `variant="tab|tab-header"` — never move routing into a Seg or a toggle.
+- **`keepLabelOnActive` is opt-in** (kit 0.1.166): toggles collapse back to the icon by default; tabs always keep the selected label. Use it only for a mode whose ON label must stay readable.
+- One shared face per pattern: every View menu, both Glide Info menus and the Calendar Filter use `revealMenuTrigger`; both Boneyard entry points use `BoneyardToggle`; the Script search and Glide filter share `MorphSearchField`. Never a per-call-site copy.
+
+### Action icon canon (same action → same glyph)
+
+Add to the rail; keep `npm run icons:audit` open when swapping any of these. NEVER use two glyphs for the same action.
+
+| Action | Glyph | Notes |
+|---|---|---|
+| Add / New | `Plus` | never a literal `+` in a text label |
+| Edit / Rename | `Pencil` | a mode toggle swaps to `Check` while ON |
+| Duplicate (make another) | `CopyPlus` | kit item-manager + structure menus follow the same rule |
+| Copy (clipboard) | `Copy` | clipboard-copy only; `Copy` and `CopyPlus` never mean the same thing |
+| Delete | `Trash2` | remove/clear from a list stays `X` |
+| Import | `FileUp` | Export = `Download` |
+| Sort | `ArrowUpDown` | menu item or trigger |
+| Filter (menu) | `ListFilter` | an applied filter term uses `Filter` inside `MorphSearchField` |
+| Search | `Search` | |
+| View options | `Eye` | every View menu |
+| Print | `Printer` | |
+| Calendar axis | `CalendarDays` | Day Manager's time-of-day = `CalendarClock` |
+| Crew (group) | `Users` | one person = `UserRound` |
+| Link | `Link2` | |
+| Location | `MapPin` | |
+| Restore / Reset | `RotateCcw` | Refresh = `RefreshCw` |
+| Help | `CircleHelp` | |
+| Warning | `TriangleAlert` | a rule violation stays `Flag` |
+
 ### Forms (dark modals)
 | Element | Classes | Source |
 |---|---|---|

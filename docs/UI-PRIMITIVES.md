@@ -53,6 +53,27 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   scope with shared controls in a fixed right slot, and divide groups with the shared
   `ToolbarDivider` (`src/components/ToolbarDivider.tsx`; light `bg-zinc-200` / dark `bg-zinc-700`)
   — never hand-write divider strings.
+- **Control faces (roadmap 324)** — every chrome control picks ONE shared face (full table:
+  `docs/DESIGN-LANGUAGE.md` §Control faces):
+  - **Value → morph field**: the AppHeader project title is `MorphActionField` (text-only trigger →
+  title field; no leading icon). Enter/✓ commits one rename, Esc/outside cancels.
+  - **Mode → toggle**: Schedule **Edit** is a primary `Button` with Pencil↔Check, `collapse`,
+    `reserveLabel="Done"`, `iconRoll`, `active`, `keepLabelOnActive` (ON label stays open) and
+    `activeTone="info"` (strong blue ON state — kit 0.1.165+). The label reads **Done** while
+    editing; the neutral pressed tint is not used.
+  - **Panel → icon-first toggle**: `BoneyardToggle.tsx` (PanelLeftOpen/Close, label reveals on hover).
+  - **Menu → icon-first trigger**: `revealMenuTrigger()` (`src/components/revealMenuTrigger.tsx`)
+    returns the `Button` element for View / Info / Filter; it is a FACTORY, not a wrapper component
+    (Radix clones the trigger — a wrapper would swallow the click).
+  - **Search/filter → morph field**: Script search + `GlideFilter` use `MorphSearchField`
+    (`triggerCollapse`/`triggerReveal`, `collapsedWidth="auto"`); an applied filter term keeps its
+    label.
+  - **Icon-only stays icon-only** (Print, Help, sheet nav, undo/redo) with `title` + `aria-label`.
+  - `keepLabelOnActive` is opt-in (kit 0.1.166); tabs always keep the selected label.
+- **Action icon canon** (`docs/DESIGN-LANGUAGE.md` §Action icon canon): Duplicate = `CopyPlus`,
+  clipboard = `Copy`, Import = `FileUp`, Export = `Download`, Sort = `ArrowUpDown`,
+  View = `Eye`, Filter menu = `ListFilter`, Crew group = `Users`, Calendar = `CalendarDays`.
+  Check `npm run icons:audit` before adding a new action glyph.
 - **Chrome spacing scale — 16 outside, 8 inside** (roadmap 264): every bar (app header, every
   `PageToolbar`, the popout `VersionToolbar`) shares `src/lib/chromeSpacing.ts` (`CHROME_BAR_INSET`
   16px rail · `CHROME_CLUSTER_GAP` between clusters · `CHROME_ITEM_GAP` inside one, incl. around

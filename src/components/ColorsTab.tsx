@@ -9,7 +9,7 @@ import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackS
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
 import { ThemeScope } from '@gabriel/ui-kit';
-import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown, Copy } from 'lucide-react';
+import { RotateCcw, Download, FileUp, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown } from 'lucide-react';
 import Modal from './Modal';
 import ColorField from './ColorField';
 import { ModalFooter } from './Modal';
@@ -338,7 +338,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           <DropdownItem onClick={handleExport} icon={<Download className="w-3.5 h-3.5" />}>
             Export Palette & Rules
           </DropdownItem>
-          <DropdownItem onClick={() => { importRef.current?.click(); setDropdownOpen(false); }} icon={<Upload className="w-3.5 h-3.5" />} disabled={locked}>
+          <DropdownItem onClick={() => { importRef.current?.click(); setDropdownOpen(false); }} icon={<FileUp className="w-3.5 h-3.5" />} disabled={locked}>
             Import Palette & Rules
           </DropdownItem>
         </DropdownMenu>,

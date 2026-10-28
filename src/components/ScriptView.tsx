@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronUp, ExternalLink, FileText, MoreHorizontal, Ruler, Scissors, Search, SlidersHorizontal, Sparkles, Tag as TagIcon, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ExternalLink, Eye, FileText, FileUp, MoreHorizontal, Ruler, Scissors, Search, Sparkles, Tag as TagIcon, X } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import DropdownMenu from './DropdownMenu';
@@ -10,8 +10,9 @@ import { EighthsRuler } from './script/EighthsRuler';
 import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
+import { revealMenuTrigger } from './revealMenuTrigger';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
-import { ThemeScope } from '@gabriel/ui-kit';
+import { MorphSearchField, ThemeScope } from '@gabriel/ui-kit';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { IS_COARSE } from '../lib/device';
@@ -503,7 +504,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           }
         >
           {onUpdateScript && (
-            <DropdownItem icon={<Upload className="w-3.5 h-3.5" />} onClick={() => { setScriptMenuOpen(false); onUpdateScript(); }}>
+            <DropdownItem icon={<FileUp className="w-3.5 h-3.5" />} onClick={() => { setScriptMenuOpen(false); onUpdateScript(); }}>
               Update script…
             </DropdownItem>
           )}
@@ -514,29 +515,29 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         </DropdownMenu>
       )}
       {doc && doc.scenes.length > 0 && (
-        <div className="relative flex items-center">
-          <Search className="absolute left-2 h-3.5 w-3.5 text-[color:var(--ui-text-muted)]" />
-          <input
-            type="text"
-            aria-label="Search script"
+        <div className="flex items-center gap-1" data-presence-anchor="toolbar:script:search">
+          <MorphSearchField
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={setQuery}
+            triggerLabel="Search"
+            triggerIcon={<Search className="w-3.5 h-3.5" />}
             placeholder="Search script"
-            className="w-40 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] py-1 pl-7 pr-2 text-[11px] text-[color:var(--ui-text-strong)] focus:outline-none focus:ring-1 focus:ring-[color:var(--ui-text-strong)]"
+            triggerCollapse
+            triggerReveal
+            collapsedWidth="auto"
+            expandedWidth={260}
+            theme="light"
+            active={!!q}
+            actions={[
+              { key: 'prev', label: 'Previous match', icon: <ChevronUp className="w-3.5 h-3.5" />, keepOpen: true, onClick: () => stepMatch(-1) },
+              { key: 'next', label: 'Next match', icon: <ChevronDown className="w-3.5 h-3.5" />, keepOpen: true, onClick: () => stepMatch(1) },
+            ]}
           />
           {q && (
-            <span className="ml-1.5 min-w-[3.5rem] text-[10px] tabular-nums text-[color:var(--ui-text-muted)]">
+            <span className="min-w-[3.5rem] text-[10px] tabular-nums text-[color:var(--ui-text-muted)]">
               {matches.length === 0 ? 'No matches' : `${matchPos + 1}/${matches.length}`}
             </span>
           )}
-          <button type="button" title="Previous match" onClick={() => stepMatch(-1)} disabled={matches.length === 0}
-            className="ml-0.5 rounded p-0.5 text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-card-band)] disabled:opacity-30">
-            <ChevronUp className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Next match" onClick={() => stepMatch(1)} disabled={matches.length === 0}
-            className="rounded p-0.5 text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-card-band)] disabled:opacity-30">
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
         </div>
       )}
       {doc && doc.scenes.length > 0 && (
@@ -545,11 +546,11 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           onOpenChange={setViewMenuOpen}
           theme="light"
           width="w-52"
-          trigger={
-            <Button variant="subtle" type="button">
-              <SlidersHorizontal className="w-3.5 h-3.5" /> View <ChevronDown className="w-3 h-3.5 text-[color:var(--ui-text-muted)]" />
-            </Button>
-          }
+          trigger={revealMenuTrigger({
+            icon: <Eye className="w-3.5 h-3.5 shrink-0" />,
+            label: 'View',
+            presenceAnchor: 'toolbar:script:view',
+          })}
         >
           <DropdownItem
             keepOpen

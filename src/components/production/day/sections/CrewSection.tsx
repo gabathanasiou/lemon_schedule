@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { AlertTriangle, UsersRound } from 'lucide-react';
+import { TriangleAlert, Users } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
 import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall as deptPrecallPatch, setDeptReportTo as deptReportToPatch, slotsForDay } from '../../../../lib/dayCrew';
@@ -89,7 +89,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         <div className="space-y-1" data-crew-link-warnings>
           {warnings.map((w, i) => (
             <div key={`${w.personId}-${w.category}-${w.targetKey}-${i}`} className="flex items-start gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-[11px] text-amber-800">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+              <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
               <span>{w.message}</span>
             </div>
           ))}
@@ -121,6 +121,6 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
   );
 };
 
-export const CrewIcon = UsersRound;
+export const CrewIcon = Users;
 
 export default CrewSection;

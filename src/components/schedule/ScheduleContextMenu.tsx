@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, Copy, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send, CalendarDays, CalendarRange } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, CopyPlus, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send, CalendarDays, CalendarRange } from 'lucide-react';
 import { ScheduleVersion, ScheduleRow } from '../../types';
 import { getContainerBlock } from '../../lib/containers';
 import { IS_COARSE } from '../../lib/device';
@@ -134,7 +134,7 @@ export default function ScheduleContextMenu({
             {row && (row.type === 'DAYBREAK' || !row.pinned) && <ContextMenuDivider />}
             {row?.type === 'SCENE' && (
               <>
-                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
+                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
                 <ContextMenuDivider />
                 {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
                   <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
@@ -153,12 +153,12 @@ export default function ScheduleContextMenu({
               <>
                 {row?.type === 'NOTE' && (
                   <>
-                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
                     <ContextMenuItem onClick={() => handleContextMenuAction('change_color')} icon={<Palette className="w-3.5 h-3.5" />}>Edit Banner</ContextMenuItem>
                   </>
                 )}
                 {row?.type === 'BREAK' && (
-                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<CopyPlus className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
                 )}
                 {row?.type === 'DAYBREAK' && (() => {
                   const idx = daybreakRowToSection?.get(row.id);

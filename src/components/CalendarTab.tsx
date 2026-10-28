@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye, Tags } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, Eye, ListFilter, Maximize2, Minimize2, Trash2, Plus, Tags } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { Seg, ThemeScope } from '@gabriel/ui-kit';
@@ -61,7 +61,8 @@ import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
 import { BoneyardSidebar, SIDEBAR_COLLAPSED_KEY } from './calendar/BoneyardSidebar';
-import { BoneyardExpandButton } from './BoneyardExpandButton';
+import { BoneyardToggle } from './BoneyardToggle';
+import { revealMenuTrigger } from './revealMenuTrigger';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
@@ -1042,7 +1043,7 @@ export const CalendarTab: React.FC<{
             children={
               <div className="flex items-center gap-2">
                 {viewMode === 'strips' && boneyardCollapsed && (
-                  <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
+                  <BoneyardToggle collapsed onToggle={() => setBoneyardCollapsed(false)} />
                 )}
                 <button onClick={() => { follow.noteUserChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-[var(--ui-card-band)] rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
@@ -1079,13 +1080,11 @@ export const CalendarTab: React.FC<{
                   onOpenChange={setFilterMenuOpen}
                   width="w-56"
                   theme="light"
-                  trigger={
-                    <Button data-presence-anchor="toolbar:calendar:filter">
-                      <ListFilter className="w-3.5 h-3.5" />
-                      Filter
-                      <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-                    </Button>
-                  }
+                  trigger={revealMenuTrigger({
+                    icon: <ListFilter className="w-3.5 h-3.5 shrink-0" />,
+                    label: 'Filter',
+                    presenceAnchor: 'toolbar:calendar:filter',
+                  })}
                 >
                   {viewMode === 'strips' ? (
                     <>
@@ -1150,12 +1149,11 @@ export const CalendarTab: React.FC<{
                   onOpenChange={setViewMenuOpen}
                   width="w-48"
                   theme="light"
-                  trigger={
-                    <Button title="View" aria-label="View" data-presence-anchor="toolbar:calendar:view">
-                      <Eye className="w-3.5 h-3.5 shrink-0" />
-                      <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-                    </Button>
-                  }
+                  trigger={revealMenuTrigger({
+                    icon: <Eye className="w-3.5 h-3.5 shrink-0" />,
+                    label: 'View',
+                    presenceAnchor: 'toolbar:calendar:view',
+                  })}
                 >
                   <DropdownSubmenu id="display-field" label="Display Field" side="left" width="w-44" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                     {availableFields.map(f => {
