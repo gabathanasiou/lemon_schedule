@@ -73,10 +73,14 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
     **Add role**), `outline` (value field, e.g. **Report to**). `LocationSearchMenu` `variant`
     wraps it, and `custom` tints the outline blue when the shown value is a local override. The
     Day Crew **Report to** pickers display the resolved day default when the department has no own
-    value; the department override (or a day/template override at the all-crew field) gets the blue
-    custom tint and a **Custom value** tooltip. A department **pre-call** that differs from the
-    template likewise carries the tooltip and its amber override dot (inherited pre-calls show
-    neither). Location triggers are text-first: no pin icon, normal weight, the closed label is the
+    value; a department override gets the blue custom tint and a **Custom value** tooltip. The
+    all-crew **Report to** is the section hero: always `primary` with the location-pin icon (no
+    custom tint), and every Report-to field reserves a field-sized width (`collapsedWidth` 150
+    department / 170 all-crew / 220 in Day Details) so an empty one never collapses to a dash-sized
+    chip. The Day Details card carries the same main **Report to** selection (primary + pin) above
+    the weather row. A department **pre-call** that differs from the template likewise carries the
+    tooltip and its amber override dot (inherited pre-calls show neither). Other location triggers
+    are text-first: no pin icon, normal weight, the closed label is the
     main place only (`shortLocationLabel` — no street number/city/postcode) and ellipsizes at the
     button width; the panel keeps the full record. A picker holding a value opens on it (accordion
     section expanded, row scrolled into view), and the per-crew Report-to cell uses the same
@@ -332,10 +336,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   Audited and deliberately KEPT plain: **Day Types sidebar** (a 3-10 row registry — the
   plain filter is enough), **Reports category sidebar** (a category navigator, not a record
   picker; its main-window/popout copies are ONE component,
-  `reports/ReportCategorySidebar.tsx`), the **day picker** (prev/next stepper is the primary
-  control; the list already groups by week + scrolls to the current day) and the **nearby
-  hospital/police** fields (in-cell `EntityDropdown`; item 171 deletes them). Kit-dependent
-  leftovers → roadmap **319**.
+  `reports/ReportCategorySidebar.tsx`) and the **nearby hospital/police** fields (in-cell
+  `EntityDropdown`; item 171 deletes them). The **day picker** moved (324 follow-up) to the
+  kit `SearchMenu` — the prev/next stepper is the expandable trigger, the weeks are
+  accordion categories that ALL start expanded (`browseExpanded` + `expandableGroups`; the
+  current day is revealed before paint) and can fold individually, and the field filters by
+  day number, ISO/short/long date, weekday or week. Kit-dependent leftovers → roadmap **319**.
   **Searchable menus need a no-match state**: the kit `DropdownMenu` renders
   `No matches for “…”` when a searchable query hides every row (in-panel box and
   trigger-as-search). **Theme gotcha**: a component calling `useKitTheme()` ABOVE its own

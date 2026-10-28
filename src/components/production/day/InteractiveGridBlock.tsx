@@ -108,7 +108,6 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
           onDeptPrecallChange={(dept, expr) => patchMeta(setDeptPrecall(day.meta, dept, expr))}
           reportToId={reportToIdForDay(project, day.meta)}
-          reportToCustom={!!day.meta.reportToId}
           deptReportTo={day.meta.departmentReportTo}
           onReportToChange={id => patchMeta({ reportToId: id || undefined })}
           onDeptReportToChange={(dept, id) => patchMeta(setDeptReportTo(day.meta, dept, id))}

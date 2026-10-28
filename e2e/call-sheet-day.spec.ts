@@ -226,7 +226,11 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
       return (rows.sections || []).filter((s: any) => !s.isPinned).length;
     });
     await page.getByRole('button', { name: /Select day/ }).first().click();
-    await expect(page.getByRole('menuitem').filter({ hasText: /^DAY \d/ })).toHaveCount(dayCount, { timeout: 4000 });
+    // The picker is the kit SearchMenu (accordion weeks, roadmap 324
+    // follow-up); a query lists every production day, so the catalogue is
+    // still fully assertable.
+    await page.getByPlaceholder('Search days…').first().fill('day');
+    await expect(page.getByRole('option').filter({ hasText: /^DAY \d/ })).toHaveCount(dayCount, { timeout: 4000 });
     await page.keyboard.press('Escape');
   });
 
@@ -353,7 +357,8 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });
 
     await page.getByRole('button', { name: /Select day/ }).first().click();
-    await page.getByRole('menuitem').filter({ hasText: /^DAY 2/ }).first().click();
+    await page.getByPlaceholder('Search days…').first().fill('day 2');
+    await page.getByRole('option').filter({ hasText: /^DAY 2/ }).first().click();
 
     // Still previewing — the canvas stays gone, the paginated report stays.
     await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });

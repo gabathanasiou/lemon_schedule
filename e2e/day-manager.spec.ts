@@ -93,7 +93,8 @@ test.describe('Day Manager (roadmap 98)', () => {
 
     // Select DAY 2 via the toolbar day dropdown, then copy from day (Settings menu).
     await page.getByRole('main').getByRole('button', { name: /Select day/ }).first().click();
-    await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
+    await page.getByPlaceholder('Search days…').first().fill('day 2');
+    await page.getByRole('option', { name: /^DAY 2 / }).click();
     await page.getByRole('main').getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Copy from day' }).click();
     await page.getByText('Breaks & Notes', { exact: true }).last().click();

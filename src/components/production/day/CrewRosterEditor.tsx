@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DayCrewSlot, DayMeta, Project } from '../../../types';
 import {
@@ -67,9 +67,6 @@ export interface CrewRosterEditorProps {
   contacts?: boolean;
   /** Item 156: effective "Report to" LOCATION id for everyone (day → template). */
   reportToId?: string;
-  /** True when the everyone default is a local override (day meta / template),
-   *  not inherited — tints the picker as custom. */
-  reportToCustom?: boolean;
   /** Item 156: effective per-department "Report to" location ids (day → template). */
   deptReportTo?: Record<string, string>;
   /** Item 156: writes the everyone default (day meta / crew template).
@@ -414,7 +411,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
                 readOnly={readOnly}
                 placeholder="—"
                 browse="accordion"
-                collapsedWidth="auto"
+                /* A fixed field width: an empty Report-to must read as a field,
+                   not a dash-sized chip (roadmap 324 follow-up). */
+                collapsedWidth={150}
                 expandedWidth={320}
                 panelWidth={320}
                 theme={gridMode}
@@ -571,7 +570,7 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
 export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
-  onCreatePerson, contacts, reportToId = '', reportToCustom = false, deptReportTo = EMPTY_DEPT_REPORT_TO,
+  onCreatePerson, contacts, reportToId = '', deptReportTo = EMPTY_DEPT_REPORT_TO,
   onReportToChange, onDeptReportToChange, onCreateLocation,
   dataAttr, presenceScopePrefix, className = '',
 }) => {
@@ -629,12 +628,16 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
             readOnly={readOnly}
             placeholder="—"
             browse="accordion"
-            collapsedWidth="auto"
+            /* The everyone default is the hero of the crew section: a primary
+               face with the location cue, at a field-sized width. It stays
+               primary whatever it holds — no "custom" tint here (roadmap 324
+               follow-up). */
+            icon={<MapPin className="w-3.5 h-3.5" />}
+            collapsedWidth={170}
             expandedWidth={320}
             panelWidth={320}
             theme={ambientTheme}
-            variant="outline"
-            custom={reportToCustom}
+            variant="primary"
           />
         </div>
       )}

@@ -11,6 +11,7 @@ import { LiveNumberInput } from '../../../LiveNumberInput';
 import Checkbox from '../../../Checkbox';
 import { LocationSearchMenu } from '../../../location/LocationSearchMenu';
 import { dayLocationRefs, setDayMaster } from '../../../../lib/dayLocations';
+import { reportToIdForDay } from '../../../../lib/dayCrew';
 import { locationOptions } from '../../../../lib/locationOptions';
 import { wmoIcon } from '../weatherIcon';
 import { DAY_INPUT } from '../tableStyles';
@@ -62,6 +63,10 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
     return locationOptions(project).filter(item => attached.has(item.id));
   }, [day.meta, project]);
   const masterId = day.masterLocation?.id || '';
+  /* Crew "Report to all" is the day's main reporting location: the same value
+     the Crew section and the call-sheet crew table resolve (day → template). */
+  const reportToId = reportToIdForDay(project, day.meta);
+  const reportLocationItems = useMemo(() => locationOptions(project), [project]);
 
   // ---- manual weather (roadmap 301) -----------------------------------------
   // The override is stored on the governing daybreak (`daybreakMeta`), written
@@ -254,6 +259,28 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
             />
           )}
         </div>
+        {/* The day's main reporting location — the same value the Crew section's
+            "Report to all" owns (day → template). Primary face + location cue,
+            matching that hero control (roadmap 324 follow-up). */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[color:var(--ui-border)] pt-2" data-report-to>
+          <span className={`${LABEL} shrink-0`}>Report to</span>
+          <LocationSearchMenu
+            className="min-w-[10rem] flex-1"
+            items={reportLocationItems}
+            value={reportToId}
+            onSelect={id => patchMeta({ reportToId: id || undefined })}
+            onClear={() => patchMeta({ reportToId: undefined })}
+            readOnly={readOnly}
+            placeholder="—"
+            icon={<MapPin className="w-3.5 h-3.5" />}
+            browse="accordion"
+            collapsedWidth={220}
+            expandedWidth={280}
+            panelWidth={320}
+            variant="primary"
+          />
+        </div>
+
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-[color:var(--ui-border)] pt-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
             {noPinHint ? (
