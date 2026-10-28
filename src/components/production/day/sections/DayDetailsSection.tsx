@@ -260,9 +260,11 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
           )}
         </div>
         {/* The day's main reporting location — the same value the Crew section's
-            "Report to all" owns (day → template). Primary face + location cue,
-            matching that hero control (roadmap 324 follow-up). */}
+            "Report to all" owns (day → template). Same row/field face as the
+            master location above (outer pin, primary field, clear X when a
+            value is set) — roadmap 324 follow-up. */}
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[color:var(--ui-border)] pt-2" data-report-to>
+          <MapPin className="w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)]" />
           <span className={`${LABEL} shrink-0`}>Report to</span>
           <LocationSearchMenu
             className="min-w-[10rem] flex-1"
@@ -272,7 +274,6 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
             onClear={() => patchMeta({ reportToId: undefined })}
             readOnly={readOnly}
             placeholder="—"
-            icon={<MapPin className="w-3.5 h-3.5" />}
             browse="accordion"
             collapsedWidth={220}
             expandedWidth={280}
