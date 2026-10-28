@@ -1168,3 +1168,37 @@ on the app header, one PageToolbar, and the Call Times modal tabs (dark).
 **Relations:** `depends on` the kit release carrying the Seg icon face;
 `relates to` **322** (picker/control architecture), **258** (icon-first
 collapsing tabs — the `TabFace` mechanics).
+
+## 324. Control-face audit — use the new kit faces where they earn their place (`[ ]`)
+
+**Asked 2026-10-28 (user):** "audit the app especially headers and modals to
+see if we can use some of the new UI like morphing icons where they make
+sense or toggle icons — search in page mini tab bars, edit key on schedule
+tab, boneyard button etc."
+
+The kit now carries faces the app does not use yet: `revealOnHover` (bare
+icon → its box on hover), `collapse` + `keepLabelOnActive={false}` (a toggle
+that collapses back to its icon), `reserveLabel` + `iconRoll` (stable width,
+direction-aware icon change), the morph trigger (`MorphSearchField` /
+`MorphActionField`) and the Seg icon-swap face (323 owns adoption there).
+
+**Work:**
+- Walk the headers first — AppHeader, PageToolbar (sub-tabs + actions), the
+  Schedule/Calendar toolbars, the Day Manager header — then the shared modal
+  footers and trigger buttons. The user's starters: the search trigger in the
+  PageToolbar mini-tab bar, the Schedule tab's **Edit** key, the **Boneyard**
+  button.
+- For each control decide and apply ONE of: keep the plain button, reveal on
+  hover, a real toggle (2+ states, stable width, icon roll), or morph into a
+  field. A face change only — no routing, labels or new components; keep
+  `go()`-driven navigation in the tabs.
+- Where the same pattern repeats, capture it as a shared recipe (design doc
+  + the control manual's examples), not a per-call-site copy.
+
+**Verify:** `npm run lint`; the suites covering each touched surface; manual
+pass over every audited header + one modal per family (faces are visual —
+rule 7 manual, no new e2e).
+
+**Relations:** `relates to` **323** (Seg icon-swap face in the app), **322**
+(picker/control architecture), **258** (collapsing tabs / `TabFace`); kit
+manual `docs/CONTROLS.md`.
