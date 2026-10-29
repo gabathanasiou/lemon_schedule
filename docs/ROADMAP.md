@@ -1143,38 +1143,3 @@ on the app header, one PageToolbar, and the Call Times modal tabs (dark).
 **Relations:** `depends on` the kit release carrying the Seg icon face;
 `relates to` **322** (picker/control architecture), **258** (icon-first
 collapsing tabs — the `TabFace` mechanics).
-
-
-## 325. Glide fork — pinned DOM controls drift on fast scroll (vertical AND horizontal) (`[ ]`)
-
-**Problem (2026-10-28, kit branch `experiment/glide-grid`):** the bespoke fork
-pins real controls over the canvas (crew picker chevrons, Breakdown trash
-buttons, header sort glyphs). The canvas repaints inside the scroll pass; the
-DOM boxes are re-pinned from `getBounds` a frame later, so a fast flick leaves
-them straddling two rows — and near the top a button can cross into the
-header. The current mitigation only looks at VERTICAL delta: a fast HORIZONTAL
-scroll still slides buttons off their columns.
-
-- **Today:** `dom-cells/index.js` sets `data-glide-scrolling` when a scroll
-  event moves >4px and hides the layer (`visibility:hidden`, fork CSS); it
-  re-pins and reveals 90ms after the last event.
-- **Wanted:** structural alignment, not a bigger heuristic. Candidates:
-  mount the layer inside `dvn-scroller`'s content so the browser scrolls it
-  natively with the canvas; position boxes from the scroller offsets in the
-  same frame (+ column/row geometry); or compositor-scroll the layer with a
-  CSS transform. Evaluate against frozen columns, row-marker offset, dynamic
-  columns, overscroll and the trailing add row.
-
-**Files:** `ui-kit/vendor/glide-data-grid/dist/esm/dom-cells/index.js`,
-`ui-kit/src/glide/GlideSheet.tsx`,
-`ui-kit/playground/src/breakdownDemo.tsx`, fork patch list
-`ui-kit/vendor/glide-data-grid/README.md`.
-
-**Verify:** on playground `#breakdown`, a fast vertical AND horizontal flick
-(trackpad + wheel) keeps every trash/picker/sort control glued to its cell,
-including at the header edge — with no visibility heuristic.
-
-**Relations:** part of the Glide fork experiment (`experiment/glide-grid`,
-unmerged); `blocks` promoting the fork into the app's Breakdown/crew grids.
-The app still runs stock `@glideapps/glide-data-grid@6.0.4-alpha24` (item 71
-pin).
