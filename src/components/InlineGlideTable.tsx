@@ -18,6 +18,7 @@ import { useKitTheme } from '@gabriel/ui-kit';
 import {
   kitGlyphCell,
   kitGlyphGroupCell,
+  kitPickerCell,
   controlCellRenderers,
   isControlCell,
   isKitGlyphCell,
@@ -448,18 +449,32 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const hovered = row === hoveredRowRef.current;
     const isReadonly = !!(cell as any).readonly;
     if (!isReadonly) {
+      // Picker columns (entity/enum editors) carry the kit's chevron lane so
+      // the dropdown affordance is visible without opening the cell. The
+      // lane opens the SAME overlay editor a double-click does.
+      const editorCfg = getEditor?.(row, colDef.key) ?? editors?.[colDef.key];
+      const picker = editorCfg && (editorCfg.kind === 'entity' || editorCfg.kind === 'enum') && (cell as any).kind === GridCellKind.Text
+        ? kitPickerCell({
+            value: String((cell as any).displayData ?? (cell as any).data ?? ''),
+            seedValue: String((editorCfg as any).seedValue ?? r[colDef.key] ?? ''),
+            label: `${colDef.label} for row ${row + 1}`,
+            placeholder: '—',
+            onOpen: () => gridRef.current?.openCellEditor(col, row),
+          })
+        : null;
       // Editable: the mode's rest wash (light blue on the pages, a raised
       // neutral in a dark modal), deeper on the hovered row. Preserves the
       // caller's text colour (e.g. amber overrides).
+      const editable = picker ?? cell;
       const bg = hovered ? EDITABLE_HOVER_BG : EDITABLE_BG;
-      return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
+      return { ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
     }
     if (hovered) {
       // Read-only: neutral hover only — plain idle, faint text.
       return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: READONLY_HOVER_BG, bgCellMedium: READONLY_HOVER_BG } };
     }
     return cell;
-  }, [COLUMNS, getCellContent, rowActions, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
+  }, [COLUMNS, getCellContent, getEditor, editors, rowActions, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
    *  each title lines up with its (centered) cells. `wrapHeaders` wraps the

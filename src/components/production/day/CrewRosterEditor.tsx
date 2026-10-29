@@ -252,7 +252,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       // Seed with the current name so the dropdown opens on it (like Set cells);
       // EntityDropdown single selects it all, so typing replaces.
       return textCell(row.person, {
-        displayData: `${row.person || '—'}  ▾`,
+        displayData: row.person || '—',
         readonly: !!readOnly,
         cursor: 'pointer',
       });

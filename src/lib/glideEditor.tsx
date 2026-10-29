@@ -36,6 +36,8 @@ export type GlideColumnEditor =
       /** ID-keyed catalogue: show the item NAME in the editing text (commits
        *  still carry the id). */
       resolveEditing?: boolean;
+      /** Strict palette (I/E, D/N): no "Add …" create row. */
+      allowFreeText?: boolean;
     }
   | {
       /** Plain text cell with optional live uppercase (e.g. crew names). */
@@ -267,7 +269,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={cfg.seedValue ?? currentVal} initialQuery={initialValue} resolveEditing={cfg.resolveEditing} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipLeadingComma} selectAllOnOpen={selectOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow />;
+        return <EntityDropdown value={cfg.seedValue ?? currentVal} initialQuery={initialValue} resolveEditing={cfg.resolveEditing} allowFreeText={cfg.allowFreeText} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipLeadingComma} selectAllOnOpen={selectOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow style={{ height: '100%', display: 'flex', alignItems: 'center' }} />;
       };
       components.set(colKey, Editor);
     }

@@ -1249,13 +1249,17 @@ scroll fixes and the painted-button language without a second DOM layer.
   in `vite.config.ts`/`tsconfig.json`; one runtime, one overlay-editor chunk.
 - Kit `@gabriel/ui-kit/glide-controls` subpath (Glide external) supplies
   `kitGlyphCell`/`kitGlyphGroupCell`/`kitPickerCell` + `controlCellRenderers`.
-- Breakdown action column = painted add-after + trash; entity columns =
-  `kitPickerCell` (chevron lane opens the app's existing editor);
-  InlineGlideTable + GlideGridShell row actions = the same painted cells.
+- Breakdown action column = painted trash only; adding is Glide's trailing
+  phantom row on the Scene # column (press it to append AND edit the new
+  cell); `overscrollY` adds the space below. Entity columns are text cells
+  (no chevrons in the Breakdown).
+- I/E + D/N use the app entity picker (kit PickerField panel, strict palette);
+  InlineGlideTable wraps entity/enum columns in `kitPickerCell` so the crew
+  tables and Day Manager Locations show dropdown chevrons.
 - Type-to-open on a picker must not select the seeded key (`selectOnOpen` in
   `glideEditor.tsx`) — `glide-first-edit` guards it.
-- Kit dependency is `file:../ui-kit` on this branch; not mergeable until the
-  kit publishes the fork + controls subpath (or the fork is vendored in the app).
+- Kit dependency is the released **v0.1.173** tag (the kit Glide branch merged
+  into kit main; `glide-controls` keeps Glide external).
 
 **Verify:** `npm run lint`; unit lane; the six Glide specs in
 `docs/GLIDE-BREAKDOWN.md`; manual Safari/iPad pass over the Breakdown, Crew

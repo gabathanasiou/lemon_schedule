@@ -10,21 +10,21 @@ auto-repaint.
   (`vendor/glide-data-grid`, aliased in `vite.config.ts` + `tsconfig.json`). The npm package stays in
   `package.json` for the kit's peer contract, but NOTHING resolves to it. The fork carries the DOM
   cells, same-frame scroll paint and content-space bounds from kit `docs/GLIDE.md`.
-- **Row actions are painted, not DOM:** `kitGlyphCell` / `kitGlyphGroupCell` from
+- **Row actions are painted, not DOM:** `kitGlyphCell` from
   `@gabriel/ui-kit/glide-controls` (the lean subpath; it keeps Glide EXTERNAL so the app owns the one
-  runtime). The Breakdown's action column is ONE cell with add-after + trash; InlineGlideTable and
-  GlideGridShell's row actions are the same cells. Never mount a `domCells` button for a grid row
-  action — the painted cell keeps grid focus, hover, press flash and Enter/Space activation.
-- **Breakdown entity columns are `kitPickerCell`s** (value + 24px chevron lane). The lane calls
-  `gridRef.openCellEditor(dataCol, row)` — the fork's imperative API adds the row-marker offset — and
-  opens the SAME app editor a double-click does. `createGlideCellEditor` accepts the custom
-  `kit-picker` cell, seeds the stored `seedValue`, and **must not select the typed key on open**
-  (`selectOnOpen = selectAllOnOpen && !initialValue`): a CUSTOM cell keeps its data on type-to-open,
-  so selecting the seeded key makes the next keystroke replace it ("MARY" → "ARY").
-- **Kit dependency:** this branch points `@gabriel/ui-kit` at `file:../ui-kit` (the kit
-  `experiment/glide-grid` branch, which adds `src/glide/controls.ts` + `paint.ts` and the
-  `./glide-controls` export). Build the kit (`npm run build` in `../ui-kit`) before using the app;
-  the controls bundle lives at `dist/glide-controls.js`.
+  runtime). The Breakdown's action column is **trash only**; adding a row is Glide's **trailing
+  phantom row** (the add button lives on the Scene # column, never the trash column — otherwise the
+  new row's trash lands under the pointer and the same click deletes it). Pressing that add button
+  appends AND opens the Scene # editor on the new row (`appendScene`); `overscrollY` leaves the
+  playground's space under the last row. `InlineGlideTable` and `GlideGridShell` row actions use the
+  same painted cells.
+- **The Breakdown has NO picker chevrons:** its entity columns are plain text cells (double-click /
+  type opens the app editor). `InlineGlideTable` wraps entity/enum cells in `kitPickerCell` so the
+  crew tables (Person, Report To) and the Day Manager Locations grid show the dropdown chevron.
+  I/E and D/N use the app entity picker (`allowFreeText: false`) — the kit PickerField panel, not the
+  old AutocompleteDropdown, so it matches the playground.
+- **Kit dependency:** `@gabriel/ui-kit` is the released **v0.1.173** GitHub tag (the kit's Glide
+  branch merged into kit main; `./glide-controls` built with Glide external).
 - **Verify:** `e2e/glide-breakdown`, `crew-glide`, `day-times-glide`, `locations`,
   `glide-clipboard`, `glide-first-edit` (the last one catches the type-to-open first-key swallow).
 

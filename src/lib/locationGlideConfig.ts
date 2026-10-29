@@ -122,7 +122,7 @@ export const locationGlideConfig: GlideShellConfig = {
   presenceScope: 'locations-glide',
   followPlace: { tab: 'production', sub: 'locations', mode: 'glide' },
   columnDefs: [
-    { key: 'actions', label: '', width: 56 },
+    { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200 },
     { key: 'type', label: 'Type', width: 140, kind: 'category', clearable: false, placeholder: 'Type' },
     { key: 'address', label: 'Address', width: 220 },

@@ -168,10 +168,10 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     }
     if (col.key === 'location') {
       // Seed with the name (the editor is id-keyed): picking keeps the exact
-      // location id; typed names map back to the DB on commit. Same affordance
-      // as the crew Person cell — a ▾ and a pointer, so it reads as a dropdown.
+      // location id; typed names map back to the DB on commit. The inline
+      // grid adds the kit chevron lane for picker columns.
       return seededTextCell(row.location, {
-        displayData: `${row.location || '—'}  ▾`,
+        displayData: row.location || '—',
         readonly: !!readOnly,
         cursor: 'pointer',
       });

@@ -180,7 +180,7 @@ export const crewGlideConfig: GlideShellConfig = {
   presenceScope: 'crew-glide',
   followPlace: { tab: 'production', sub: 'crew', mode: 'glide' },
   columnDefs: [
-    { key: 'actions', label: '', width: 56 },
+    { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200, kind: 'text', uppercase: true, placeholder: 'Full name' },
     { key: 'role', label: 'Role', width: 160, kind: 'category', clearable: false, placeholder: 'Role' },
     { key: 'categories', label: 'Element Categories', width: 220, placeholder: 'Category, Category', multiValue: true, entityItems: elementCategoryItems },

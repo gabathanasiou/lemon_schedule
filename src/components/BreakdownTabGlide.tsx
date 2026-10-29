@@ -15,12 +15,9 @@ import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
 import {
   kitGlyphCell,
-  kitGlyphGroupCell,
-  kitPickerCell,
   controlCellRenderers,
   isControlCell,
   isKitGlyphCell,
-  isKitGlyphGroupCell,
   pressControlCell,
 } from '@gabriel/ui-kit/glide-controls';
 import { projectAccentOf } from '../lib/projectTheme';
@@ -50,7 +47,6 @@ import Checkbox from './Checkbox';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
-import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 
@@ -100,7 +96,7 @@ const BREAKDOWN_LABELS: Record<string, string> = {
 };
 
 const FIXED_COLS = [
-  { key: 'actions', label: '', width: IS_COARSE ? 64 : 52 },
+  { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },
   { key: 'sceneNumber', label: 'Scene #', width: 60 },
   { key: 'pageCount', label: 'Pages', width: 80 },
   { key: 'scriptDay', label: 'Script Day', width: 80 },
@@ -210,16 +206,26 @@ export function GlideBreakdownTab({
 
   const glideColumns: GridColumn[] = useMemo(() => {
     const scale = fontSize / SS_FONT_SIZE_DEFAULT;
-    return COLUMNS.map(c =>
-      c.key === 'actions'
-        ? { title: '', width: Math.round(c.width * scale), themeOverride: { textDark: '#ef4444' } } as GridColumn
-        : { title: c.label, width: Math.round(c.width * scale) }
-    );
+    return COLUMNS.map(c => {
+      const base = { title: c.label, width: Math.round(c.width * scale) };
+      if (c.key === 'actions') {
+        // The trailing add row must NOT live in the trash column: after the
+        // append the new row's trash would sit under the pointer and the same
+        // click would delete the row it just created.
+        return { ...base, title: '', themeOverride: { textDark: '#ef4444' }, trailingRowOptions: { disabled: true } } as GridColumn;
+      }
+      if (c.key === 'sceneNumber') {
+        // The trailing row's add button lives on the first EDITABLE column;
+        // clicking it appends and opens this cell on the new row.
+        return { ...base, trailingRowOptions: { hint: 'Add' } } as GridColumn;
+      }
+      return base as GridColumn;
+    });
   }, [COLUMNS, fontSize]);
 
-  /* The action column is painted by the kit's control cells
-     (`kitGlyphGroupCell` — add · trash, and a plus on the add row). No DOM
-     controls, no image preloads: the renderer is canvas-native. */
+  /* The action column is painted by the kit's canvas-native control cell
+     (`kitGlyphCell` — trash only). Adding rows is the trailing add-row button
+     on the Scene # column. No DOM controls, no image preloads. */
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
   /** Last row-marker click, to disambiguate Glide's time-based isDoubleClick (it
@@ -370,7 +376,7 @@ export function GlideBreakdownTab({
     if (!mountedRef.current) { mountedRef.current = true; return; }
     if (!gridRef.current) return;
     const all: { cell: Item }[] = [];
-    for (let r = 0; r < scenes.length + 5; r++)
+    for (let r = 0; r < scenes.length + 1; r++)
       for (let c = 0; c < COLUMNS.length; c++)
         all.push({ cell: [c, r] });
     setTimeout(() => gridRef.current?.updateCells(all), 0);
@@ -452,10 +458,8 @@ export function GlideBreakdownTab({
   /** Painted row-action intents (the kit control cells read this at activation
    *  time, so `getCellContent` never needs the handlers declared below it). */
   const controlActionsRef = useRef<{
-    add: () => void;
-    insertAfter: (row: number) => void;
     remove: (row: number) => void;
-  }>({ add: () => {}, insertAfter: () => {}, remove: () => {} });
+  }>({ remove: () => {} });
   /** Deletes one scene through the shared confirmation path (the same one the
    *  actions cell/context menu use). */
   const requestDeleteAt = useCallback((row: number) => {
@@ -589,55 +593,22 @@ export function GlideBreakdownTab({
     const selectLock = marqueeMode === 'tool';
     const colDef = COLUMNS[col];
     if (!scene) {
-      if (row === scenesRef.current.length) {
-        if (!colDef) return textCell('', { readonly: true });
-        if (colDef.key === 'actions') {
-          if (locked || selectLock) return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#f3f4f6' } });
-          // The add row carries the kit's painted plus — no DOM control.
-          return kitGlyphCell({
-            icon: 'plus',
-            label: 'Add scene',
-            tone: 'accent',
-            lane: 'full',
-            onActivate: () => controlActionsRef.current.add(),
-          });
-        }
-        return textCell('', (selectLock || kbLocked) && !isEntityCol(colDef.key) ? { readonly: true, allowOverlay: false } : undefined);
-      }
-      return {
-        kind: GridCellKind.Text,
-        data: '',
-        displayData: '',
-        allowOverlay: false,
-        readonly: true,
-        style: 'faded',
-      } as GridCell;
+      // The trailing add row is painted by Glide (it is NOT a data cell).
+      return { kind: GridCellKind.Text, data: '', displayData: '', allowOverlay: false, readonly: true, style: 'faded' } as GridCell;
     }
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
     if (colKey === 'actions') {
       if (locked || selectLock) return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#fef2f2' } });
       const n = scene.sceneNumber || String(row + 1);
-      // ONE action cell, TWO painted buttons (add after · trash) — the kit's
-      // canvas-native control cell, never a DOM box.
-      return kitGlyphGroupCell({
+      // ONE painted action per row: trash. Adding rows is the trailing
+      // add-row button, never a plus in a data cell.
+      return kitGlyphCell({
+        icon: 'trash',
+        label: `Delete scene ${n}`,
+        tone: 'danger',
         lane: 'full',
-        buttons: [
-          {
-            icon: 'plus',
-            label: `Add scene after ${n}`,
-            tone: 'accent',
-            hoverBg: 'rgba(5, 150, 105, 0.16)',
-            onActivate: () => controlActionsRef.current.insertAfter(row),
-          },
-          {
-            icon: 'trash',
-            label: `Delete scene ${n}`,
-            tone: 'danger',
-            hoverBg: 'rgba(220, 38, 38, 0.14)',
-            onActivate: () => controlActionsRef.current.remove(row),
-          },
-        ],
+        onActivate: () => controlActionsRef.current.remove(row),
       });
     }
     const val = getSceneValue(scene, colKey);
@@ -651,25 +622,7 @@ export function GlideBreakdownTab({
             return member ? `${member.id}. ${member.name || trimmed}` : trimmed;
           }).filter(Boolean).join(', ')
         : '';
-      if (selectLock || locked) return textCell(val, { displayData: displayValue, readonly: true, allowOverlay: false });
-      return kitPickerCell({
-        value: displayValue,
-        seedValue: val,
-        label: `Cast for scene ${scene.sceneNumber || row + 1}`,
-        placeholder: '—',
-        onOpen: () => gridRef.current?.openCellEditor(col, row),
-      });
-    }
-    if (isEntityCol(colKey) && !selectLock && !locked) {
-      // Painted picker: the value + a chevron lane that opens the SAME entity
-      // editor a double-click does. The cell body only selects.
-      return kitPickerCell({
-        value: val,
-        seedValue: val,
-        label: `${colDef.label} for scene ${scene.sceneNumber || row + 1}`,
-        placeholder: '—',
-        onOpen: () => gridRef.current?.openCellEditor(col, row),
-      });
+      return textCell(val, selectLock || locked ? { displayData: displayValue, readonly: true, allowOverlay: false } : { displayData: displayValue });
     }
     return textCell(val, selectLock || locked || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
   }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode, locked]);
@@ -678,35 +631,8 @@ export function GlideBreakdownTab({
   const dialog = useDialog();
 
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
-    if (row === scenesRef.current.length) {
-      const colDef = COLUMNS[col];
-      if (!colDef || colDef.key === 'actions') return;
-      if (newValue.kind !== GridCellKind.Text || !newValue.data.trim()) return;
-      if (!dedupeCellCommit(`${colDef.key}:${newValue.data}`)) return;
-      const val = colDef.key === 'pageCount'
-        ? formatPageCount(parsePageCount(newValue.data))
-        : colDef.key === 'scriptDay'
-          ? newValue.data.replace(/[^0-9]/g, '')
-          : colDef.key === 'set'
-            ? newValue.data.toUpperCase()
-            : newValue.data;
-      const newScene: Scene = createBlankScene({
-        sceneNumber: colDef.key === 'sceneNumber' ? val : '',
-        [colDef.key]: val,
-      } as Partial<Scene>);
-      if (!newScene.sceneNumber) {
-        const all = allScenesRef.current;
-        const prev = all[all.length - 1];
-        const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
-        newScene.sceneNumber = nextNum;
-      }
-      /* A new row's entity cells run the same create-missing-elements pass as
-         an existing row's edit — without it a cast NAME typed into the add
-         row landed raw in scene.cast (no member, no naming modal). */
-      ensureElements(colDef.key, val);
-      dispatch({ type: 'ADD_SCENE', payload: newScene });
-      return;
-    }
+    // The trailing add row is Glide's phantom row: its append creates the
+    // scene through `onRowAppended`, then the editor lands on the NEW row.
     if (row >= scenesRef.current.length) return;
     const scene = scenesRef.current[row];
     if (!scene) return;
@@ -787,8 +713,8 @@ export function GlideBreakdownTab({
     }
     const anchored = (cat: string) => anchoredByCategory.get(cat);
     const editors: Record<string, GlideColumnEditor> = {
-      intExt: { kind: 'enum', options: intExtOptions, placeholder: 'INT, EXT, D/E...' },
-      dayNight: { kind: 'enum', options: dayNightOptions, placeholder: 'DAY, NIGHT, MORNING...' },
+      intExt: { kind: 'entity', mode: 'single', displayMode: 'name', items: intExtOptions.map(v => ({ id: v, name: v })), placeholder: 'INT, EXT, D/E...', keepAlphabetical: true, allowFreeText: false },
+      dayNight: { kind: 'entity', mode: 'single', displayMode: 'name', items: dayNightOptions.map(v => ({ id: v, name: v })), placeholder: 'DAY, NIGHT, MORNING...', keepAlphabetical: true, allowFreeText: false },
       set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set', anchoredKeys: anchored('set') },
       cast: {
         kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast', anchoredKeys: anchored('cast'),
@@ -881,6 +807,17 @@ export function GlideBreakdownTab({
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     dispatch({ type: 'ADD_SCENE', payload: createBlankScene({ sceneNumber: nextNum, containerId: null } as any) });
   }, [dispatch]);
+  /** Trailing add-row button: append AND start editing the new row's first
+   *  editable cell. Glide's own post-append focus runs while the row is still
+   *  being painted / the scroll is in flight, so drive it explicitly. */
+  const appendScene = useCallback(() => {
+    const index = scenesRef.current.length;
+    addScene();
+    window.setTimeout(() => {
+      gridRef.current?.scrollTo(1, index, 'vertical', 0, 0, { vAlign: 'end' });
+      window.setTimeout(() => gridRef.current?.openCellEditor(1, index), 60);
+    }, 30);
+  }, [addScene]);
   const insertSceneAt = useCallback((gridIndex: number) => {
     // Insert BEFORE the visible row at `gridIndex` (Below passes +1). Map the
     // anchor back to the project list so a filtered view inserts in the right
@@ -897,8 +834,6 @@ export function GlideBreakdownTab({
   }, [dispatch]);
 
   controlActionsRef.current = {
-    add: addScene,
-    insertAfter: (row: number) => insertSceneAt(row + 1),
     remove: requestDeleteAt,
   };
 
@@ -1153,16 +1088,10 @@ export function GlideBreakdownTab({
     }
   }, [scenes.length, openSheetAt, openSheetInPopoutAt, getCellContent]);
 
-  /** Enter/Space on a painted glyph fires it exactly once (the group's FIRST
-   *  button = add after this scene); a picker needs nothing — Glide's own
-   *  activation opens the one entity editor. */
+  /** Enter/Space on the painted trash fires it exactly once. */
   const onCellActivated = useCallback((cell: Item) => {
     const content = getCellContent(cell);
-    const button = isKitGlyphGroupCell(content)
-      ? content.data.buttons[0]
-      : isKitGlyphCell(content)
-        ? content.data
-        : undefined;
+    const button = isKitGlyphCell(content) ? content.data : undefined;
     if (!button || readOnlyRef.current) return;
     pressControlCell(cell, button.label);
     button.onActivate?.();
@@ -1315,7 +1244,10 @@ export function GlideBreakdownTab({
           width={gridWidth}
           height={gridHeight}
           columns={glideColumns}
-          rows={scenes.length + 5}
+          rows={scenes.length}
+          overscrollY={5 * Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
+          trailingRowOptions={{ hint: '', targetColumn: 1 }}
+          onRowAppended={appendScene}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
           getCellsForSelection={true}

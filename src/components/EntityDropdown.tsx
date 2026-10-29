@@ -121,6 +121,10 @@ export interface EntityDropdownProps {
    *  data with that key; a CUSTOM cell (a painted picker) does not, so without
    *  this the first character vanishes. */
   initialQuery?: string;
+  /** Allow committing a typed value that is not in `items` (the "Add …"
+   *  create row). Defaults true; strict palettes (I/E, D/N) pass false so the
+   *  first matching option is highlighted instead of the create row. */
+  allowFreeText?: boolean;
   style?: React.CSSProperties;
   /** Visual style: 'default' (thin transparent inline editor) or 'chip' (dark
    *  bordered button-like trigger with chevron — for modal rows like the link
@@ -196,6 +200,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   portalTarget,
   skipComma = false,
   initialQuery,
+  allowFreeText = true,
   style,
   variant = 'default',
   anchoredKeys,
@@ -372,6 +377,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       defaultOpen={defaultOpen || autoFocusProp}
       selectAllOnOpen={selectAllOnOpen}
       initialQuery={initialQuery}
+      allowFreeText={allowFreeText}
       uppercase={uppercase}
       theme={variant === 'chip' ? 'dark' : undefined}
       className={className}
