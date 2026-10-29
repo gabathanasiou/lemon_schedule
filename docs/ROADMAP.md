@@ -1143,3 +1143,94 @@ on the app header, one PageToolbar, and the Call Times modal tabs (dark).
 **Relations:** `depends on` the kit release carrying the Seg icon face;
 `relates to` **322** (picker/control architecture), **258** (icon-first
 collapsing tabs — the `TabFace` mechanics).
+
+
+## 326. Glide experiment 2 — canvas-native cell controls (picker chevron, glyph buttons) (`[ ]`)
+
+**Why:** picker chevrons and trash/plus controls are DOM boxes pinned over the
+canvas. Glide's cell API can paint and hit-test them natively
+(`needsHoverPosition` + `hoverX/Y`, renderer `onClick`, `onCellActivated`), so
+the last simple controls can leave the overlay without losing native feel.
+
+**Work:** new `ui-kit/src/glide/controlCells.tsx` — `kitPickerCell` (value +
+24px chevron lane; lane click opens the overlay PickerField, body click
+selects, double-click edits) and `kitGlyphCell` (trash/plus/chevron/check with
+lane hover, ~90ms press flash, pointer cursor; click and Enter fire once, grid
+focus retained). `GlideSheet` gains `onCellActivated` plumbing (NO fork patch
+expected; if one is unavoidable it is minimal + documented in the vendor
+README). Keep `pickerDomCell` for compound cells.
+
+**Playground:** new full page `#glide-native-cells` (never replaces `#glide` /
+`#breakdown`): full-screen 60-scene Breakdown with canvas pickers + trash +
+add-row + freeze Seg; embedded crew card with Add role; the same card inside a
+Modal. Dev helper for lane coordinates.
+
+**Verify:** `ui-kit` lint; unit lane hit-test; e2e `glide-native-cells.spec.ts`
+both projects (WebKit primary) — lane opens picker, body does not, Enter fires
+once with grid focus retained; manual hover/press in Safari + iPad.
+
+**Docs:** `ui-kit/docs/GLIDE.md` (cell kinds), `docs/PLAYGROUND.md` (page map),
+`AGENTS.md` one-line pointer.
+
+**Relations:** independent of 327; reuses the kit PickerField/Button/SearchMenu;
+`relates to` 325 (the overlay) and 322 (picker architecture).
+
+
+## 327. Glide experiment 1 — fluid embeddable DOM grid (`[ ]`)
+
+**Why:** remove the canvas-overlay class of bugs (pinned controls, coordinate
+drift) by making cells real elements, without losing Glide's feel.
+
+**Bar:** cells perform and feel 100% like Glide cells — ≤1px geometry parity,
+token-driven visual parity, an identical interaction event log, and Safari perf
+parity or better (no React render on scroll). Dev conformance harness on the
+page (A/B against GlideSheet).
+
+**Work:** `ui-kit/src/domgrid/**` — native scroll surface + translated window,
+fixed/variable row heights + row resize, column resize, frozen rows/cols, empty
+filler rows + trailing add row, per-cell styling/custom cells, controlled
+sorting, rect/shift/keyboard selection + select-all + row/col select, overlay
+text + PickerField editing with Glide's commit rules, copy/cut/paste TSV + HTML
+tables (Numbers/Excel/Sheets, quoted fields, one commit), fill handle, row
+markers. One model + one controller shared by `<GridCell>`, `<GridBlock>`
+(2 cells / 3×3) and `<DomGrid>` so rectangle selection works in all three.
+
+**Playground:** new full page `#domgrid` (never replaces `#breakdown`) — Full
+screen (500-scene Breakdown + A/B + freeze/add/paste/resize/sort), Embedded
+(2-cell, 3×3, mini-grid with add row), Modal grid.
+
+**Verify:** `ui-kit` lint; unit `domGrid*`; e2e `dom-grid.spec.ts` both
+projects (WebKit first); conformance diff ≤1px + event-log equality; Safari
+perf recorded in `ui-kit/docs/DOM-GRID.md`.
+
+**Relations:** independent of 326 (uses kit primitives only); `blocks` migrating
+the Breakdown/crew grids off the canvas fork. The Glide fork stays untouched.
+
+
+## 328. Glide rows painted with the scene colour rules (native row theme + toggle) (`[ ]`)
+
+**Why:** the Colors tab already decides a scene's background/text from the rule
+set + INT/EXT × DAY/NIGHT/MORNING/EVENING; the Glide Breakdown should carry the
+same language row-by-row, with a per-user toggle.
+
+**Verdict:** native Glide — `getRowThemeOverride(row)` (stock DataEditor prop)
+returns `{ bgCell, bgCellMedium, textDark }`; off / out-of-range / add-row
+returns `undefined`. NO fork work. Missing pieces are the kit passthrough + the
+host mapping.
+
+**Work:** `ui-kit/src/glide/GlideSheet.tsx` `getRowThemeOverride` passthrough;
+pure `glideRowTheme(sceneStyle)` mapping (always all three keys; `bgCellMedium`
+is the hover/range wash; memoised by scene id; row-marker gutter stays neutral;
+header untouched); playground `#breakdown` "Scene colours" toggle with a fixture
+palette mirroring the app fallbacks. App adoption: `BreakdownTabGlide` rows
+mapped through `sceneStyle`, plus a device-local **Colours: on/off** pref
+(`lemon_schedule_glide_scene_colors`, default on) in the Breakdown toolbar.
+Colors tab unchanged.
+
+**Verify:** unit mapping (night → white text, medium wash is a real blend);
+playground toggle spec (WebKit first + full suite); manual Safari/iPad light +
+dark colour pass; in the app, the Breakdown grid next to the stripboard reads
+the same scene colour.
+
+**Relations:** `depends on` 326 (merged Experiment 2 — same `GlideSheet`
+surface); `relates to` 325.
