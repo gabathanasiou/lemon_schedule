@@ -1268,3 +1268,52 @@ Glide, Locations Glide and a Day Manager Call Times/Crew grid.
 
 **Relations:** `relates to` 326 (controls), 327 (DOM-grid experiment), 328
 (scene-colour row theme); `blocks` a Glide-runtime upgrade.
+
+
+## 330. Element Manager — category tables onto the kit Glide runtime (`[ ]`)
+
+**Request** (user 2026-10-29): the Element Manager pages should use the new
+kit Glide fork for their cells, like the other grids.
+
+**Why:** Element Manager is the last hand-built `<table>` of inputs — Board ID
++ lock, wrapping Name textarea, cast Details, computed day stats, View/Delete,
+sticky columns, footer Add, DOM row flash. The Crew/Locations Glide and every
+Day Manager grid already run the kit's vendored Glide fork + painted
+`glide-controls` cells (329); the manager should share that engine (selection,
+copy/paste/fill, phantom add row) instead of a second table recipe. The page is
+also 1003 lines — split it while moving.
+
+**Work:**
+- Drive the shared full-height shell (`src/lib/glideShell.tsx` + new
+  `src/lib/elementGlideConfig.tsx`) — NOT `InlineGlideTable` (content-height, no
+  page scroll; the manager holds hundreds of rows) and NOT a fourth DataEditor
+  wrapper.
+- Columns: Board ID (+ lock), Name, cast Details (per-user pref), Occ,
+  Start/Finish, Total Days, per-day-type counts, View, Delete. Computed columns
+  read-only; every text column plain Glide text cells.
+- Keep `useRowBuffer` as the write engine: `onCellEdited` feeds the buffer, so
+  the per-category diff, `MergeRowsModal` confirmation, Board-ID duplicate
+  rejection (revert + red cell) and Auto-ID/`lockedElementIds` are unchanged.
+  Sorting drives the row list.
+- Painted controls: View/Delete via `kitGlyphCell`; Add = the trailing phantom
+  row on Board ID (`onRowAppended` appends blank and opens the editor); the
+  Board ID lock is ONE new glyph kind/lane in `glide-controls` (no fork patch).
+- Keep the `SidebarNav`, category modals and search entry DOM; a search jump
+  scrolls the grid and flashes the row via a theme override. Register the grid
+  peer-selection scope (234); presence row anchoring rides the grid probe.
+- Split `ElementManager.tsx`: composition root + grid config + sidebar/actions.
+
+**Verify:** `npm run lint`; unit lane; the seven specs that enter the manager
+(`element-manager-merge`, `element-manager-day-columns`, `element-events`,
+`cast-single-source`, `crew-links`, `linked-elements`, `overlay-morph`) rewritten
+off the DOM hooks (`data-manager-board-id` / `data-manager-cast-detail` / `tr`
+lookups) onto the grid editor contract; manual Safari/iPad pass over cast with
+Details open, a custom category, a merge confirmation, a duplicate Board ID and
+Auto-ID.
+
+**Docs:** `docs/GLIDE-BREAKDOWN.md` (manager grid), `docs/DESIGN-LANGUAGE.md`
+§manager tables, `AGENTS.md` one-line pointer.
+
+**Relations:** `depends on` 329 (fork + `glide-controls`); `relates to` 326
+(painted cell kinds), 257 (Board IDs), 157 (cast Details), 250 (commit-on-blur),
+234 (peer selection); 327 is the fallback grid if that experiment wins instead.
