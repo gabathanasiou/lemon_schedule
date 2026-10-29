@@ -1283,3 +1283,49 @@ Auto-ID.
 **Relations:** `depends on` 329 (fork + `glide-controls`); `relates to` 326
 (painted cell kinds), 257 (Board IDs), 157 (cast Details), 250 (commit-on-blur),
 234 (peer selection); 327 is the fallback grid if that experiment wins instead.
+
+
+## 331. UI-kit iPhone touch audit — first tap highlights, second tap acts (`[ ]`)
+
+**Request** (user 2026-10-29): audit `@gabriel/ui-kit` for iPhone touch
+friendliness against the documented model — one tap applies the sticky
+highlight/reveal, a second tap activates — and fix the elements in the main app
+where touch "gets stuck" (hover/active state that never clears, or the first tap
+does nothing visible).
+
+**Why:** the model is documented (`UI-PRIMITIVES.md` §Hover & Tap Feedback,
+`DESIGN-LANGUAGE.md` §Global CSS invariants) and proven on iPad (69/70/71/78/80/
+183/184/206), but iPhone has no WebKit harness and the kit primitives have never
+been audited one by one at phone size. Stuck hover is the tell for a missing or
+over-eager `:hover` rule, a `:focus` retained after tap, or a pointer handler
+that eats the click.
+
+**Work:**
+- New `playwright.iphone.config.ts` (WebKit + an iPhone descriptor, touch,
+  portrait) mirroring `playwright.ipad.config.ts`; a playground matrix page and
+  `e2e/iphone-touch.spec.ts` covering every kit primitive: Button (all variants
+  + collapse/icon-only), DropdownMenu/Item/Submenu/ContextMenu, SearchMenu,
+  PickerField/EntityDropdown, Seg (chrome/track), Modal/Dialog, Tooltip,
+  MorphActionField/MorphSearchField, FloatingToggle, Checkbox/Checklist/
+  RadioList, NumberInput, TabFace/tabs, RichTextEditor/FormatToolbar,
+  SelectionCheck/SelectionFooter.
+- Per primitive assert: tap 1 = hover/reveal only where an affordance is
+  hover-discovered (no open/navigate/commit); tap 2 = activate; tap elsewhere
+  clears it; scroll/drag cancels the tap; plain buttons/inputs still act on
+  tap 1. Record the intentional one-tap exceptions in the matrix.
+- Fix the kit (new version) and adopt, then sweep app surfaces that bypass the
+  primitives (stripboard, Scene Sheet/Glide, Calendar cards, Day Manager,
+  reports designer) for the same stuck states. Likely seams: `onPointerDown`/
+  `preventDefault` eating the synthetic click, `:focus`/`:focus-visible` kept
+  after a tap, hover-only JS state (`onMouseEnter`) with no `:hover` twin,
+  `useTouchMode`/`IS_COARSE` branches that diverge, Radix pointerdown dismissal.
+- **Verify:** kit lint/unit/playground + the iPhone WebKit spec; iPad suite
+  unchanged (`playwright.ipad.config.ts`); app iPhone portrait manual pass on
+  the header tabs, File menu/submenus, Breakdown/Glide, Scene Sheet, Day
+  Manager, Calendar event cards, Rules, Reports; docs `UI-PRIMITIVES.md`
+  §Hover & Tap Feedback, `DESIGN-LANGUAGE.md` §Global CSS invariants,
+  `UI-KIT.md`; extend the smart-test RULES and bump the e2e caps for the spec.
+
+**Relations:** `relates to` 182 (nested touch submenus — covered by the audit),
+270 (iPhone shell), 302 (coordinate the kit version bump); follows the archived
+iPad touch hardening (69/70/71/78/80/183/184/206/273).
