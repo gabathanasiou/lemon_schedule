@@ -28,6 +28,8 @@ the npm package has no effect. CSS consumers import
    compositor `translate3d` each, so controls track the canvas on both axes with
    no scroll heuristic. Frozen columns, the row-marker gutter and headers pin per
    axis; the sticky trailing add row is a band inset (`domCellBottomInset`).
+   Boxes are inset by the cell padding and vertically centred; `bleed` drops
+   both so a full-cell control (button/link) fills the rect edge to edge.
    Enter/Space on the selected cell activates its control when the DOM cell
    holds exactly one focusable element. `getDomHeaderCell` pins real controls
    over column headers; headers expose `data-glide-header-focused` when the
