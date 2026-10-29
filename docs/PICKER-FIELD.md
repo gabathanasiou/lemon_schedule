@@ -53,6 +53,14 @@ field (morph pickers, expandable search triggers).
   close (blur / outside / Tab), only when it actually changed. Escape cancels.
   Selected rows float to the top only in ungrouped lists; grouped lists keep
   their sections intact.
+  - **Arrows after a toggle are geographic, not index-based:** ticking sorts
+    the list under the cursor, so `SearchMenu` remembers the row that was
+    visually above/below the toggled one. The next Up/Down jumps to that
+    neighbour's NEW position — the cursor continues where the user was, never
+    from the ticked row's new index (or the top of the list).
+  - **Strict catalogues** (`allowFreeText: false`) never commit typed text
+    outside the catalogue: a multi commit that resolves to nothing keeps the
+    committed values (an intentionally emptied field still clears).
 
 ### Two highlight layers (do not merge them)
 

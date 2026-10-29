@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { GridCellKind, TextCellEntry, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
 import { EntityDropdown, type EntityItem } from '../components/EntityDropdown';
@@ -143,12 +143,24 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         const currentVal = openedByKey && seed !== undefined
           ? String(initialValue)
           : seed ?? cellValue?.data ?? '';
-        const latestRef = useRef({
-          kind: GridCellKind.Text,
-          data: currentVal,
-          displayData: currentVal,
-          allowOverlay: true,
-        });
+        // Glide seeds its overlay temp value with the typed key that OPENED
+        // the editor (edit-on-type rewrites the TEXT cell's data). That seed
+        // is a search query, not a value: an outside click would commit the
+        // first typed key even when the picker rejects it. Picker editors
+        // only commit through their own onChange.
+        const isPicker = cfg !== null && (cfg.kind === 'entity' || cfg.kind === 'enum');
+        useLayoutEffect(() => {
+          if (isPicker) onChange(undefined as any);
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [activation]);
+        // Only a value the editor actually COMMITTED (onChange) may close the
+        // cell edit. The editing seed is NOT a value: a strict picker
+        // (`allowFreeText: false` — I/E, D/N, crew role, categories) rejects
+        // text outside its catalogue, and committing the seed on close would
+        // write the first typed key into the cell anyway.
+        const latestRef = useRef<{ activation: number; cell: any } | null>(null);
+        const committedCell = () =>
+          latestRef.current?.activation === activation ? latestRef.current.cell : undefined;
 
         const handleChange = (newVal: string) => {
           const next = {
@@ -157,7 +169,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             displayData: newVal,
             allowOverlay: true,
           };
-          latestRef.current = next;
+          latestRef.current = { activation, cell: next };
           if (customPicker && cellValue?.kind === GridCellKind.Custom) {
             // Stay on the SAME custom cell kind while typing (see EditorBox).
             const data = (cellValue.data ?? {}) as Record<string, unknown>;
@@ -166,8 +178,15 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             onChange(next);
           }
         };
-        const handleClose = () => onFinishedEditing(latestRef.current);
-        const handleTabClose = () => onFinishedEditing(latestRef.current, [1, 0] as any);
+        // A free-text SINGLE picker (Set, a new cast name) treats the key that
+        // opened the cell as its value — typing one char and leaving keeps it.
+        // Strict catalogues never do: their seed is only a search query.
+        const seedIsValue = openedByKey
+          && cfg !== null && cfg.kind === 'entity' && cfg.mode === 'single' && cfg.allowFreeText !== false;
+        const seedCell = () => ({ kind: GridCellKind.Text, data: currentVal, displayData: currentVal, allowOverlay: true });
+        const closeCell = () => committedCell() ?? (seedIsValue ? seedCell() : undefined);
+        const handleClose = () => onFinishedEditing(closeCell());
+        const handleTabClose = () => onFinishedEditing(closeCell(), [1, 0] as any);
         // Escape leaves the whole editing session: the dropdown closes itself
         // (useEscapeCapture) and calls this — Glide's cancel path (undefined,
         // no commit), so the cell editor box goes away with the panel.
@@ -208,8 +227,26 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
           // Enter/Tab/Escape are handled by the clip region around us. Focus +
           // select ONCE on mount — a re-rendering ref callback would re-select
           // on every keystroke and eat the typed chars.
-          const apply = (raw: string) => handleChange(cfg.uppercase ? raw.toUpperCase() : raw);
           const inputRef = useRef<HTMLInputElement>(null);
+          /** Live uppercase rewrites the controlled value; the browser then
+           *  parks the caret at the end. Remember where the user was and put
+           *  it back after the re-render (mid-name edits stay put). */
+          const caretRef = useRef<number | null>(null);
+          const apply = (raw: string, caret: number | null) => {
+            caretRef.current = caret;
+            handleChange(cfg.uppercase ? raw.toUpperCase() : raw);
+          };
+          // The typed key that OPENED the cell is seeded raw ('m'); render and
+          // commit it in the column's case so a one-key edit doesn't look (or
+          // save) lowercase until the next keystroke.
+          const textValue = cfg.uppercase ? currentVal.toUpperCase() : currentVal;
+          useLayoutEffect(() => {
+            const el = inputRef.current;
+            const pos = caretRef.current;
+            if (!el || pos == null) return;
+            caretRef.current = null;
+            el.setSelectionRange(pos, pos);
+          });
           useEffect(() => {
             const el = inputRef.current;
             if (!el) return;
@@ -222,9 +259,9 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             <input
               ref={inputRef}
               className="gdg-input"
-              value={currentVal}
+              value={textValue}
               style={cfg.align ? { textAlign: cfg.align } : undefined}
-              onChange={e => apply(e.target.value)}
+              onChange={e => apply(e.target.value, e.target.selectionStart)}
               // Enter commits like the entity dropdown (no row movement): the
               // grid canvas keeps focus so arrows keep navigating. Letting the
               // clip region handle it moved the selection and parked focus on
@@ -233,7 +270,9 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   e.stopPropagation();
-                  const value = latestRef.current;
+                  // The typed key that OPENED a text cell never fires an input
+                  // event, so the seed IS the value (range fill relies on it).
+                  const value = committedCell() ?? { ...seedCell(), data: textValue, displayData: textValue };
                   window.setTimeout(() => onFinishedEditing(value), 0);
                 }
               }}

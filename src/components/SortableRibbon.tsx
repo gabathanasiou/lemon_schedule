@@ -306,6 +306,7 @@ const SortableRowContent: React.FC<{
             value={scene!.intExt}
             onChange={val => updateScene({intExt: val as any})}
             options={getIntExtOptions(palette)}
+            allowFreeText={false}
             className="text-left w-full"
             readOnly={!isEditable}
             style={cellFont(cell)}
@@ -320,6 +321,7 @@ const SortableRowContent: React.FC<{
             value={scene!.dayNight}
             onChange={val => updateScene({dayNight: val as any})}
             options={getDayNightOptions(palette)}
+            allowFreeText={false}
             className="text-left w-full"
             readOnly={!isEditable}
             style={cellFont(cell)}
@@ -521,7 +523,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
+            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} allowFreeText={false} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -533,7 +535,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
+            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} allowFreeText={false} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}

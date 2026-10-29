@@ -8,9 +8,9 @@ import { useKeyboardMode } from '../lib/persist';
  * column) — a thin adapter over the kit's `PickerField` (roadmap 322).
  *
  * The field edits as a search box over the list: picking commits, Enter picks
- * the arrow-lit option, click-away commits the typed text, Escape cancels.
- * Free text is allowed (the app stores the typed value, e.g. a custom INT/EXT
- * label), but picking an option is the normal path.
+ * the arrow-lit option, click-away commits a value that names a catalogue
+ * entry, Escape cancels. A value outside the catalogue is rejected — pass
+ * `allowFreeText` for pickers that create their options on the fly.
  *
  * `fuzzy`, `normalize` and `showAll` are accepted for source compatibility
  * with the old implementation: the shared panel always lists the full
@@ -21,6 +21,9 @@ export interface AutocompleteDropdownProps {
   value: string;
   onChange: (val: string) => void;
   options: string[];
+  /** Commit typed text that is not in `options` (default false — a strict
+   *  catalogue: INT/EXT, Day/Night). */
+  allowFreeText?: boolean;
   className?: string;
   readOnly?: boolean;
   placeholder?: string;
@@ -74,6 +77,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   autoGrow = false,
   initialQuery,
   selectAllOnOpen,
+  allowFreeText = false,
 }) => {
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
@@ -96,7 +100,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       mode="single"
       appearance={standalone ? 'chip' : 'inline'}
       display="names"
-      allowFreeText
+      allowFreeText={allowFreeText}
       uppercase
       keepAllRows
       initialQuery={initialQuery}

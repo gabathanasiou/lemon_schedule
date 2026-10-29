@@ -24,6 +24,9 @@ export interface SelectDropdownProps {
   style?: React.CSSProperties;
   /** Dark modal surface (the Location picker's type select). */
   theme?: 'light' | 'dark';
+  /** Commit typed text that is not in `options`. Default true (the Location
+   *  picker creates new location types); INT/EXT and D/N pass false. */
+  allowFreeText?: boolean;
 }
 
 export const SelectDropdown: React.FC<SelectDropdownProps> = ({
@@ -38,6 +41,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   onTabExit,
   style,
   theme = 'light',
+  allowFreeText = true,
 }) => {
   const items = useMemo<PickerItem[]>(
     () => options.map(option => ({ id: option, label: option })),
@@ -54,7 +58,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
       mode="single"
       appearance={standalone ? 'chip' : 'inline'}
       display="names"
-      allowFreeText
+      allowFreeText={allowFreeText}
       uppercase
       keepAllRows
       placeholder={placeholder}

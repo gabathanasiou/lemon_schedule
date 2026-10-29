@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell, openCrewGlide, openGlideCellEditor, glideCellId } from './helpers';
+import { openSeededProject, nameCell, openCrewGlide, openGlideCellEditor, glideCellId, waitForGlideCellSelected } from './helpers';
 
 type AnyPage = any;
 
@@ -116,7 +116,7 @@ test.describe('Crew Glide', () => {
       const rowH = Math.round((34 * size) / 11);
       const markerW = coarse ? 72 : 50;
       const actionsW = Math.round(((coarse ? 48 : 36) * size) / 11);
-      const widths = [actionsW, 200, 160, 130, 220].map(w => Math.round((w * size) / 11));
+      const widths = [actionsW, 200, 160, 220, 130, 220].map(w => Math.round((w * size) / 11));
       const colX = (i: number) => markerW + widths.slice(0, i).reduce((a, b) => a + b, 0) + widths[i] / 2;
       return { x: sr!.x, y: sr!.y, headerH, rowH, colX };
     };
@@ -254,6 +254,42 @@ test.describe('Crew Glide', () => {
       const s = await crewState(page);
       return s!.crew['grip']?.find((p: any) => p.name === 'ALICE SMITH');
     }, { timeout: 8000 }).toEqual(expect.objectContaining({ phone: '555-9999', email: 'alice@new.test' }));
+
+    // --- Strict MULTI cell: a stray key keeps the committed categories ---
+    // Element Categories edits as a multi-select: typing a key to open the
+    // cell is a search query, never a replacement for the committed list.
+    const firstRoleKey = (await crewState(page))!.roles[0];
+    await page.evaluate((role) => {
+      (window as any).__lemonSchedule.dispatch({
+        type: 'SET_CREW_ROLE_CATEGORIES',
+        payload: { key: role, categories: ['cast', 'set'] },
+      });
+    }, firstRoleKey);
+    const roleCats = () => page.evaluate((role) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      const r = (p.crewRoles || []).find((x: any) => x.key === role);
+      return r?.categories ?? null;
+    }, firstRoleKey);
+    {
+      const g = await gridGeo();
+      const catsX = g.x + g.colX(3);
+      const nameX = g.x + g.colX(1);
+      const y0 = g.y + g.headerH + g.rowH / 2;
+      await page.mouse.click(catsX, y0);
+      await waitForGlideCellSelected(page, glideCellId(4, 0));
+      await page.keyboard.type('zz');
+      await expect(page.locator('#search-menu-panel')).toContainText('No matches');
+      await page.mouse.click(nameX, y0);
+      await expect.poll(roleCats).toEqual(['cast', 'set']);
+
+      // A full catalogue value still REPLACES the cell (normal table
+      // behaviour) — only an unknown query is protected.
+      await page.mouse.click(catsX, y0);
+      await waitForGlideCellSelected(page, glideCellId(4, 0));
+      await page.keyboard.type('Sound');
+      await page.mouse.click(nameX, y0);
+      await expect.poll(roleCats).toEqual(['sound']);
+    }
   });
 });
 

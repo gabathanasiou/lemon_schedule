@@ -1236,43 +1236,6 @@ the same scene colour.
 surface); `relates to` 325.
 
 
-## 329. Adopt the kit Glide runtime + painted control cells across the app (experiment) (`[ ]`)
-
-**Why:** the kit branch now owns a patched Glide fork and canvas-native controls
-(picker chevrons, glyph buttons). The app still runs the npm package and draws
-its own row-action glyphs. Adopting the kit runtime in ONE place lets every
-grid (Breakdown, Crew/Locations Glide, Day Manager inline tables) share the
-scroll fixes and the painted-button language without a second DOM layer.
-
-**Status — experiment branch `experiment/kit-glide` (ready for review):**
-- `vendor/glide-data-grid` (the kit fork) aliased over `@glideapps/glide-data-grid`
-  in `vite.config.ts`/`tsconfig.json`; one runtime, one overlay-editor chunk.
-- Kit `@gabriel/ui-kit/glide-controls` subpath (Glide external) supplies
-  `kitGlyphCell`/`kitGlyphGroupCell`/`kitPickerCell` + `controlCellRenderers`.
-- Breakdown action column = painted trash only; adding is Glide's trailing
-  phantom row on the Scene # column (press it to append AND edit the new
-  cell); `overscrollY` adds the space below. Crew/Locations Glide use the
-  same phantom row on their first editable column. Entity columns are text
-  cells (no chevrons in the Breakdown).
-- I/E + D/N use the app entity picker (kit PickerField panel, strict palette);
-  InlineGlideTable wraps entity/enum columns in `kitPickerCell` so the crew
-  tables and Day Manager Locations show dropdown chevrons.
-- Crew Glide Role = department accordion over a fixed catalogue (no "Add …"
-  row); the Element Categories multi-select is fixed too. Location types can
-  still be created from the grid.
-- Type-to-open on a picker must not select the seeded key (`selectOnOpen` in
-  `glideEditor.tsx`) — `glide-first-edit` guards it.
-- Kit dependency is the released **v0.1.173** tag (the kit Glide branch merged
-  into kit main; `glide-controls` keeps Glide external).
-
-**Verify:** `npm run lint`; unit lane; the six Glide specs in
-`docs/GLIDE-BREAKDOWN.md`; manual Safari/iPad pass over the Breakdown, Crew
-Glide, Locations Glide and a Day Manager Call Times/Crew grid.
-
-**Relations:** `relates to` 326 (controls), 327 (DOM-grid experiment), 328
-(scene-colour row theme); `blocks` a Glide-runtime upgrade.
-
-
 ## 330. Element Manager — category tables onto the kit Glide runtime (`[ ]`)
 
 **Request** (user 2026-10-29): the Element Manager pages should use the new

@@ -165,6 +165,30 @@ test.describe('Glide Breakdown Tab', () => {
     await expect.poll(lit).toBe('MORNING');
     await page.keyboard.press('Tab');
     await expect.poll(() => sceneValue('dayNight')).toBe('MORNING');
+
+    // STRICT catalogue (palette only, no "Add …" row): the typed key is a
+    // search seed, not a value. Clicking away must drop text that names no
+    // palette entry — before this, Glide's seeded temp value committed the
+    // first typed key ("q" replaced EXT).
+    const setX = sr!.x + 306 + 80 + 90;
+    await page.mouse.click(ieX, y0);
+    await waitForGlideCellSelected(page, glideCellId(5, 0));
+    await page.keyboard.type('q');
+    await expect(page.locator('#search-menu-panel')).toContainText('No matches');
+    await page.mouse.click(setX, y0);
+    await expect.poll(() => sceneValue('intExt')).toBe('EXT');
+
+    // A lowercased stored value still highlights ITS catalogue row on open:
+    // "night" + Enter picks NIGHT (and normalises it), never the first row.
+    await page.evaluate(() => {
+      const s = (window as any).__lemonSchedule.getProject().scenes[0];
+      (window as any).__lemonSchedule.dispatch({ type: 'UPDATE_SCENE', payload: { id: s.id, dayNight: 'night' } });
+    });
+    const editor = await openGlideCellEditor(page, { x: dnX, y: y0 }, glideCellId(7, 0));
+    expect(await editor.inputValue()).toBe('night');
+    await expect(page.locator('#search-menu-panel .ui-item-highlighted')).toHaveText('NIGHT');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => sceneValue('dayNight')).toBe('NIGHT');
   });
 
   test('range fill: a single-value entity column (Set) fills vertically with no confirm (roadmap 144)', async ({ page }) => {

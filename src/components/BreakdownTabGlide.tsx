@@ -108,6 +108,19 @@ const FIXED_COLS = [
   { key: 'notes', label: 'Notes', width: 200 },
 ];
 
+/** Element pickers list in Board-ID order (unnumbered last, then name). */
+function sortByBoardId(list: { id: string; name: string; boardId?: string }[]) {
+  return [...list].sort((a, b) => {
+    const na = parseInt(a.boardId ?? '', 10);
+    const nb = parseInt(b.boardId ?? '', 10);
+    const aHas = Number.isFinite(na);
+    const bHas = Number.isFinite(nb);
+    if (aHas && bHas && na !== nb) return na - nb;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    return (a.name || a.id).localeCompare(b.name || b.id, undefined, { numeric: true });
+  });
+}
+
 export function GlideBreakdownTab({
   onOpenSheet,
   onOpenSheetInPopout,
@@ -398,18 +411,23 @@ export function GlideBreakdownTab({
       const v = e.name.toUpperCase();
       if (v) map.set(v, v);
     }
-    return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [allScenes, project.breakdownElements]);
+    const boardIds = new Map<string, string>();
+    for (const e of getCategoryElements(project, 'set')) {
+      const id = boardIdOf(e, 'set');
+      if (id) boardIds.set(e.name.toUpperCase(), id);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name, boardId: boardIds.get(id) }));
+  }, [allScenes, project.breakdownElements, project]);
 
   const castItems = useMemo(() => {
     const seen = new Set<string>();
-    const items: { id: string; name: string }[] = [];
+    const items: { id: string; name: string; boardId?: string }[] = [];
     for (const e of project.castMembers || []) {
-      if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
+      if (e.id && !seen.has(e.id)) { items.push({ id: e.id, name: e.name, boardId: e.id }); seen.add(e.id); }
     }
     for (const sc of allScenes) {
       for (const v of (sc.cast || '').split(',').map(x => x.trim()).filter(Boolean)) {
-        if (!seen.has(v)) { items.push({ id: v, name: '' }); seen.add(v); }
+        if (!seen.has(v)) { items.push({ id: v, name: '', boardId: v }); seen.add(v); }
       }
     }
     return items;
@@ -715,9 +733,9 @@ export function GlideBreakdownTab({
     const editors: Record<string, GlideColumnEditor> = {
       intExt: { kind: 'entity', mode: 'single', displayMode: 'name', items: intExtOptions.map(v => ({ id: v, name: v })), placeholder: 'INT, EXT, D/E...', keepAlphabetical: true, allowFreeText: false },
       dayNight: { kind: 'entity', mode: 'single', displayMode: 'name', items: dayNightOptions.map(v => ({ id: v, name: v })), placeholder: 'DAY, NIGHT, MORNING...', keepAlphabetical: true, allowFreeText: false },
-      set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set', anchoredKeys: anchored('set') },
+      set: { kind: 'entity', mode: 'single', uppercase: true, sortItems: sortByBoardId, items: setItems, placeholder: 'Set', anchoredKeys: anchored('set') },
       cast: {
-        kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast', anchoredKeys: anchored('cast'),
+        kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast', anchoredKeys: anchored('cast'), sortItems: sortByBoardId,
         renderItem: (item: any, _sel: any) => (<><span className="text-[color:var(--ui-text-faint)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>),
       },
     };
@@ -729,6 +747,7 @@ export function GlideBreakdownTab({
         items: breakdownEditorItems.get(cat) || [],
         placeholder: allBreakdownLabels[cat] || cat,
         anchoredKeys: anchored(cat),
+        sortItems: sortByBoardId,
       };
     }
     return editors;

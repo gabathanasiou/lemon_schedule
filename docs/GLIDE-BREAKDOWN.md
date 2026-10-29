@@ -30,7 +30,14 @@ auto-repaint.
   from the Crew Manager. The Element Categories multi-select is also fixed (`allowFreeText: false`) —
   typing an unknown category shows "No matches". Location type categories stay flat and can still be
   created from the grid.
-- **Kit dependency:** `@gabriel/ui-kit` is the released **v0.1.173** GitHub tag (the kit's Glide
+- **Strict pickers only commit catalogue values.** The typed key that OPENS a Glide cell is a search
+  seed, not a value: the editor commits only what the picker committed, so click-away drops unknown
+  text (before this, Glide's seeded temp value committed the first typed key — `q` replaced EXT).
+  Multi cells keep "first key replaces"; a STRICT multi keeps its committed values when the typed key
+  matches nothing, so a stray key can't clear Element Categories. A lowercased stored value
+  ("night") highlights its catalogue row (NIGHT) on open and Enter commits/normalises it, never the
+  first row (DAY).
+- **Kit dependency:** `@gabriel/ui-kit` is the released **v0.2.2** GitHub tag (the kit's Glide
   branch merged into kit main; `./glide-controls` built with Glide external).
 - **Verify:** `e2e/glide-breakdown`, `crew-glide`, `day-times-glide`, `locations`,
   `glide-clipboard`, `glide-first-edit` (the last one catches the type-to-open first-key swallow).
@@ -39,8 +46,16 @@ auto-repaint.
 
 - **`provideEditor` gets RAW indices (+1 row marker offset)** — `dataCol = col - 1`; every other
   callback gets adjusted 0-based indices. Always use `COLUMNS[col].key`, never hardcoded indices.
-- **`onFinishedEditing` MUST receive the latest value** (`latestRef.current` via useRef) — calling it
-  empty = cancel/discard.
+- **`onFinishedEditing` MUST receive the latest value the EDITOR committed** (the `latestRef`
+  wrapper set by `onChange`) — calling it empty = cancel/discard. The typed key that OPENED a cell
+  (Glide's edit-on-type seed) is a search query, NOT a value: strict pickers reject it, and a text
+  cell's seed is committed only for the text editor itself (range fill relies on it).
+- **Element pickers list in Board-ID order** (`sortByBoardId`): Set, Cast and every category column
+  sort by the per-category number (unnumbered last, then name). Cast uses its id as the number.
+  `intExt`/`dayNight` stay alphabetical (palette values, not elements).
+- **Uppercase text editors keep the caret in place**: the controlled input is re-rendered with the
+  uppercased value, which would park the caret at the end — `glideEditor.tsx` remembers the
+  selection and restores it, and the type-to-open seed renders/commits in the column's case.
 - Canvas doesn't auto-repaint: bulk ops → `gridRef.current?.updateCells(damageList)` in
   `setTimeout(0)`; undo/redo → full-grid `updateCells` effect on `scenes`.
 - All bulk ops wrap dispatches in `BATCH_START`/`BATCH_COMMIT`.
