@@ -124,11 +124,20 @@ test.describe('Crew Glide', () => {
       if (await isCoarse()) await page.touchscreen.tap(x, y);
       else await page.mouse.click(x, y, { button });
     };
-    const editCell = async (row: number, colIndex: number, text: string) => {
+    const editCell = async (row: number, colIndex: number, text: string, opts: { addRow?: boolean } = {}) => {
       const g = await gridGeo();
       const x = g.x + g.colX(colIndex);
       const y = g.y + g.headerH + row * g.rowH + g.rowH / 2;
-      if (await isCoarse()) {
+      if (opts.addRow) {
+        // The trailing add row appends on the FIRST click/tap and opens the
+        // clicked cell on the new row; do not double-click (it would toggle
+        // the editor).
+        if (await isCoarse()) await page.touchscreen.tap(x, y);
+        else await page.mouse.click(x, y);
+        const editor = page.locator('#portal input, #portal textarea').first();
+        await expect(editor).toBeAttached({ timeout: 5000 });
+        await editor.focus();
+      } else if (await isCoarse()) {
         // iPad: two taps open the editor; the mount settle keeps the first
         // keystroke off the canvas.
         await page.touchscreen.tap(x, y);
@@ -145,9 +154,9 @@ test.describe('Crew Glide', () => {
 
     // --- Add two members via the add-row Name cell (falls back to the first role) ---
     const base = await memberCount(page);
-    await editCell(base, 1, 'ZED ZED');
+    await editCell(base, 1, 'ZED ZED', { addRow: true });
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 1);
-    await editCell(base + 1, 1, 'ALICE SMITH');
+    await editCell(base + 1, 1, 'ALICE SMITH', { addRow: true });
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 2);
 
     let st = await crewState(page);
@@ -155,7 +164,7 @@ test.describe('Crew Glide', () => {
     expect(st!.crew[firstRole].map((p: any) => p.name)).toEqual(['ZED ZED', 'ALICE SMITH']);
 
     // --- Create a brand-new role from the add-row Role cell ---
-    await editCell(base + 2, 2, 'Grip');
+    await editCell(base + 2, 2, 'Grip', { addRow: true });
     await expect.poll(async () => (await crewState(page))!.roles.includes('grip'), { timeout: 8000 }).toBe(true);
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 3); // dedupe: exactly one member added
 
@@ -179,7 +188,7 @@ test.describe('Crew Glide', () => {
     }, { timeout: 8000 }).toEqual(['ALICE SMITH', '']);
 
     // New members always land at the bottom (unless manually sorted)
-    await editCell(base + 3, 1, 'BOTTOM PERSON');
+    await editCell(base + 3, 1, 'BOTTOM PERSON', { addRow: true });
     await expect.poll(async () => {
       const s = await crewState(page);
       return s!.crew[firstRole]?.map((p: any) => p.name) ?? [];

@@ -149,7 +149,6 @@ export interface GlideShellConfig {
   renderHeaderActions?: (ctx: { dispatch: (action: any) => void; readOnly: boolean; project: Project }) => React.ReactNode;
 }
 
-const SPARE_ROWS = 5;
 
 export const GlideGridShell: React.FC<{
   config: GlideShellConfig;
@@ -223,11 +222,18 @@ export const GlideGridShell: React.FC<{
 
   const glideColumns: GridColumn[] = useMemo(() => {
     const scale = fontSize / SS_FONT_SIZE_DEFAULT;
-    return COLUMNS.map(c =>
-      c.key === 'actions'
-        ? { title: '', width: Math.round((IS_COARSE ? 48 : c.width) * scale), themeOverride: { textDark: '#ef4444' } } as GridColumn
-        : { title: c.label, width: Math.round(c.width * scale) }
-    );
+    const firstEditable = COLUMNS.find(c => c.key !== 'actions')?.key;
+    return COLUMNS.map(c => {
+      const base = { title: c.label, width: Math.round(c.width * scale) };
+      if (c.key === 'actions') {
+        // The trailing add row must not sit in the trash column.
+        return { ...base, title: '', themeOverride: { textDark: '#ef4444' }, trailingRowOptions: { disabled: true } } as GridColumn;
+      }
+      if (c.key === firstEditable) {
+        return { ...base, trailingRowOptions: { hint: 'Add' } } as GridColumn;
+      }
+      return base as GridColumn;
+    });
   }, [COLUMNS, fontSize]);
 
   const onColumnResize = useCallback((_col: any, w: number, ci: number) => {
@@ -309,7 +315,7 @@ export const GlideGridShell: React.FC<{
   // Full repaint when the underlying data or columns change (Glide caches cells).
   useEffect(() => {
     gridRef.current?.updateCells(
-      Array.from({ length: rows.length + SPARE_ROWS }, (_, r) =>
+      Array.from({ length: rows.length + 1 }, (_, r) =>
         Array.from({ length: COLUMNS.length }, (_, c) => ({ cell: [c, r] as Item }))
       ).flat()
     );
@@ -380,22 +386,11 @@ export const GlideGridShell: React.FC<{
   const getCellContent = useCallback(([col, row]: Item): GridCell => {
     const colDef = COLUMNSRef.current[col];
     if (!colDef) return textCell('', { readonly: true, allowOverlay: false });
-    const isAddRow = row >= rowsRef.current.length;
+    if (row >= rowsRef.current.length) {
+      // The trailing add row is painted by Glide, not a data cell.
+      return textCell('', { readonly: true, allowOverlay: false });
+    }
     if (colDef.key === 'actions') {
-      if (isAddRow) {
-        if (row !== rowsRef.current.length || readOnlyRef.current) {
-          return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#f3f4f6' } });
-        }
-        // The add row carries the kit's painted plus; it opens the first
-        // editable cell of the add row (the row is created by that edit).
-        return kitGlyphCell({
-          icon: 'plus',
-          label: 'Add row',
-          tone: 'accent',
-          lane: 'full',
-          onActivate: () => gridRef.current?.openCellEditor(1, rowsRef.current.length),
-        });
-      }
       if (readOnlyRef.current) return textCell('', { readonly: true, allowOverlay: false });
       const r = rowsRef.current[row];
       const label = r ? (r.categoryLabel || r.key) : String(row + 1);
@@ -406,9 +401,6 @@ export const GlideGridShell: React.FC<{
         lane: 'full',
         onActivate: () => { if (r) config.deleteRow(dispatch, r); },
       });
-    }
-    if (isAddRow) {
-      return textCell('', { readonly: kbLocked, themeOverride: col === 0 ? { bgCell: '#f3f4f6' } : undefined });
     }
     const r = rowsRef.current[row];
     if (!r) return textCell('', { readonly: true, allowOverlay: false });
@@ -426,8 +418,11 @@ export const GlideGridShell: React.FC<{
     config.commitEdit(dispatch, r, colKey, newVal, projectRef.current);
   }, [config, dispatch]);
 
-  const createFromAddRow = useCallback((colKey: string, val: string) => {
-    config.createFromAddRow(dispatch, colKey, val, projectRef.current);
+  /** Trailing add-row button: append a blank row; Glide opens the clicked
+   *  cell on the new row (same native flow as the Breakdown/playground). */
+  const addRow = useCallback(() => {
+    const firstKey = config.columnDefs.find(c => c.key !== 'actions')?.key;
+    if (firstKey) config.createFromAddRow(dispatch, firstKey, '', projectRef.current);
   }, [config, dispatch]);
 
   const dedupeCellCommit = useDedupeCellCommit();
@@ -437,12 +432,7 @@ export const GlideGridShell: React.FC<{
     const colDef = COLUMNS[col];
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind !== GridCellKind.Text) return;
-    const isAddRow = row >= rowsRef.current.length;
-    if (isAddRow) {
-      if (!dedupeCellCommit(`${colDef.key}:${newValue.data}`)) return;
-      createFromAddRow(colDef.key, newValue.data);
-      return;
-    }
+    if (row >= rowsRef.current.length) return;
     // Range fill (roadmap 139/144): a single edit committed while a multi-cell
     // selection is active writes that value down the SAME column — VERTICAL
     // only, since flat DBs mix column kinds (a Role never leaks into Phone).
@@ -474,7 +464,7 @@ export const GlideGridShell: React.FC<{
       }
     }
     commitEdit(row, colDef.key, newValue.data);
-  }, [COLUMNS, commitEdit, createFromAddRow, dedupeCellCommit, dispatch, dialog]);
+  }, [COLUMNS, commitEdit, dedupeCellCommit, dispatch, dialog]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
     if (readOnlyRef.current) return;
@@ -800,7 +790,10 @@ export const GlideGridShell: React.FC<{
           width={gridWidth}
           height={gridHeight}
           columns={glideColumns}
-          rows={rows.length + SPARE_ROWS}
+          rows={rows.length}
+          overscrollY={5 * Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
+          trailingRowOptions={{ hint: '' }}
+          onRowAppended={addRow}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
           getCellsForSelection={true}

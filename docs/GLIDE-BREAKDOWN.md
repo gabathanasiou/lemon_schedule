@@ -15,9 +15,11 @@ auto-repaint.
   runtime). The Breakdown's action column is **trash only**; adding a row is Glide's **trailing
   phantom row** (the add button lives on the Scene # column, never the trash column — otherwise the
   new row's trash lands under the pointer and the same click deletes it). Pressing that add button
-  appends AND opens the Scene # editor on the new row (`appendScene`); `overscrollY` leaves the
-  playground's space under the last row. `InlineGlideTable` and `GlideGridShell` row actions use the
-  same painted cells.
+  appends and Glide opens the Scene # editor on the new row (native `onRowAppended`, no manual
+  scroll); `overscrollY` leaves the playground's space under the last row. The **Crew and Locations
+  Glide pages use the same phantom trailing row** (add button on the first editable column,
+  `onRowAppended` creates the blank entity and Glide opens the clicked cell); `InlineGlideTable` and
+  `GlideGridShell` row actions use the same painted cells.
 - **The Breakdown has NO picker chevrons:** its entity columns are plain text cells (double-click /
   type opens the app editor). `InlineGlideTable` wraps entity/enum cells in `kitPickerCell` so the
   crew tables (Person, Report To) and the Day Manager Locations grid show the dropdown chevron.

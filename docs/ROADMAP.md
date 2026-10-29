@@ -1251,8 +1251,9 @@ scroll fixes and the painted-button language without a second DOM layer.
   `kitGlyphCell`/`kitGlyphGroupCell`/`kitPickerCell` + `controlCellRenderers`.
 - Breakdown action column = painted trash only; adding is Glide's trailing
   phantom row on the Scene # column (press it to append AND edit the new
-  cell); `overscrollY` adds the space below. Entity columns are text cells
-  (no chevrons in the Breakdown).
+  cell); `overscrollY` adds the space below. Crew/Locations Glide use the
+  same phantom row on their first editable column. Entity columns are text
+  cells (no chevrons in the Breakdown).
 - I/E + D/N use the app entity picker (kit PickerField panel, strict palette);
   InlineGlideTable wraps entity/enum columns in `kitPickerCell` so the crew
   tables and Day Manager Locations show dropdown chevrons.
