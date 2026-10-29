@@ -14,9 +14,11 @@ import type { Project, ReportBlock, ReportDesign, ReportTrashItem } from '../typ
 // chips whose styles (background/border-radius/padding/margin) are OUTSIDE the
 // kit style allowlist — sanitizing the resolved HTML would strip them.
 //
-// Browser-only: `sanitizeRichText` parses through `document`. Node unit tests
-// never call it with markup — they `vi.mock` this module (vitest runs without
-// a DOM), exactly like the store wiring test does.
+// The kit transform (`sanitizeRichText`) parses through `document`; hosts
+// without a DOM (the S4 room worker folding the same reducer) pass markup
+// through untouched — see `sanitizeStoredReportHtml`. Node unit tests that need
+// the real transform either mock this module (store wiring) or lock the
+// no-DOM fallback (`reportSanitizeNoDom.test.ts`).
 
 const MAX_CACHE = 500;
 /** Memoized by stored string so unchanged content keeps ONE output identity
@@ -26,9 +28,19 @@ const cache = new Map<string, string>();
 
 /** Sanitize one stored rich-text string. Strings without markup pass through
  *  untouched (the kit sanitizer's own fast path) — DOM is only involved when
- *  there is markup to strip. */
+ *  there is markup to strip.
+ *
+ *  No DOM = no sanitizing HERE: the room worker (S4) folds the SAME reducer in
+ *  a Cloudflare Worker, where `document` does not exist. Throwing there made
+ *  every report-ingest action on a design holding formatted text fail as
+ *  `apply failed`, so the room rejected the edit and the client's heal re-sync
+ *  reverted it ("delete something and it comes back"). The worker never renders
+ *  markup; every CLIENT still sanitizes on its own way in — room `welcome` goes
+ *  through `loadBaseline`, room `remote` actions through this same reducer with
+ *  a real DOM. */
 export function sanitizeStoredReportHtml(html: string): string {
   if (!html || !html.includes('<')) return html;
+  if (typeof document === 'undefined') return html;
   let out = cache.get(html);
   if (out === undefined) {
     if (cache.size > MAX_CACHE) cache.clear();

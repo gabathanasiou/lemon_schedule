@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// These tests stand in for a BROWSER: the module is pass-through on hosts
+// without a DOM (the S4 room worker), so give it a document marker. The mocked
+// kit transform never touches it.
+beforeAll(() => { vi.stubGlobal('document', {}); });
+afterAll(() => { vi.unstubAllGlobals(); });
 
 // The kit sanitizer parses through the DOM — unavailable in the node vitest
 // env. This suite locks the WALKER (which fields get sanitized, cloning,
