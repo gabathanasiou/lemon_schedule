@@ -17,16 +17,17 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   The label stays in the DOM while
   collapsed, so role/name queries and screen readers keep working. `requiredTabWidth` is measured
   once at mount while expanded (`syncTabLayout`) — **MUST NOT** re-measure the docked row when
-  deciding (the mode would feed back into itself and oscillate). The white selection pill is the kit
-  `useSlidingPill` (glides; chases the live reflow) — the `tab-header` variant carries only the dark
-  active text.
-- `PageToolbar` (`src/components/PageToolbar.tsx`): reusable toolbar with optional sub-tabs. Active
-  tab `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud: `bg-blue-950 text-blue-50`); inactive
-  `text-zinc-500 hover:text-zinc-900`. Scrolls horizontally with edge fades. Sub-tabs carry `icon`s
+  deciding (the mode would feed back into itself and oscillate). The selection pill is the kit
+  `useSlidingPill` (glides; chases the live reflow) — the `tab-header` variant carries only the active
+  text. The app header pill is ALWAYS white (`--ui-tab-pill-plain`) — an accent-tinted fill is A950,
+  the tinted bar itself, so it disappears. PageToolbar's fill: `tabPillFillOf(accent, mode)` (dark
+  accent chrome = `--ui-accent-pill-bg` A800, light = `--ui-tab-pill-accent` A950).
+- `PageToolbar` (`src/components/PageToolbar.tsx`): reusable toolbar with optional sub-tabs. Inactive
+  sub-tab `text-zinc-500 hover:text-zinc-900`; the active fill is the row's sliding pill (see above),
+  never a button background. Scrolls horizontally with edge fades. Sub-tabs carry `icon`s
   and dock by the same rule (`syncTabsDock`: the strip's full width is measured once at mount, the
-  sibling groups live — the tabs are the ONLY group that changes size with the mode); their active
-  fill is a sliding pill too (`useSlidingPill` + kit `TAB_PILL` — never re-add `bg-*` to a `tab`
-  variant's active class). Usage:
+  sibling groups live — the tabs are the ONLY group that changes size with the mode); never re-add
+  `bg-*` to a `tab` variant's active class. Usage:
   Breakdown (light; Sheet/Element Manager/Glide Breakdown), Design (dark; Ribbon Designer/Colors),
   Reports (dark; DOODs/Element Breakdown), Schedule (light, justify end, no tabs), Calendar (two
   light instances).
@@ -114,9 +115,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **Project chrome (roadmap 248)**: ONE source — `useProjectTheme()` → `local` (zinc) /
   `drive` (blue) / `shared` (emerald); class tokens + kit accent values live in
   `src/lib/projectTheme.ts` (`PROJECT_CHROME`, `projectAccentOf`, `projectMenuThemeOf`,
-  `projectSegThemeOf`). Cloud/shared projects tint light PageToolbars' pills + segmented
-  tracks (dark toolbars keep their bar, the active pill tints). Never branch on an ad-hoc
-  blue check.
+  `projectSegThemeOf`, `tabPillFillOf`). Cloud/shared projects tint PageToolbar pills + segmented
+  tracks (dark PageToolbars use the raised `--ui-accent-pill-bg` A800, light ones the deep
+  `--ui-tab-pill-accent` A950); the dark app header keeps its white pill. Never branch on an
+  ad-hoc blue check.
 
 ## App Navigation (roadmap 176)
 

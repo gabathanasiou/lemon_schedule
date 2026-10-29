@@ -42,6 +42,16 @@ export function projectAccentOf(theme: ProjectTheme): ProjectAccent {
   return theme === 'shared' ? 'emerald' : theme === 'drive';
 }
 
+/** Tab-row selection pill fill (roadmap 258/311). Zinc keeps the mode-aware
+ *  white/ink pill. Accent chrome uses the mode-correct accent pill: on DARK
+ *  chrome that is `--ui-accent-pill-bg` (A800), NOT `--ui-tab-pill-accent`
+ *  (A950 — the same colour as the dark header fill, so the pill vanished on
+ *  Drive/shared projects). Light toolbars keep the deep A950 tint. */
+export function tabPillFillOf(accent: ProjectAccentName, mode: 'light' | 'dark'): string {
+  if (accent === 'zinc') return 'bg-[var(--ui-tab-pill-plain)]';
+  return mode === 'dark' ? 'bg-[var(--ui-accent-pill-bg)]' : 'bg-[var(--ui-tab-pill-accent)]';
+}
+
 /** Modal shell theme (roadmap 302): the project accent + surface treatment.
  *  Normal app modals (local, Drive and shared) are NEUTRAL surfaces — the
  *  project colour lives in the chrome (header/tabs), not in the modal body.

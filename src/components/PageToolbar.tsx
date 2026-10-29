@@ -1,6 +1,6 @@
 import React from 'react';
 import { useProjectTheme } from '../store';
-import { projectAccentNameOf } from '../lib/projectTheme';
+import { projectAccentNameOf, tabPillFillOf } from '../lib/projectTheme';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
 import { useSlidingPill } from '@gabriel/ui-kit';
@@ -68,10 +68,10 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
   const childrenGroupRef = React.useRef<HTMLDivElement>(null);
   const rightGroupRef = React.useRef<HTMLDivElement>(null);
   /* The active sub-tab's fill is the row's measured pill (useSlidingPill +
-     the --ui-tab-pill-* roles), so the selection box glides (roadmap 258). */
+     `tabPillFillOf`), so the selection box glides (roadmap 258). */
   const activeTabIdx = Math.max(0, (tabs ?? []).findIndex(t => t.id === activeTab));
   const tabPill = useSlidingPill(stripRef, tabRefs, activeTabIdx);
-  const tabPillFill = accentName === 'zinc' ? 'bg-[var(--ui-tab-pill-plain)]' : 'bg-[var(--ui-tab-pill-accent)]';
+  const tabPillFill = tabPillFillOf(accentName, theme);
   const requiredStripWidthRef = React.useRef<number | null>(null);
   const syncTabsDock = React.useCallback(() => {
     const el = scrollRef.current;

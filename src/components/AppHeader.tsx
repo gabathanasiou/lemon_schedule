@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, CalendarDays, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
 import { useProject, useProjectTheme } from '../store';
-import { projectAccentNameOf } from '../lib/projectTheme';
 import { MorphActionField, useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
@@ -153,12 +152,14 @@ export default function AppHeader(props: AppHeaderProps) {
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   /* Project chrome (roadmap 248/311): local zinc / Drive blue / shared
-   * emerald. The identity reaches kit children through ProjectChromeScope;
-   * only the tab pill needs the accent name here. */
+   * emerald. The identity reaches kit children through ProjectChromeScope.
+   * The header's selection pill stays WHITE for every project kind — an
+   * accent-tinted pill is the same A950 as the tinted bar and disappears.
+   * The header's inline `--ui-tab-pill-accent-text` override flips the active
+   * accent tab's label to ink so it reads on that white pill. */
   const projectTheme = useProjectTheme();
-  const accentName = projectAccentNameOf(projectTheme);
   const isCloud = projectTheme !== 'local';
-  const tabPillFill = accentName === 'zinc' ? 'bg-[var(--ui-tab-pill-plain)]' : 'bg-[var(--ui-tab-pill-accent)]';
+  const tabPillFill = 'bg-[var(--ui-tab-pill-plain)]';
 
   /* Phone-portrait row (roadmap 267 PoC): Schedule + Sheet; the Sheet tab
      opens the Breakdown tab's SceneSheet surface. Desktop/iPad keep all seven
@@ -209,9 +210,15 @@ export default function AppHeader(props: AppHeaderProps) {
        the fixed/sticky element at the viewport's top edge — the header must BE
        that element (it carries the accent header fill). z-20 sits above `main`
        (z-auto — header-hung tooltips keep painting over content) and below the
-       presence pointers (z-30) and the portaled menus. */
+       presence pointers (z-30) and the portaled menus.
+       The white header pill needs ink active text even on Drive/shared chrome;
+       the kit's accent tab text assumes a dark accent pill. */
     <ProjectChromeScope mode="dark">
-    <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center bg-[var(--ui-accent-header-bg)] text-[color:var(--ui-text)] ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
+    <header
+      data-chrome-bar="app-header"
+      className={`sticky top-0 z-20 flex items-center bg-[var(--ui-accent-header-bg)] text-[color:var(--ui-text)] ${CHROME_BAR_INSET} py-2 select-none print:hidden`}
+      style={{ '--ui-tab-pill-accent-text': 'var(--ui-tab-pill-plain-text)' } as React.CSSProperties}
+    >
       <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 island-inset-l`}>
           <DropdownMenu
             open={showFileMenu}
