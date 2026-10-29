@@ -1329,3 +1329,124 @@ that eats the click.
 **Relations:** `relates to` 182 (nested touch submenus — covered by the audit),
 270 (iPhone shell), 302 (coordinate the kit version bump); follows the archived
 iPad touch hardening (69/70/71/78/80/183/184/206/273).
+
+
+## 332. Primary buttons — the app-header colour, everywhere (`[ ]`)
+
+**Request** (user 2026-10-29): the ui-kit's primary button should wear the app
+header's colour, and every primary button in the app — including the
+`PageToolbar` mini-tab bars — should match that style.
+
+**Findings** (verified against kit v0.2.2 + this app):
+- `docs/DESIGN-LANGUAGE.md` §Buttons already documents the intended fill:
+  `primary` is zinc-900 locally (the header is zinc-950 — the same drift,
+  smaller step), `bg-blue-950 hover:bg-blue-900` for Drive and
+  `bg-emerald-950 hover:bg-emerald-900` for shared — the header's step.
+- The kit drifted from it: `Button` primary is two hardcoded zinc fills
+  (`ui-kit/src/Button.tsx:209,221`), and the `cloud` prop swaps in
+  `--ui-accent-solid` = **accent-800** (`Button.tsx:230-233`), a lighter step.
+  The header is `--ui-accent-header-bg` = accent-900 (light) / **accent-950**
+  (dark chrome, `src/components/AppHeader.tsx`) — Drive #172554, shared
+  #022c22, local #09090b.
+- The mini-tab bars already sit in `ProjectChromeScope`
+  (`src/components/PageToolbar.tsx`), so they inherit the project accent — they
+  just get the wrong step. Some primaries pass `cloud={accent}`
+  (ScheduleToolbar Day Breaks / Banners / Edit, BreakdownTabGlide "Add Scene",
+  SceneSheet, SortDropdown, managerShell); page/modal primaries don't
+  (RulesTab, TeamPanel, ScriptView, SessionsPanel) and stay zinc on every
+  project.
+- `surface="neutral"` resolves the accent to zinc, so a Drive/shared modal's
+  inner primary cannot see the identity. 332 makes the primary the ONE
+  deliberate exception (identity fill; state colours stay neutral), and 333's
+  accent surfaces give the accent back inside modals as well.
+
+**Work:**
+- Kit: ONE primary fill token pair (`--ui-btn-primary-bg` / `-hover` + text) =
+  the header steps (accent-950 / accent-900; zinc #09090b / #18181b), consumed
+  by `Button variant="primary"` and `ModalFooterButton tone="accent"`. It keeps
+  the project identity through a neutral surface (the ONE deliberate exception
+  to "neutral means neutral"); `cloud` stays a backwards-compatible alias.
+  Document the role in the kit's `docs/CONTROLS.md` + `docs/THEMING.md`.
+- App: drop `cloud={accent}` where the chrome scope already publishes the
+  identity; sweep every `variant="primary"` (the list above plus any new one)
+  so Drive/shared read the header tint and local stays black — toolbar
+  primaries, page-body primaries and modal heroes. List any surface that
+  intentionally stays neutral in `DESIGN-LANGUAGE.md` §Buttons; a toolbar must
+  never mix.
+- Playground: Theme lab primary at zinc/blue/emerald × light/dark; assert the
+  computed background equals the project header step.
+
+**Verify:** kit lint/build + playground; app `npm run lint`; rule-7 visual pass
+on local / Drive / shared: the Schedule mini-tab bar (Day Breaks / Banners /
+Edit), the Breakdown "Add Scene", a manager "Add <noun>", a modal footer hero —
+light toolbars and the dark Call Sheet bar.
+
+**Docs:** `docs/UI-KIT.md` (kit release note), `docs/DESIGN-LANGUAGE.md`
+§Buttons + §Toolbar composition + §Theming, `docs/UI-PRIMITIVES.md` (Button
+bullet).
+
+**Relations:** `extends` 302 (ambient accent is the mechanism; this sets the
+primary's step and sweeps the app); `relates to` 248/311 (chrome identity),
+56 (kit promotion); 333 (the modal hero/header follow the same token).
+
+
+## 333. App modals → the updated kit modal look (accent surface) (`[ ]`, big)
+
+**Request** (user 2026-10-29): the modals in the main app should match the style
+of the updated ui-kit modals.
+
+**Findings** (verified against kit v0.2.2 + this app):
+- The kit's updated modal look is the accent-surface shell: `surface="accent"`
+  paints the project colour as an INNER rounded header card (accent-950, white
+  title, 6px neutral gutter) on a neutral body, the footer stays the neutral
+  band, and the ONE hero is `ModalFooterButton tone="accent"`
+  (`ui-kit/src/Modal.tsx` header/footer tokens, `ModalFooterButton.tsx:33-37`,
+  kit commit 8521475 — the inner painted header).
+  `ui-kit/docs/ADOPTING-THEMING.md` is the adoption recipe.
+- The app pins the old look: `projectModalThemeOf` returns
+  `surface: 'neutral'` for all three kinds (`src/lib/projectTheme.ts`),
+  `src/components/Modal.tsx` forces `theme="dark"`, no call site passes
+  `surface="accent"` or `tone="accent"`, and ~119 explicit `theme="dark"`
+  props on kit controls inside modals hold the old widget-by-widget palette
+  (DayEventsModal / EventModal / NewSceneModal / CrewLinkManagerModal /
+  DayTypeModals …).
+- This SUPERSEDES the 302 stage-2 choice ("every app modal is a neutral
+  surface; Drive/shared keep their colour in the chrome") — record the reversal
+  in the 302 progress notes, AGENTS.md and the docs. Mode stays dark (the
+  two-layer rule); this is the surface/accent adoption, not a light-modal
+  switch.
+
+**Work:**
+- Shell: `projectModalThemeOf` maps every kind to `surface="accent"` (local
+  resolves to zinc — the same near-black header, now with the kit's inner-card
+  geometry; Drive/shared take blue/emerald). Keep the `?modalTheme=` harness.
+- Hero: the app `ModalFooterButton` re-export (or the shim) passes
+  `tone="accent"` for the ONE hero; footers stay one hero + ghosts. Dialogs
+  (`useDialog`) inherit the same surface — confirm/prompt/alert need no
+  per-dialog overrides.
+- Inner controls: drop the per-widget `theme="dark"` overrides family by family
+  as the kit primitives become ambient (302's remaining Button / SearchMenu /
+  Seg / RuleCard work) — never a mass regex. Until then the modal's own scope
+  carries the theme and the explicit props are leftovers to inventory.
+- Audit the files that open a `Modal` against the kit recipe: header/footer only
+  via the kit shell, bodies on `CardSection` / `inputCls` / `--ui-*` tokens, no
+  hand-rolled footer bars; deliberate fixed-palette exceptions (print previews,
+  Call Sheet zone editor, script diff) stay listed in DESIGN-LANGUAGE §Modal
+  anatomy. Align the standalone panels that copy the modal chrome
+  (SessionsPanel, TeamPanel, ScriptUpdateModal) or list them as exceptions.
+
+**Verify:** kit lint + playground `modal-portal.spec`/`dialog.spec`; app
+`npm run lint`; rule-7 visual pass on local / Drive / shared × dark (and the
+light harness): a Day modal, the Element View, the Link Manager, Import, Trash,
+Account, a dark-pinned Design/Reports modal; `?modalTheme=light` check; iPad
+spot-check of a stacked modal (the morph/dim machinery is unchanged).
+
+**Docs:** `docs/DESIGN-LANGUAGE.md` §Modal anatomy & rules + §Theming,
+`docs/UI-PRIMITIVES.md` §UI Primitives (Modal theming), `docs/UI-KIT.md`
+(release note), the `AGENTS.md` modal-theme sentence — the app now uses the
+accent surface, not "every kind = neutral".
+
+**Relations:** `supersedes` the app-modal neutral-surface decision in 302
+(stage 2); `depends on` 302's remaining ambient-primitive work for the
+widget-by-widget cleanup; `relates to` 332 (same identity token), 310 (bodies
+already tokenised), 56 (kit promotion), 263 (modal morph).
