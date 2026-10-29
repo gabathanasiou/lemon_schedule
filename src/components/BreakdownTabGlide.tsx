@@ -460,6 +460,10 @@ export function GlideBreakdownTab({
   const controlActionsRef = useRef<{
     remove: (row: number) => void;
   }>({ remove: () => {} });
+  /** The last trailing-row cell the pointer clicked: the add row appends AND
+   *  opens THIS column on the new row (Cast when you clicked Cast, Scene #
+   *  when you clicked the add button). */
+  const trailingColRef = useRef(1);
   /** Deletes one scene through the shared confirmation path (the same one the
    *  actions cell/context menu use). */
   const requestDeleteAt = useCallback((row: number) => {
@@ -812,10 +816,11 @@ export function GlideBreakdownTab({
    *  being painted / the scroll is in flight, so drive it explicitly. */
   const appendScene = useCallback(() => {
     const index = scenesRef.current.length;
+    const col = Math.max(0, trailingColRef.current);
     addScene();
     window.setTimeout(() => {
-      gridRef.current?.scrollTo(1, index, 'vertical', 0, 0, { vAlign: 'end' });
-      window.setTimeout(() => gridRef.current?.openCellEditor(1, index), 60);
+      gridRef.current?.scrollTo(col, index, 'vertical', 0, 0, { vAlign: 'end' });
+      window.setTimeout(() => gridRef.current?.openCellEditor(col, index), 60);
     }, 30);
   }, [addScene]);
   const insertSceneAt = useCallback((gridIndex: number) => {
@@ -1034,6 +1039,7 @@ export function GlideBreakdownTab({
       gridRef.current?.focus();
     }
     if (row === scenes.length) {
+      trailingColRef.current = col >= 0 ? col : 1;
       if (col < 0 && (penTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
@@ -1246,7 +1252,7 @@ export function GlideBreakdownTab({
           columns={glideColumns}
           rows={scenes.length}
           overscrollY={5 * Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
-          trailingRowOptions={{ hint: '', targetColumn: 1 }}
+          trailingRowOptions={{ hint: '' }}
           onRowAppended={appendScene}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
