@@ -2,6 +2,21 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-10-29 — Every sheet gets a rebuilt grid
+
+**Features**
+- **Breakdown, Crew, Locations** — the spreadsheet views run on a rebuilt grid: fast scrolling keeps the text and controls glued in place, and the sheet fills the window with room below the last row. The Day Manager's call-times and crew grids share the same cells.
+- **Breakdown** — adding a scene is a single **+ Add** under the last row, and the new row opens right in the column you clicked. Row actions are trash-only now — no more add-and-delete pairs.
+- **Crew** — the Role picker is organised by department (Above the Line, Camera, Grip & Electric…) and stays within the crew catalogue; Element Categories is a fixed list too, so a stray keystroke can't invent a category.
+- **Breakdown** — Set, Cast and the element pickers are ordered by Board ID, so "1. BACK ROOM DRUGSTORE" comes before "2. BAILEY BUILDING…" instead of sorting by name.
+- **Crew** — the Name cell takes the first letter in capitals and keeps your cursor where you're typing, so fixing the middle of a name no longer throws you to the end.
+
+**Bug fixes**
+- **Schedule, Breakdown** — INT/EXT and Day/Night only accept values from your colour palette: typing something that isn't there and clicking away leaves the old value, instead of saving the stray text.
+- **Crew** — ticking Element Categories no longer wipes the role's existing categories when a stray key opens the cell; the list stays as it was unless you pick a real category.
+- **Crew** — after ticking a category, the up/down arrows carry on from where you were in the list, not from the row that jumped to the top.
+- **Breakdown** — a Day/Night stored in lowercase ("night") now opens with **NIGHT** highlighted; Enter keeps it (and tidies the capitals) instead of switching the scene to DAY.
+
 ## 2026-10-28 — Sharper controls, searchable days
 
 **Features**
