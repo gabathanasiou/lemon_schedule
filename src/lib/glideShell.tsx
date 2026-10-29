@@ -90,6 +90,9 @@ export interface GlideRow extends Record<string, string> {
 export interface GlideCategory {
   key: string;
   label: string;
+  /** Accordion group (crew role department). Categories without a group open
+   *  as a flat list. */
+  group?: string;
 }
 
 export interface GlidePasteNewRow {
@@ -321,17 +324,31 @@ export const GlideGridShell: React.FC<{
     );
   }, [rows, COLUMNS]);
 
-  const categoryItems = useMemo(() => categories.map(c => ({ id: c.label, name: c.label })), [categories]);
+  const categoryItems = useMemo(
+    () => categories.map(c => ({ id: c.label, name: c.label, group: c.group })),
+    [categories],
+  );
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const editors: Record<string, GlideColumnEditor> = {};
     for (const c of config.columnDefs) {
       if (c.kind === 'category') {
-        editors[c.key] = { kind: 'entity', mode: 'single', displayMode: 'name', items: categoryItems, placeholder: c.placeholder || c.label, keepAlphabetical: true };
+        // Crew roles are grouped by department → accordion picker. Flat
+        // categories (location types) stay open.
+        editors[c.key] = {
+          kind: 'entity',
+          mode: 'single',
+          displayMode: 'name',
+          items: categoryItems,
+          placeholder: c.placeholder || c.label,
+          keepAlphabetical: true,
+          browse: categoryItems.some(i => i.group) ? 'accordion' : 'open',
+        };
       } else if (c.entityItems) {
         // Item 147 — multi-select autocomplete (e.g. a crew role's element
-        // categories). Committed value = the comma-joined label list.
-        editors[c.key] = { kind: 'entity', mode: 'multi', displayMode: 'name', items: c.entityItems(project), placeholder: c.placeholder || c.label };
+        // categories). Committed value = the comma-joined label list. The
+        // catalogue is fixed: no "Add …" create row.
+        editors[c.key] = { kind: 'entity', mode: 'multi', displayMode: 'name', items: c.entityItems(project), placeholder: c.placeholder || c.label, allowFreeText: false };
       } else if (c.uppercase) {
         editors[c.key] = { kind: 'text', uppercase: true, placeholder: c.placeholder || c.label };
       }

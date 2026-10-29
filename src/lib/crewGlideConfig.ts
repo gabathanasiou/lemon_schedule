@@ -12,7 +12,8 @@ import {
   type GlideShellConfig,
 } from './glideShell';
 import { resolveRoleKey, parseCrewCSV, commitCrewImport, exportCrewCSV, type CrewCsvImportResult } from './crewGlide';
-import { resolveRoleCategories } from './crewCatalog';
+import { resolveRoleCategories, crewRoleGroup } from './crewCatalog';
+import { departmentOrder } from './dayCrew';
 import { ELEMENT_CATEGORIES, getLabel } from './categories';
 import { CrewLinksButton } from '../components/crew/CrewLinksButton';
 
@@ -63,7 +64,12 @@ function buildCrewRows(project: Project): GlideRow[] {
   return rows;
 }
 
-const crewCategories = (project: Project): GlideCategory[] => (project.crewRoles || []).map(r => ({ key: r.key, label: r.label }));
+const crewCategories = (project: Project): GlideCategory[] => {
+  const order = departmentOrder(project);
+  return (project.crewRoles || [])
+    .map(r => ({ key: r.key, label: r.label, group: crewRoleGroup(r) }))
+    .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
+};
 
 /** Patches one crew person's field, or moves them to another role. */
 function commitCrewEdit(dispatch: (action: any) => void, row: GlideRow, colKey: string, newVal: string, project: Project) {

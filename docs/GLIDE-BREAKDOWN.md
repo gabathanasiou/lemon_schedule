@@ -25,6 +25,10 @@ auto-repaint.
   crew tables (Person, Report To) and the Day Manager Locations grid show the dropdown chevron.
   I/E and D/N use the app entity picker (`allowFreeText: false`) — the kit PickerField panel, not the
   old AutocompleteDropdown, so it matches the playground.
+- **Crew Glide category pickers:** the Role column is an **accordion grouped by department**
+  (`crewRoleGroup` + `departmentOrder`); the Element Categories multi-select is a **fixed
+  catalogue** (`allowFreeText: false`) — typing an unknown category shows "No matches", never an
+  "Add …" row. Location type categories stay flat.
 - **Kit dependency:** `@gabriel/ui-kit` is the released **v0.1.173** GitHub tag (the kit's Glide
   branch merged into kit main; `./glide-controls` built with Glide external).
 - **Verify:** `e2e/glide-breakdown`, `crew-glide`, `day-times-glide`, `locations`,

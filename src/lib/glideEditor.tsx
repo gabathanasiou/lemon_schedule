@@ -12,7 +12,7 @@ export type GlideColumnEditor =
       kind: 'entity';
       mode: 'single' | 'multi';
       displayMode?: 'id' | 'name';
-      items: { id: string; name: string }[];
+      items: { id: string; name: string; group?: string }[];
       placeholder?: string;
       uppercase?: boolean;
       keepAlphabetical?: boolean;
