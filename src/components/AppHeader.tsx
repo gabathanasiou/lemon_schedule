@@ -155,8 +155,12 @@ export default function AppHeader(props: AppHeaderProps) {
    * emerald. The identity reaches kit children through ProjectChromeScope.
    * The header's selection pill stays WHITE for every project kind — an
    * accent-tinted pill is the same A950 as the tinted bar and disappears.
-   * The header's inline `--ui-tab-pill-accent-text` override flips the active
-   * accent tab's label to ink so it reads on that white pill. */
+   * The ACTIVE tab label takes the bar's own colour (`--ui-accent-header-bg`)
+   * so it reads on the white pill and matches the header; the kit's accent tab
+   * text is accent-50 (pale, unreadable on white). The className override is
+   * important because the kit Button re-declares the tab-pill vars on its own
+   * `data-mode`/`data-accent` element, so an ancestor variable cannot reach
+   * it. */
   const projectTheme = useProjectTheme();
   const isCloud = projectTheme !== 'local';
   const tabPillFill = 'bg-[var(--ui-tab-pill-plain)]';
@@ -210,14 +214,11 @@ export default function AppHeader(props: AppHeaderProps) {
        the fixed/sticky element at the viewport's top edge — the header must BE
        that element (it carries the accent header fill). z-20 sits above `main`
        (z-auto — header-hung tooltips keep painting over content) and below the
-       presence pointers (z-30) and the portaled menus.
-       The white header pill needs ink active text even on Drive/shared chrome;
-       the kit's accent tab text assumes a dark accent pill. */
+       presence pointers (z-30) and the portaled menus. */
     <ProjectChromeScope mode="dark">
     <header
       data-chrome-bar="app-header"
       className={`sticky top-0 z-20 flex items-center bg-[var(--ui-accent-header-bg)] text-[color:var(--ui-text)] ${CHROME_BAR_INSET} py-2 select-none print:hidden`}
-      style={{ '--ui-tab-pill-accent-text': 'var(--ui-tab-pill-plain-text)' } as React.CSSProperties}
     >
       <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 island-inset-l`}>
           <DropdownMenu
@@ -378,7 +379,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 data-presence-anchor={`nav:tab:${tab.id}`}
                 onClick={(e) => { if (e.shiftKey && !IS_COARSE) { togglePopout(tab.id); } else { tab.select(); } }}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tab.id); }}
-                className="shrink-0 relative z-10"
+                className={`shrink-0 relative z-10 ${tab.active ? 'text-[color:var(--ui-accent-header-bg)]!' : ''}`}
               >
                 {tab.label}
               </Button>
