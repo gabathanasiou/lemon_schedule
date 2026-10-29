@@ -1257,6 +1257,9 @@ scroll fixes and the painted-button language without a second DOM layer.
 - I/E + D/N use the app entity picker (kit PickerField panel, strict palette);
   InlineGlideTable wraps entity/enum columns in `kitPickerCell` so the crew
   tables and Day Manager Locations show dropdown chevrons.
+- Crew Glide Role = department accordion over a fixed catalogue (no "Add …"
+  row); the Element Categories multi-select is fixed too. Location types can
+  still be created from the grid.
 - Type-to-open on a picker must not select the seeded key (`selectOnOpen` in
   `glideEditor.tsx`) — `glide-first-edit` guards it.
 - Kit dependency is the released **v0.1.173** tag (the kit Glide branch merged

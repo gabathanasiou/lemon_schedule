@@ -26,9 +26,10 @@ auto-repaint.
   I/E and D/N use the app entity picker (`allowFreeText: false`) — the kit PickerField panel, not the
   old AutocompleteDropdown, so it matches the playground.
 - **Crew Glide category pickers:** the Role column is an **accordion grouped by department**
-  (`crewRoleGroup` + `departmentOrder`); the Element Categories multi-select is a **fixed
-  catalogue** (`allowFreeText: false`) — typing an unknown category shows "No matches", never an
-  "Add …" row. Location type categories stay flat.
+  (`crewRoleGroup` + `departmentOrder`) over a **fixed catalogue** — no "Add …" row; new roles come
+  from the Crew Manager. The Element Categories multi-select is also fixed (`allowFreeText: false`) —
+  typing an unknown category shows "No matches". Location type categories stay flat and can still be
+  created from the grid.
 - **Kit dependency:** `@gabriel/ui-kit` is the released **v0.1.173** GitHub tag (the kit's Glide
   branch merged into kit main; `./glide-controls` built with Glide external).
 - **Verify:** `e2e/glide-breakdown`, `crew-glide`, `day-times-glide`, `locations`,

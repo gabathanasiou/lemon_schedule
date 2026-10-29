@@ -64,6 +64,11 @@ export interface GlideColumnDef {
   align?: 'left' | 'right';
   /** category columns are autocomplete dropdowns that create new categories. */
   kind?: 'text' | 'category';
+  /** Category columns: allow committing a typed value that is not in the
+   *  catalogue (the "Add …" row). Defaults true; crew roles are a fixed
+   *  catalogue (new roles come from the Crew Manager), location types can be
+   *  created from the grid. */
+  allowFreeText?: boolean;
   /** false disables Clear for the column (category columns are required). */
   clearable?: boolean;
   placeholder?: string;
@@ -343,6 +348,7 @@ export const GlideGridShell: React.FC<{
           placeholder: c.placeholder || c.label,
           keepAlphabetical: true,
           browse: categoryItems.some(i => i.group) ? 'accordion' : 'open',
+          allowFreeText: c.allowFreeText ?? true,
         };
       } else if (c.entityItems) {
         // Item 147 — multi-select autocomplete (e.g. a crew role's element

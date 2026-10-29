@@ -9,7 +9,7 @@ const crewState = (page: AnyPage) =>
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
       const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
-      return { crew: p.crew || {}, roles: (p.crewRoles || []).map((r: any) => r.key) };
+      return { crew: p.crew || {}, roles: (p.crewRoles || []).map((r: any) => r.key), roleLabels: Object.fromEntries((p.crewRoles || []).map((r: any) => [r.key, r.label])) };
     } catch { return null; }
   });
 
@@ -161,18 +161,22 @@ test.describe('Crew Glide', () => {
 
     let st = await crewState(page);
     const firstRole = st!.roles[0];
+    const secondRole = st!.roles[1];
+    const secondRoleLabel = st!.roleLabels[secondRole];
     expect(st!.crew[firstRole].map((p: any) => p.name)).toEqual(['ZED ZED', 'ALICE SMITH']);
 
-    // --- Create a brand-new role from the add-row Role cell ---
-    await editCell(base + 2, 2, 'Grip', { addRow: true });
-    await expect.poll(async () => (await crewState(page))!.roles.includes('grip'), { timeout: 8000 }).toBe(true);
+    // --- Add a third member and assign an EXISTING role from the add-row Role
+    // cell (the Role picker is a fixed, department-grouped catalogue — new
+    // roles come from the Crew Manager, not the grid) ---
+    await editCell(base + 2, 2, secondRoleLabel, { addRow: true });
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 3); // dedupe: exactly one member added
+    expect((await crewState(page))!.roles).toEqual(st!.roles);
 
-    // --- Move Alice to the new role via her Role cell ---
-    await editCell(1, 2, 'Grip');
+    // --- Move Alice to that role via her Role cell ---
+    await editCell(1, 2, secondRoleLabel);
     await expect.poll(async () => {
       const s = await crewState(page);
-      return s!.crew['grip']?.some((p: any) => p.name === 'ALICE SMITH') ?? false;
+      return s!.crew[secondRole]?.some((p: any) => p.name === 'ALICE SMITH') ?? false;
     }, { timeout: 8000 }).toBe(true);
 
     // --- Header right-click sort: Name A to Z sorts within each role ---
@@ -181,10 +185,10 @@ test.describe('Crew Glide', () => {
       await tapAt(g.x + g.colX(1), g.y + g.headerH / 2, 'right');
             await page.getByText('Sort A to Z', { exact: true }).click();
     }
-    // Grip now holds Alice + the empty add-row member (empty sorts last)
+    // The second role now holds Alice + the empty add-row member (empty sorts last)
     await expect.poll(async () => {
       const s = await crewState(page);
-      return s!.crew['grip']?.map((p: any) => p.name) ?? [];
+      return s!.crew[secondRole]?.map((p: any) => p.name) ?? [];
     }, { timeout: 8000 }).toEqual(['ALICE SMITH', '']);
 
     // New members always land at the bottom (unless manually sorted)
@@ -195,17 +199,17 @@ test.describe('Crew Glide', () => {
     }, { timeout: 8000 }).toEqual(['ZED ZED', 'BOTTOM PERSON']);
 
     // --- Right-click a row -> Go to Crew Manager → role ---
-    // Rows: 0=Zed, 1=Bottom Person (producer), 2=Alice (grip), 3=empty (grip)
+    // Rows: 0=Zed, 1=Bottom Person (producer), 2=Alice (second role), 3=empty
     {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH + 2 * g.rowH + g.rowH / 2, 'right');
-            const item = page.getByText('Go to Crew Manager → Grip', { exact: true });
+            const item = page.getByText(`Go to Crew Manager → ${secondRoleLabel}`, { exact: true });
       await expect(item).toBeVisible();
       await item.click();
     }
-    // Lands on the Crew manager with the Grip role selected
+    // Lands on the Crew manager with that role selected
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();
-    await expect(page.locator('button[aria-current="true"]', { hasText: 'Grip' })).toBeVisible();
+    await expect(page.locator('button[aria-current="true"]', { hasText: secondRoleLabel })).toBeVisible();
     await expect(nameCell(page, 'ALICE SMITH')).toBeVisible();
 
     // --- Back to the glide: CSV export ---
@@ -217,7 +221,7 @@ test.describe('Crew Glide', () => {
     const csvPath = await download.path();
     const csvText = (await import('node:fs')).readFileSync(csvPath!, 'utf8');
     expect(csvText.split('\n')[0]).toBe('Role,Name,Phone,Email');
-    expect(csvText).toContain('"Grip","ALICE SMITH"');
+    expect(csvText).toContain(`"${secondRoleLabel}","ALICE SMITH"`);
 
     // --- CSV import: new role + members merge ---
     const importCsv = [
