@@ -1406,11 +1406,16 @@ of the updated ui-kit modals.
 - The app pins the old look in ONE place: `projectModalThemeOf` returns
   `surface: 'neutral'` for all three kinds (`src/lib/projectTheme.ts`); the
   shim (`src/components/Modal.tsx`) already feeds `theme`/`accent`/`surface`
-  to the kit shell, and every footer already uses the kit `ModalFooterButton`.
-  So this is a small, centralised change — one mapper + one hero default, not
-  a per-modal sweep. The 63 explicit `theme="dark"` props in files that open a
-  modal (app total 119) set the MODE and stay correct while modals are dark;
-  dropping them is 302's ambient-widget cleanup, not this item's prerequisite.
+  to the kit shell. The `surface: 'accent'` flip is literally one line and it
+  propagates to the ambient kit controls inside every modal too — Button, Seg
+  (EditorChrome), DatePicker, DropdownMenu, PickerField and Tooltip all read
+  `useKitTheme()`. Two small follow-ons, not a per-modal sweep:
+  `ModalFooterButton`'s hero is NOT ambient (`tone` defaults `zinc`), and
+  `DialogProvider` is mounted above the page scopes (`src/main.tsx`), so
+  confirm/prompt/alert need the same mapping passed in. The 63 explicit
+  `theme="dark"` props in files that open a modal (app total 119) set the MODE
+  and stay correct while modals are dark; dropping them is 302's
+  ambient-widget cleanup, not this item's prerequisite.
 - This SUPERSEDES the 302 stage-2 choice ("every app modal is a neutral
   surface; Drive/shared keep their colour in the chrome") — record the reversal
   in the 302 progress notes, AGENTS.md and the docs. Mode stays dark (the
@@ -1424,21 +1429,28 @@ of the updated ui-kit modals.
   (`src/lib/__tests__/projectTheme.test.ts`). Keep the `?modalTheme=` harness.
 - Hero: the app `ModalFooterButton` wrapper defaults the hero to
   `tone="accent"` (one file — `src/components/ModalFooterButton.tsx` is a
-  re-export today); footers stay one hero + ghosts. Dialogs (`useDialog`)
-  inherit the same surface — confirm/prompt/alert need no per-dialog overrides.
-- No per-modal theme surgery: the explicit `theme="dark"` props are mode
-  overrides that stay correct; their removal rides 302's ambient-widget work.
-  Check the few structural outliers only (standalone panels that copy the
-  modal chrome — SessionsPanel, TeamPanel, ScriptUpdateModal — and any
-  hand-rolled footer bar), then list fixed-palette exceptions (print previews,
-  Call Sheet zone editor, script diff) in DESIGN-LANGUAGE §Modal anatomy.
+  re-export today); footers stay one hero + ghosts.
+- Dialogs: pass the same mapped `theme`/`accent`/`surface` to `DialogProvider`
+  (via the `src/components/Dialog.tsx` wrapper or `main.tsx`) — mounted above
+  the page scopes, it otherwise stays dark/neutral/zinc while the modals turn
+  accent.
+- Non-ambient controls inside modals (SearchMenu defaults `light`, NumberInput
+  and RuleCard still take explicit palettes) keep their current look: the app
+  passes `theme="dark"` there, so they stay consistent with the dark modal but
+  will not show accent states until 302 makes them ambient — polish, not a
+  blocker. No per-modal theme surgery.
+- Check the few structural outliers only (standalone panels that copy the modal
+  chrome — SessionsPanel, TeamPanel, ScriptUpdateModal — and any hand-rolled
+  footer bar), then list fixed-palette exceptions (print previews, Call Sheet
+  zone editor, script diff) in DESIGN-LANGUAGE §Modal anatomy.
 
 **Verify:** kit lint + playground `modal-portal.spec`/`dialog.spec`; app
 `npm run lint`; rule-7 visual pass on local / Drive / shared × dark (and the
 light harness): a Day modal, the Element View, the Link Manager, Import, Trash,
 Account, a dark-pinned Design/Reports modal; `?modalTheme=light` check; iPad
 spot-check of a stacked modal (the morph/dim machinery is unchanged). The
-visual pass is the bulk of the item — the code change is ~2 files.
+visual pass is the bulk of the item — the code change is the mapper line + two
+small wrappers (hero tone, DialogProvider).
 
 **Docs:** `docs/DESIGN-LANGUAGE.md` §Modal anatomy & rules + §Theming,
 `docs/UI-PRIMITIVES.md` §UI Primitives (Modal theming), `docs/UI-KIT.md`
