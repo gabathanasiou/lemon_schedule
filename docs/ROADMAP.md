@@ -1390,7 +1390,7 @@ primary's step and sweeps the app); `relates to` 248/311 (chrome identity),
 56 (kit promotion); 333 (the modal hero/header follow the same token).
 
 
-## 333. App modals → the updated kit modal look (accent surface) (`[ ]`, big)
+## 333. App modals → the updated kit modal look (accent surface) (`[ ]`)
 
 **Request** (user 2026-10-29): the modals in the main app should match the style
 of the updated ui-kit modals.
@@ -1403,13 +1403,14 @@ of the updated ui-kit modals.
   (`ui-kit/src/Modal.tsx` header/footer tokens, `ModalFooterButton.tsx:33-37`,
   kit commit 8521475 — the inner painted header).
   `ui-kit/docs/ADOPTING-THEMING.md` is the adoption recipe.
-- The app pins the old look: `projectModalThemeOf` returns
-  `surface: 'neutral'` for all three kinds (`src/lib/projectTheme.ts`),
-  `src/components/Modal.tsx` forces `theme="dark"`, no call site passes
-  `surface="accent"` or `tone="accent"`, and ~119 explicit `theme="dark"`
-  props on kit controls inside modals hold the old widget-by-widget palette
-  (DayEventsModal / EventModal / NewSceneModal / CrewLinkManagerModal /
-  DayTypeModals …).
+- The app pins the old look in ONE place: `projectModalThemeOf` returns
+  `surface: 'neutral'` for all three kinds (`src/lib/projectTheme.ts`); the
+  shim (`src/components/Modal.tsx`) already feeds `theme`/`accent`/`surface`
+  to the kit shell, and every footer already uses the kit `ModalFooterButton`.
+  So this is a small, centralised change — one mapper + one hero default, not
+  a per-modal sweep. The 63 explicit `theme="dark"` props in files that open a
+  modal (app total 119) set the MODE and stay correct while modals are dark;
+  dropping them is 302's ambient-widget cleanup, not this item's prerequisite.
 - This SUPERSEDES the 302 stage-2 choice ("every app modal is a neutral
   surface; Drive/shared keep their colour in the chrome") — record the reversal
   in the 302 progress notes, AGENTS.md and the docs. Mode stays dark (the
@@ -1419,27 +1420,25 @@ of the updated ui-kit modals.
 **Work:**
 - Shell: `projectModalThemeOf` maps every kind to `surface="accent"` (local
   resolves to zinc — the same near-black header, now with the kit's inner-card
-  geometry; Drive/shared take blue/emerald). Keep the `?modalTheme=` harness.
-- Hero: the app `ModalFooterButton` re-export (or the shim) passes
-  `tone="accent"` for the ONE hero; footers stay one hero + ghosts. Dialogs
-  (`useDialog`) inherit the same surface — confirm/prompt/alert need no
-  per-dialog overrides.
-- Inner controls: drop the per-widget `theme="dark"` overrides family by family
-  as the kit primitives become ambient (302's remaining Button / SearchMenu /
-  Seg / RuleCard work) — never a mass regex. Until then the modal's own scope
-  carries the theme and the explicit props are leftovers to inventory.
-- Audit the files that open a `Modal` against the kit recipe: header/footer only
-  via the kit shell, bodies on `CardSection` / `inputCls` / `--ui-*` tokens, no
-  hand-rolled footer bars; deliberate fixed-palette exceptions (print previews,
-  Call Sheet zone editor, script diff) stay listed in DESIGN-LANGUAGE §Modal
-  anatomy. Align the standalone panels that copy the modal chrome
-  (SessionsPanel, TeamPanel, ScriptUpdateModal) or list them as exceptions.
+  geometry; Drive/shared take blue/emerald); update the mapper's unit test
+  (`src/lib/__tests__/projectTheme.test.ts`). Keep the `?modalTheme=` harness.
+- Hero: the app `ModalFooterButton` wrapper defaults the hero to
+  `tone="accent"` (one file — `src/components/ModalFooterButton.tsx` is a
+  re-export today); footers stay one hero + ghosts. Dialogs (`useDialog`)
+  inherit the same surface — confirm/prompt/alert need no per-dialog overrides.
+- No per-modal theme surgery: the explicit `theme="dark"` props are mode
+  overrides that stay correct; their removal rides 302's ambient-widget work.
+  Check the few structural outliers only (standalone panels that copy the
+  modal chrome — SessionsPanel, TeamPanel, ScriptUpdateModal — and any
+  hand-rolled footer bar), then list fixed-palette exceptions (print previews,
+  Call Sheet zone editor, script diff) in DESIGN-LANGUAGE §Modal anatomy.
 
 **Verify:** kit lint + playground `modal-portal.spec`/`dialog.spec`; app
 `npm run lint`; rule-7 visual pass on local / Drive / shared × dark (and the
 light harness): a Day modal, the Element View, the Link Manager, Import, Trash,
 Account, a dark-pinned Design/Reports modal; `?modalTheme=light` check; iPad
-spot-check of a stacked modal (the morph/dim machinery is unchanged).
+spot-check of a stacked modal (the morph/dim machinery is unchanged). The
+visual pass is the bulk of the item — the code change is ~2 files.
 
 **Docs:** `docs/DESIGN-LANGUAGE.md` §Modal anatomy & rules + §Theming,
 `docs/UI-PRIMITIVES.md` §UI Primitives (Modal theming), `docs/UI-KIT.md`
@@ -1447,6 +1446,6 @@ spot-check of a stacked modal (the morph/dim machinery is unchanged).
 accent surface, not "every kind = neutral".
 
 **Relations:** `supersedes` the app-modal neutral-surface decision in 302
-(stage 2); `depends on` 302's remaining ambient-primitive work for the
-widget-by-widget cleanup; `relates to` 332 (same identity token), 310 (bodies
-already tokenised), 56 (kit promotion), 263 (modal morph).
+(stage 2); `relates to` 302 (optional ambient-widget cleanup — not a blocker),
+332 (same identity token), 310 (bodies already tokenised), 56 (kit promotion),
+263 (modal morph).
