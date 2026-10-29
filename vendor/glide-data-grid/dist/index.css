@@ -1,0 +1,102 @@
+/* Auto-generated file */
+@import "./esm/data-editor/group-rename.css";
+@import "./esm/internal/scrolling-data-grid/infinite-scroller.css";
+@import "./esm/internal/data-editor-container/data-grid-container.css";
+@import "./esm/internal/data-grid-overlay-editor/private/bubbles-overlay-editor-style.css";
+@import "./esm/internal/data-grid-overlay-editor/private/uri-overlay-editor-style.css";
+@import "./esm/internal/data-grid-overlay-editor/private/markdown-overlay-editor-style.css";
+@import "./esm/internal/data-grid-overlay-editor/private/drilldown-overlay-editor.css";
+@import "./esm/internal/data-grid-overlay-editor/private/image-overlay-editor-style.css";
+@import "./esm/internal/data-grid-overlay-editor/private/number-overlay-editor-style.css";
+@import "./esm/internal/data-grid-overlay-editor/data-grid-overlay-editor-style.css";
+@import "./esm/internal/data-grid-search/data-grid-search-style.css";
+@import "./esm/internal/markdown-div/private/markdown-container.css";
+@import "./esm/internal/growing-entry/growing-entry-style.css";
+
+/* fork: the overlay editor must look like the cell it replaces ---------------
+   Glide's stock editor is a raised card (2px radius, accent ring, drop shadow,
+   8.5/3 padding, 16px line-height) — it reads as a different surface. Here it
+   keeps the cell's own background, padding, font and line rhythm, with no
+   ring/shadow/radius and no fade, so editing looks like typing in the cell. */
+.gdg-d19meir1.gdg-style {
+    border-radius: 0;
+    /* Keep the crisp RECTANGLE outline — inset, so it sits exactly where the
+       grid paints the selected cell's border and never grows the box. */
+    box-shadow: inset 0 0 0 1px var(--glide-dom-accent, var(--gdg-accent-color, #2563eb));
+    animation: none;
+}
+.gdg-d19meir1.gdg-pad {
+    /* Same box as the painted cell: the text sits at the cell's own left inset
+       (+0.5px, where the canvas draws it) and is centred vertically on the
+       theme line rhythm — no stock 8.5/3 card padding. */
+    padding: var(--fork-editor-top, var(--gdg-cell-vertical-padding))
+             calc(var(--gdg-cell-horizontal-padding) + 0.5px);
+}
+.gdg-d19meir1.gdg-pad .gdg-clip-region {
+    /* A padded editor is exactly one cell tall: never scroll. The line box can
+       be a fraction of a pixel taller than the clip area (e.g. 17.5px line in a
+       35px cell), which Chromium rounds into a 1px overflow — the tiny
+       scrollbar users saw inside the floating box. */
+    overflow-y: hidden;
+}
+.gdg-d19meir1 .gdg-clip-region {
+    border-radius: 0;
+    /* Inherit the CELL's typography so every editor face (text, picker,
+       markdown) uses the same font, size and colour as the painted cell. */
+    color: var(--gdg-text-dark);
+    font-family: var(--gdg-font-family);
+    font-size: var(--gdg-editor-font-size);
+}
+/* Dropdown/entity editors (disablePadding) fill the cell box: the kit
+   PickerField is height:100% of it, so the field is the cell's height. */
+/* fork: a DOM cell under the grid's selection rectangle shows the hover wash
+   (its controls are DOM, so the canvas hover tint would otherwise be hidden). */
+/* fork: a content-height sheet (no fixed `height`) fits its rows exactly, so it
+   can never legitimately scroll VERTICALLY. Safari with always-visible
+   scrollbars latches both bars on after a content change — the vertical bar
+   steals width, the horizontal bar steals height, and neither ever clears.
+   Pin the vertical axis; the horizontal stays available for a `scrollable`
+   content-height sheet whose columns are wider than the card. */
+[data-glide-fit] .dvn-scroller {
+    overflow-y: hidden !important;
+}
+/* The canvas selection border sits UNDER an opaque DOM box, so those cells
+   repaint it (same 1px accent rectangle the grid draws). Passthrough boxes are
+   transparent over a NATIVE cell — the grid's own border shows through, so they
+   must not paint a second one. */
+[data-glide-dom-cell][data-glide-dom-focused]:not([data-glide-dom-passthrough])::after {
+    /* An overlay, not a box-shadow: a full-bleed child (the trash button)
+       paints over an inset shadow — the rectangle must stay on top. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px var(--glide-dom-accent, var(--gdg-accent-color, #2563eb));
+}
+/* BUTTON-ONLY cells (one real button, not a chevron affordance) also show the
+   grid's OWN hover tint (set by GlideSheet), exactly like hovering the row. */
+[data-glide-dom-cell][data-glide-dom-focused][data-glide-dom-button="true"]:not([data-glide-dom-passthrough]) {
+    background: var(--glide-dom-hover-bg, var(--gdg-bg-cell-medium));
+}
+.gdg-d19meir1:not(.gdg-pad) .gdg-clip-region {
+    height: 100%;
+    /* Same text origin as the painted cell (the stock card had none). */
+    padding: 0 calc(var(--gdg-cell-horizontal-padding) + 0.5px);
+}
+.gdg-d19meir1 .gdg-clip-region .gdg-growing-entry {
+    line-height: var(--gdg-line-height, 1.4);
+    /* Stock Glide offsets the entry 6px down inside a taller card. Our box IS
+       the cell and already pads to centre the line, so that margin only adds
+       6px of overflow — which surfaces as a scrollbar inside the editor. */
+    margin-top: 0;
+}
+.gdg-d19meir1 .gdg-clip-region textarea.gdg-input {
+    line-height: var(--gdg-line-height, 1.4);
+    font-size: var(--gdg-editor-font-size);
+}
+
+/* fork: a zero-height header (the single-cell shape) leaves a 1px header
+   canvas painted over the first row; hide it. See GlideSheet data-glide-no-header. */
+[data-glide-no-header] .dvn-underlay > canvas:nth-child(2) {
+    display: none;
+}

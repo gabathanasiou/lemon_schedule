@@ -13,6 +13,16 @@ import DataEditor, {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
+import {
+  kitGlyphCell,
+  kitGlyphGroupCell,
+  kitPickerCell,
+  controlCellRenderers,
+  isControlCell,
+  isKitGlyphCell,
+  isKitGlyphGroupCell,
+  pressControlCell,
+} from '@gabriel/ui-kit/glide-controls';
 import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
@@ -90,7 +100,7 @@ const BREAKDOWN_LABELS: Record<string, string> = {
 };
 
 const FIXED_COLS = [
-  { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },
+  { key: 'actions', label: '', width: IS_COARSE ? 64 : 52 },
   { key: 'sceneNumber', label: 'Scene #', width: 60 },
   { key: 'pageCount', label: 'Pages', width: 80 },
   { key: 'scriptDay', label: 'Script Day', width: 80 },
@@ -207,36 +217,9 @@ export function GlideBreakdownTab({
     );
   }, [COLUMNS, fontSize]);
 
-  const trashImg = useRef<HTMLImageElement | null>(null);
-  const plusImg = useRef<HTMLImageElement | null>(null);
-  useEffect(() => {
-    const trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
-    const plusSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
-    const tImg = new Image();
-    tImg.src = 'data:image/svg+xml;base64,' + btoa(trashSvg);
-    trashImg.current = tImg;
-    const pImg = new Image();
-    pImg.src = 'data:image/svg+xml;base64,' + btoa(plusSvg);
-    plusImg.current = pImg;
-  }, []);
-
-  const drawCell = useCallback((args: any, draw: (a: any) => boolean) => {
-    if (args.col === 0) {
-      draw(args);
-      if (args.row > scenesRef.current.length) return true;
-      const isAddRow = args.row === scenesRef.current.length;
-      const img = isAddRow ? plusImg.current : trashImg.current;
-      if (img && img.complete) {
-        const { ctx, rect } = args;
-        const size = Math.min(14, rect.width - 4, rect.height - 4);
-        const x = rect.x + (rect.width - size) / 2;
-        const y = rect.y + (rect.height - size) / 2;
-        ctx.drawImage(img, x, y, size, size);
-      }
-      return true;
-    }
-    return draw(args);
-  }, []);
+  /* The action column is painted by the kit's control cells
+     (`kitGlyphGroupCell` — add · trash, and a plus on the add row). No DOM
+     controls, no image preloads: the renderer is canvas-native. */
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
   /** Last row-marker click, to disambiguate Glide's time-based isDoubleClick (it
@@ -466,6 +449,25 @@ export function GlideBreakdownTab({
   readOnlyRef.current = locked;
   const selectModeRef = useRef(false);
   selectModeRef.current = marqueeMode === 'tool';
+  /** Painted row-action intents (the kit control cells read this at activation
+   *  time, so `getCellContent` never needs the handlers declared below it). */
+  const controlActionsRef = useRef<{
+    add: () => void;
+    insertAfter: (row: number) => void;
+    remove: (row: number) => void;
+  }>({ add: () => {}, insertAfter: () => {}, remove: () => {} });
+  /** Deletes one scene through the shared confirmation path (the same one the
+   *  actions cell/context menu use). */
+  const requestDeleteAt = useCallback((row: number) => {
+    if (readOnlyRef.current || selectModeRef.current) return;
+    const scene = scenesRef.current[row];
+    if (!scene) return;
+    if (isWarningSuppressed('lemon_schedule_suppress_delete_warning')) {
+      dispatch({ type: 'DELETE_SCENE', payload: scene.id });
+    } else {
+      setDeleteConfirm({ sceneId: scene.id, sceneNumber: scene.sceneNumber || String(row + 1) });
+    }
+  }, [dispatch]);
   const projectRef = useRef(project);
   projectRef.current = project;
   const linkGuard = useLinkedEditGuard(project.links, project.customCategories, dispatch);
@@ -585,11 +587,21 @@ export function GlideBreakdownTab({
     // Select mode = selection only: lock every cell so no overlay editor can
     // open (double-tap, Enter, editOnType) and paste has no writable target.
     const selectLock = marqueeMode === 'tool';
+    const colDef = COLUMNS[col];
     if (!scene) {
       if (row === scenesRef.current.length) {
-        const colDef = COLUMNS[col];
         if (!colDef) return textCell('', { readonly: true });
-        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#f3f4f6' } });
+        if (colDef.key === 'actions') {
+          if (locked || selectLock) return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#f3f4f6' } });
+          // The add row carries the kit's painted plus — no DOM control.
+          return kitGlyphCell({
+            icon: 'plus',
+            label: 'Add scene',
+            tone: 'accent',
+            lane: 'full',
+            onActivate: () => controlActionsRef.current.add(),
+          });
+        }
         return textCell('', (selectLock || kbLocked) && !isEntityCol(colDef.key) ? { readonly: true, allowOverlay: false } : undefined);
       }
       return {
@@ -601,10 +613,33 @@ export function GlideBreakdownTab({
         style: 'faded',
       } as GridCell;
     }
-    const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#fef2f2' } });
+    if (colKey === 'actions') {
+      if (locked || selectLock) return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#fef2f2' } });
+      const n = scene.sceneNumber || String(row + 1);
+      // ONE action cell, TWO painted buttons (add after · trash) — the kit's
+      // canvas-native control cell, never a DOM box.
+      return kitGlyphGroupCell({
+        lane: 'full',
+        buttons: [
+          {
+            icon: 'plus',
+            label: `Add scene after ${n}`,
+            tone: 'accent',
+            hoverBg: 'rgba(5, 150, 105, 0.16)',
+            onActivate: () => controlActionsRef.current.insertAfter(row),
+          },
+          {
+            icon: 'trash',
+            label: `Delete scene ${n}`,
+            tone: 'danger',
+            hoverBg: 'rgba(220, 38, 38, 0.14)',
+            onActivate: () => controlActionsRef.current.remove(row),
+          },
+        ],
+      });
+    }
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
@@ -616,10 +651,28 @@ export function GlideBreakdownTab({
             return member ? `${member.id}. ${member.name || trimmed}` : trimmed;
           }).filter(Boolean).join(', ')
         : '';
-      return textCell(val, selectLock ? { displayData: displayValue, readonly: true, allowOverlay: false } : { displayData: displayValue });
+      if (selectLock || locked) return textCell(val, { displayData: displayValue, readonly: true, allowOverlay: false });
+      return kitPickerCell({
+        value: displayValue,
+        seedValue: val,
+        label: `Cast for scene ${scene.sceneNumber || row + 1}`,
+        placeholder: '—',
+        onOpen: () => gridRef.current?.openCellEditor(col, row),
+      });
     }
-    return textCell(val, selectLock || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
-  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode]);
+    if (isEntityCol(colKey) && !selectLock && !locked) {
+      // Painted picker: the value + a chevron lane that opens the SAME entity
+      // editor a double-click does. The cell body only selects.
+      return kitPickerCell({
+        value: val,
+        seedValue: val,
+        label: `${colDef.label} for scene ${scene.sceneNumber || row + 1}`,
+        placeholder: '—',
+        onOpen: () => gridRef.current?.openCellEditor(col, row),
+      });
+    }
+    return textCell(val, selectLock || locked || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
+  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode, locked]);
 
   const dedupeCellCommit = useDedupeCellCommit();
   const dialog = useDialog();
@@ -828,7 +881,6 @@ export function GlideBreakdownTab({
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     dispatch({ type: 'ADD_SCENE', payload: createBlankScene({ sceneNumber: nextNum, containerId: null } as any) });
   }, [dispatch]);
-
   const insertSceneAt = useCallback((gridIndex: number) => {
     // Insert BEFORE the visible row at `gridIndex` (Below passes +1). Map the
     // anchor back to the project list so a filtered view inserts in the right
@@ -843,6 +895,12 @@ export function GlideBreakdownTab({
     const newScene: Scene = createBlankScene({ sceneNumber: nextNum } as any);
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index: at, scene: newScene } });
   }, [dispatch]);
+
+  controlActionsRef.current = {
+    add: addScene,
+    insertAfter: (row: number) => insertSceneAt(row + 1),
+    remove: requestDeleteAt,
+  };
 
   const duplicateSceneAt = useCallback((gridIndex: number) => {
     const original = scenes[gridIndex];
@@ -1046,24 +1104,16 @@ export function GlideBreakdownTab({
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
       }
-      if (col === 0 && !readOnlyRef.current && getMarqueeMode() !== 'tool') {
-        addScene();
-      }
       return;
     }
-    if (col === 0) {
-      if (readOnlyRef.current || getMarqueeMode() === 'tool') return;
-      const scene = scenesRef.current[row];
-      if (!scene) return;
-      const suppressed = isWarningSuppressed('lemon_schedule_suppress_delete_warning');
-      if (suppressed) {
-        deleteScene(scene.id);
-      } else {
-        setDeleteConfirm({ sceneId: scene.id, sceneNumber: scene.sceneNumber || String(row + 1) });
-      }
+    if (col >= 0) {
+      // Painted control cells own their clicks (add · trash). Repaint once on
+      // the next frame so the ~90ms press flash animates even when the action
+      // changes no grid data.
+      const content = getCellContent(cell);
+      if (isControlCell(content)) requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
       return;
     }
-    if (col >= 0) return;
     if (e.isDoubleClick) {
       const prev = lastMarkerClickRef.current;
       const sameCell = prev !== null && prev.col === col && prev.row === row;
@@ -1101,7 +1151,23 @@ export function GlideBreakdownTab({
       const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
       setContextMenu({ x, y, row, col });
     }
-  }, [scenes.length, openSheetAt, openSheetInPopoutAt]);
+  }, [scenes.length, openSheetAt, openSheetInPopoutAt, getCellContent]);
+
+  /** Enter/Space on a painted glyph fires it exactly once (the group's FIRST
+   *  button = add after this scene); a picker needs nothing — Glide's own
+   *  activation opens the one entity editor. */
+  const onCellActivated = useCallback((cell: Item) => {
+    const content = getCellContent(cell);
+    const button = isKitGlyphGroupCell(content)
+      ? content.data.buttons[0]
+      : isKitGlyphCell(content)
+        ? content.data
+        : undefined;
+    if (!button || readOnlyRef.current) return;
+    pressControlCell(cell, button.label);
+    button.onActivate?.();
+    requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
+  }, [getCellContent]);
 
   const onHeaderContextMenu = useCallback((colIndex: number, e: any) => {
     e.preventDefault();
@@ -1265,6 +1331,8 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          onCellActivated={onCellActivated}
+          customRenderers={controlCellRenderers}
           onHeaderContextMenu={onHeaderContextMenu}
           onVisibleRegionChanged={(range) => {
             const row = scenesRef.current[range.y];
@@ -1272,7 +1340,6 @@ export function GlideBreakdownTab({
             if (row && col) glideAnchorRef.current = { rowKey: row.id, colKey: col.key };
             presenceScroll.notify();
           }}
-          drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
           freezeColumns={1}

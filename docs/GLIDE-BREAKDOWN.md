@@ -4,6 +4,30 @@ Status: **read this before touching the Glide breakdown grid (`BreakdownTabGlide
 `InlineGlideTable`.** These are hard-won gotchas; the canvas is opaque to the DOM and does not
 auto-repaint.
 
+## Kit runtime + painted control cells (experiment branch `experiment/kit-glide`)
+
+- **One grid runtime:** every grid resolves `@glideapps/glide-data-grid` to the kit's vendored fork
+  (`vendor/glide-data-grid`, aliased in `vite.config.ts` + `tsconfig.json`). The npm package stays in
+  `package.json` for the kit's peer contract, but NOTHING resolves to it. The fork carries the DOM
+  cells, same-frame scroll paint and content-space bounds from kit `docs/GLIDE.md`.
+- **Row actions are painted, not DOM:** `kitGlyphCell` / `kitGlyphGroupCell` from
+  `@gabriel/ui-kit/glide-controls` (the lean subpath; it keeps Glide EXTERNAL so the app owns the one
+  runtime). The Breakdown's action column is ONE cell with add-after + trash; InlineGlideTable and
+  GlideGridShell's row actions are the same cells. Never mount a `domCells` button for a grid row
+  action — the painted cell keeps grid focus, hover, press flash and Enter/Space activation.
+- **Breakdown entity columns are `kitPickerCell`s** (value + 24px chevron lane). The lane calls
+  `gridRef.openCellEditor(dataCol, row)` — the fork's imperative API adds the row-marker offset — and
+  opens the SAME app editor a double-click does. `createGlideCellEditor` accepts the custom
+  `kit-picker` cell, seeds the stored `seedValue`, and **must not select the typed key on open**
+  (`selectOnOpen = selectAllOnOpen && !initialValue`): a CUSTOM cell keeps its data on type-to-open,
+  so selecting the seeded key makes the next keystroke replace it ("MARY" → "ARY").
+- **Kit dependency:** this branch points `@gabriel/ui-kit` at `file:../ui-kit` (the kit
+  `experiment/glide-grid` branch, which adds `src/glide/controls.ts` + `paint.ts` and the
+  `./glide-controls` export). Build the kit (`npm run build` in `../ui-kit`) before using the app;
+  the controls bundle lives at `dist/glide-controls.js`.
+- **Verify:** `e2e/glide-breakdown`, `crew-glide`, `day-times-glide`, `locations`,
+  `glide-clipboard`, `glide-first-edit` (the last one catches the type-to-open first-key swallow).
+
 ## Glide breakdown grid (`src/components/BreakdownTabGlide.tsx`)
 
 - **`provideEditor` gets RAW indices (+1 row marker offset)** — `dataCol = col - 1`; every other

@@ -1,6 +1,8 @@
 node_modules/
 build/
 dist/
+!vendor/glide-data-grid/dist/
+!vendor/glide-data-grid/dist/**
 coverage/
 .DS_Store
 *.log

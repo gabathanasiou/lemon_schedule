@@ -21,8 +21,7 @@ import DropdownDivider from '../components/DropdownDivider';
 import Modal, { ModalFooter } from '../components/Modal';
 import ModalFooterButton from '../components/ModalFooterButton';
 import { useDialog } from '../components/Dialog';
-import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from './persist';
-import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from './persist';import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
 import { createGlideTheme } from './glideTheme';
 import { usePortalTarget, useCurrentDocument } from './popoutTarget';
 import { textCell, buildCopyText, buildCutPlan } from './glideCells';
@@ -40,6 +39,14 @@ import { effectiveGridRange } from './glideSelection';
 import Button from '../components/Button';
 import { revealMenuTrigger } from '../components/revealMenuTrigger';
 import { GlideFilter } from '../components/GlideFilter';
+import {
+  kitGlyphCell,
+  controlCellRenderers,
+  isControlCell,
+  isKitGlyphCell,
+  isKitGlyphGroupCell,
+  pressControlCell,
+} from '@gabriel/ui-kit/glide-controls';
 import { filterGlideRows } from './glideFilter';
 import type { Project } from '../types';
 
@@ -375,7 +382,30 @@ export const GlideGridShell: React.FC<{
     if (!colDef) return textCell('', { readonly: true, allowOverlay: false });
     const isAddRow = row >= rowsRef.current.length;
     if (colDef.key === 'actions') {
-      return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: isAddRow ? '#f3f4f6' : '#fef2f2' } });
+      if (isAddRow) {
+        if (row !== rowsRef.current.length || readOnlyRef.current) {
+          return textCell('', { readonly: true, allowOverlay: false, themeOverride: { bgCell: '#f3f4f6' } });
+        }
+        // The add row carries the kit's painted plus; it opens the first
+        // editable cell of the add row (the row is created by that edit).
+        return kitGlyphCell({
+          icon: 'plus',
+          label: 'Add row',
+          tone: 'accent',
+          lane: 'full',
+          onActivate: () => gridRef.current?.openCellEditor(1, rowsRef.current.length),
+        });
+      }
+      if (readOnlyRef.current) return textCell('', { readonly: true, allowOverlay: false });
+      const r = rowsRef.current[row];
+      const label = r ? (r.categoryLabel || r.key) : String(row + 1);
+      return kitGlyphCell({
+        icon: 'trash',
+        label: `Delete ${label}`,
+        tone: 'danger',
+        lane: 'full',
+        onActivate: () => { if (r) config.deleteRow(dispatch, r); },
+      });
     }
     if (isAddRow) {
       return textCell('', { readonly: kbLocked, themeOverride: col === 0 ? { bgCell: '#f3f4f6' } : undefined });
@@ -388,7 +418,7 @@ export const GlideGridShell: React.FC<{
       readonly: kbLocked,
       align: colDef.align,
     });
-  }, [kbLocked]);
+  }, [kbLocked, config, dispatch]);
 
   const commitEdit = useCallback((rowIdx: number, colKey: string, newVal: string) => {
     const r = rowsRef.current[rowIdx];
@@ -617,17 +647,13 @@ export const GlideGridShell: React.FC<{
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
     if (row < 0 || row > rows.length) return;
-    if (row === rows.length) {
-      // Clicking the add row's actions cell does nothing (the row is always editable).
-      if (col === 0 && !readOnlyRef.current) gridRef.current?.focus();
+    if (col >= 0 && row < rows.length) {
+      // Painted control cells own their clicks; repaint for the press flash.
+      const content = getCellContent(cell);
+      if (isControlCell(content)) requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
       return;
     }
-    if (col === 0) {
-      if (readOnlyRef.current) return;
-      const r = rowsRef.current[row];
-      if (r) config.deleteRow(dispatch, r);
-      return;
-    }
+    if (row === rows.length) return;
     if (col < 0) {
       // Row marker: select the row (pen/touch right-click opens the context menu).
       if (isTouchLike(e.pointerType) || e.button === 2) {
@@ -642,7 +668,21 @@ export const GlideGridShell: React.FC<{
       });
       gridRef.current?.focus();
     }
-  }, [rows.length, COLUMNS.length, config, dispatch]);
+  }, [rows.length, COLUMNS.length, getCellContent]);
+
+  /** Enter/Space on a painted row action fires it once. */
+  const onCellActivated = useCallback((cell: Item) => {
+    const content = getCellContent(cell);
+    const button = isKitGlyphGroupCell(content)
+      ? content.data.buttons[0]
+      : isKitGlyphCell(content)
+        ? content.data
+        : undefined;
+    if (!button) return;
+    pressControlCell(cell, button.label);
+    button.onActivate?.();
+    requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
+  }, [getCellContent]);
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
 
@@ -775,8 +815,9 @@ export const GlideGridShell: React.FC<{
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          onCellActivated={onCellActivated}
+          customRenderers={controlCellRenderers}
           onHeaderContextMenu={onHeaderContextMenu}
-          drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
           freezeColumns={1}

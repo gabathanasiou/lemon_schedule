@@ -101,14 +101,20 @@ export default defineConfig(() => {
     },
     cacheDir,
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
+      alias: [
+        { find: /^@\//, replacement: path.resolve(__dirname, '.') + '/' },
+        // Experiment: every grid runs the NEW kit Glide runtime (the kit's
+        // vendored fork — DOM cells, same-frame scroll paint, painted control
+        // cells). The npm package stays installed for its types, but nothing
+        // resolves to it; see docs/GLIDE-BREAKDOWN.md §Kit runtime.
+        { find: /^@glideapps\/glide-data-grid\/dist\/index\.css$/, replacement: path.resolve(__dirname, 'vendor/glide-data-grid/dist/index.css') },
+        { find: /^@glideapps\/glide-data-grid$/, replacement: path.resolve(__dirname, 'vendor/glide-data-grid/dist/esm/index.js') },
         // Glide's overlay editor is React.lazy()-loaded (a separate prod chunk)
         // — its exports map blocks deep imports, so alias the internal file to
         // preload the chunk at app boot (see BreakdownTabGlide.tsx). Rollup
         // dedupes this to the SAME chunk Glide's lazy() requests.
-        '@glide-overlay-editor': path.resolve(__dirname, 'node_modules/@glideapps/glide-data-grid/dist/esm/internal/data-grid-overlay-editor/data-grid-overlay-editor.js'),
-      },
+        { find: /^@glide-overlay-editor$/, replacement: path.resolve(__dirname, 'vendor/glide-data-grid/dist/esm/internal/data-grid-overlay-editor/data-grid-overlay-editor.js') },
+      ],
       dedupe: ['react', 'react-dom'],
     },
     server: {

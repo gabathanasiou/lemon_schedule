@@ -116,6 +116,11 @@ export interface EntityDropdownProps {
    *  (the key already replaced the value) — selecting then would eat the next
    *  keystroke. Default true. */
   selectAllOnOpen?: boolean;
+  /** Seed the search box with the typed key that OPENED this overlay (Glide's
+   *  type-to-open passes it as `initialValue`). A plain text cell replaces its
+   *  data with that key; a CUSTOM cell (a painted picker) does not, so without
+   *  this the first character vanishes. */
+  initialQuery?: string;
   style?: React.CSSProperties;
   /** Visual style: 'default' (thin transparent inline editor) or 'chip' (dark
    *  bordered button-like trigger with chevron — for modal rows like the link
@@ -190,6 +195,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   uppercase = false,
   portalTarget,
   skipComma = false,
+  initialQuery,
   style,
   variant = 'default',
   anchoredKeys,
@@ -365,6 +371,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       inputReadOnly={typingBlocked}
       defaultOpen={defaultOpen || autoFocusProp}
       selectAllOnOpen={selectAllOnOpen}
+      initialQuery={initialQuery}
       uppercase={uppercase}
       theme={variant === 'chip' ? 'dark' : undefined}
       className={className}

@@ -15,6 +15,15 @@ import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { useKitTheme } from '@gabriel/ui-kit';
+import {
+  kitGlyphCell,
+  kitGlyphGroupCell,
+  controlCellRenderers,
+  isControlCell,
+  isKitGlyphCell,
+  isKitGlyphGroupCell,
+  pressControlCell,
+} from '@gabriel/ui-kit/glide-controls';
 import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
@@ -136,7 +145,7 @@ const EMPTY_SELECTION: GridSelection = {
   rows: CompactSelection.empty(),
 };
 /** Synthetic trailing row-actions column (key `actions` — skipped by copy/cut). */
-const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 34 };
+const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 56 };
 /** Stable identity for the "no presence scope" key lists (memo deps). */
 const NO_KEYS: string[] = [];
 
@@ -287,20 +296,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const escapeCancel = useGlideEscapeCancel();
 
   const gridRef = useRef<DataEditorRef>(null);
-  // Row-action glyphs (drawn on the canvas — Glide cells can't host React).
-  const trashImg = useRef<HTMLImageElement | null>(null);
-  const plusImg = useRef<HTMLImageElement | null>(null);
-  useEffect(() => {
-    if (!rowActions) return;
-    const trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
-    const plusSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3f3f46" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
-    const t = new Image();
-    t.src = 'data:image/svg+xml;base64,' + btoa(trashSvg);
-    trashImg.current = t;
-    const p = new Image();
-    p.src = 'data:image/svg+xml;base64,' + btoa(plusSvg);
-    plusImg.current = p;
-  }, [rowActions]);
   const selectionKey = presenceScope || dataAttr || '';
   const [gridSelection, setGridSelection] = useState<GridSelection>(() =>
     (selectionKey ? SELECTION_CACHE.get(selectionKey) : undefined) ?? EMPTY_SELECTION);
@@ -435,14 +430,18 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const r = rowsRef.current[row];
     if (!colDef || !r) return textCell('', { readonly: true, allowOverlay: false });
     if (colDef.key === 'actions') {
-      // Synthetic row-delete cell: readonly, pointer, neutral hover.
-      const hovered = row === hoveredRowRef.current;
-      return textCell('', {
-        readonly: true,
-        allowOverlay: false,
-        cursor: 'pointer',
-        themeOverride: hovered ? { bgCell: READONLY_HOVER_BG } : undefined,
-      });
+      // Painted row actions — the kit's canvas-native control cells.
+      const actions = rowActions?.(row) ?? [];
+      if (readOnlyRef.current || actions.length === 0) return textCell('', { readonly: true, allowOverlay: false });
+      const buttons = actions.map(action => ({
+        icon: action.icon,
+        label: action.title,
+        tone: action.icon === 'trash' ? ('danger' as const) : ('accent' as const),
+        onActivate: action.onClick,
+      }));
+      return buttons.length > 1
+        ? kitGlyphGroupCell({ lane: 'full', buttons })
+        : kitGlyphCell({ lane: 'full', ...buttons[0] });
     }
     const cell = getCellContent(colDef, r, row);
     if (readOnlyRef.current) return cell;
@@ -460,7 +459,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: READONLY_HOVER_BG, bgCellMedium: READONLY_HOVER_BG } };
     }
     return cell;
-  }, [COLUMNS, getCellContent, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
+  }, [COLUMNS, getCellContent, rowActions, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
    *  each title lines up with its (centered) cells. `wrapHeaders` wraps the
@@ -510,38 +509,28 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     ctx.restore();
   }, [COLUMNS, wrapHeaders]);
 
-  /** Draw each row's action glyphs on the synthetic actions column. */
-  const drawCell = useCallback((args: any, drawContent: () => void) => {
-    drawContent();
-    const colDef = COLUMNS[args.col];
-    if (!colDef || colDef.key !== 'actions') return;
-    if (args.row >= rowsRef.current.length) return;
-    const actions = rowActions?.(args.row);
-    if (!actions || actions.length === 0) return;
-    const { ctx, rect } = args;
-    const slot = rect.width / actions.length;
-    const size = Math.min(13, slot - 4, rect.height - 4);
-    actions.forEach((action, i) => {
-      const img = action.icon === 'plus' ? plusImg.current : trashImg.current;
-      if (!img || !img.complete) return;
-      const cx = rect.x + slot * i + slot / 2;
-      ctx.drawImage(img, cx - size / 2, rect.y + (rect.height - size) / 2, size, size);
-    });
-  }, [COLUMNS, rowActions]);
-
-  /** Row-action click (hit-tests the glyph within the synthetic column). */
-  const onCellClicked = useCallback((cell: Item, event: any) => {
+  /** Painted control cells own their clicks; repaint so the press flash runs. */
+  const onCellClicked = useCallback((cell: Item) => {
     if (!rowActions) return;
-    if (COLUMNS[cell[0]]?.key !== 'actions') return;
-    const row = cell[1];
-    if (row < 0 || row >= rowsRef.current.length) return;
-    const actions = rowActions(row);
-    if (!actions || actions.length === 0) return;
-    const width = event?.bounds?.width ?? 0;
-    const localX = event?.localEventX ?? 0;
-    const idx = width > 0 ? Math.min(actions.length - 1, Math.max(0, Math.floor(localX / (width / actions.length)))) : 0;
-    actions[idx]?.onClick();
-  }, [COLUMNS, rowActions]);
+    if (isControlCell(getCell(cell))) requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
+  }, [rowActions, getCell]);
+
+  /** Enter/Space on a painted row action fires it once (the first button). */
+  const onCellActivated = useCallback((cell: Item) => {
+    const content = getCell(cell);
+    const button = isKitGlyphGroupCell(content)
+      ? content.data.buttons[0]
+      : isKitGlyphCell(content)
+        ? content.data
+        : undefined;
+    if (!button || readOnlyRef.current) {
+      escapeCancel.onCellActivated();
+      return;
+    }
+    pressControlCell(cell, button.label);
+    button.onActivate?.();
+    requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
+  }, [getCell, escapeCancel]);
 
   /** Applies a set of edits as ONE commit — a whole paste/fill/clear is one
    *  undo entry for the caller. */
@@ -764,7 +753,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onCellsEdited={onCellsEdited}
             onPaste={handlePaste}
             provideEditor={provideEditor}
-            {...escapeCancel}
+            onFinishedEditing={escapeCancel.onFinishedEditing}
+            onCellActivated={onCellActivated}
+            customRenderers={controlCellRenderers}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={onGridSelectionChange}
@@ -773,7 +764,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             rowHeight={rowH}
             headerHeight={headerH}
             drawHeader={drawHeader}
-            drawCell={rowActions ? drawCell : undefined}
             onCellClicked={rowActions ? onCellClicked : undefined}
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}

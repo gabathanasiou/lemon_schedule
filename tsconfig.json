@@ -21,7 +21,10 @@
         "./*"
       ],
       "@glide-overlay-editor": [
-        "./node_modules/@glideapps/glide-data-grid/dist/esm/internal/data-grid-overlay-editor/data-grid-overlay-editor.js"
+        "./vendor/glide-data-grid/dist/esm/internal/data-grid-overlay-editor/data-grid-overlay-editor.js"
+      ],
+      "@glideapps/glide-data-grid": [
+        "./vendor/glide-data-grid/dist/dts/index.d.ts"
       ]
     },
     "allowImportingTsExtensions": true,

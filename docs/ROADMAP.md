@@ -1234,3 +1234,32 @@ the same scene colour.
 
 **Relations:** `depends on` 326 (merged Experiment 2 — same `GlideSheet`
 surface); `relates to` 325.
+
+
+## 329. Adopt the kit Glide runtime + painted control cells across the app (experiment) (`[ ]`)
+
+**Why:** the kit branch now owns a patched Glide fork and canvas-native controls
+(picker chevrons, glyph buttons). The app still runs the npm package and draws
+its own row-action glyphs. Adopting the kit runtime in ONE place lets every
+grid (Breakdown, Crew/Locations Glide, Day Manager inline tables) share the
+scroll fixes and the painted-button language without a second DOM layer.
+
+**Status — experiment branch `experiment/kit-glide` (ready for review):**
+- `vendor/glide-data-grid` (the kit fork) aliased over `@glideapps/glide-data-grid`
+  in `vite.config.ts`/`tsconfig.json`; one runtime, one overlay-editor chunk.
+- Kit `@gabriel/ui-kit/glide-controls` subpath (Glide external) supplies
+  `kitGlyphCell`/`kitGlyphGroupCell`/`kitPickerCell` + `controlCellRenderers`.
+- Breakdown action column = painted add-after + trash; entity columns =
+  `kitPickerCell` (chevron lane opens the app's existing editor);
+  InlineGlideTable + GlideGridShell row actions = the same painted cells.
+- Type-to-open on a picker must not select the seeded key (`selectOnOpen` in
+  `glideEditor.tsx`) — `glide-first-edit` guards it.
+- Kit dependency is `file:../ui-kit` on this branch; not mergeable until the
+  kit publishes the fork + controls subpath (or the fork is vendored in the app).
+
+**Verify:** `npm run lint`; unit lane; the six Glide specs in
+`docs/GLIDE-BREAKDOWN.md`; manual Safari/iPad pass over the Breakdown, Crew
+Glide, Locations Glide and a Day Manager Call Times/Crew grid.
+
+**Relations:** `relates to` 326 (controls), 327 (DOM-grid experiment), 328
+(scene-colour row theme); `blocks` a Glide-runtime upgrade.

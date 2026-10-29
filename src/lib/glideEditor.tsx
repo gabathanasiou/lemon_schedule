@@ -106,6 +106,14 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
      *  typed char, or the next keystroke replaces it. */
     selectAllOnOpen: boolean;
     portal: HTMLElement | null;
+    /** Seed for the editor's value when the cell's `data` is not a string
+     *  (the kit's painted `kit-picker` cell carries the stored value on
+     *  `seedValue` while the canvas paints a display name). */
+    seed?: string;
+    /** The overlay was opened on a painted picker cell. Keep the temp cell
+     *  CUSTOM while typing — flipping Custom→Text on the first keystroke
+     *  remounts the overlay and re-opens it on the next key. */
+    customPicker?: boolean;
   }
   const boxes = new Map<string, { current: EditorBox | null }>();
   const components = new Map<string, React.ComponentType<any>>();
@@ -121,10 +129,24 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     if (!Editor) {
       Editor = (p: any) => {
         const { value: cellValue, onChange, onFinishedEditing, isHighlighted, validatedSelection, initialValue } = p;
-        const { cfg, align, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
+        const { cfg, align, activation, skipComma, selectAllOnOpen, portal, seed, customPicker } = box!.current as EditorBox;
         const isTouch = useTouchMode();
-        const currentVal = cellValue?.data ?? '';
-        const latestRef = useRef(cellValue);
+        // Type-to-open on a painted picker: Glide leaves a CUSTOM cell's data
+        // untouched (a TEXT cell's data is replaced by the typed key), so the
+        // first character seeds the editor itself. The typed key must not be
+        // SELECTED on open, or the next keystroke replaces it ("MARY" → "ARY").
+        const openedByKey = initialValue !== undefined;
+        const selectOnOpen = selectAllOnOpen && !openedByKey;
+        const skipLeadingComma = skipComma || openedByKey;
+        const currentVal = openedByKey && seed !== undefined
+          ? String(initialValue)
+          : seed ?? cellValue?.data ?? '';
+        const latestRef = useRef({
+          kind: GridCellKind.Text,
+          data: currentVal,
+          displayData: currentVal,
+          allowOverlay: true,
+        });
 
         const handleChange = (newVal: string) => {
           const next = {
@@ -134,7 +156,13 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             allowOverlay: true,
           };
           latestRef.current = next;
-          onChange(next);
+          if (customPicker && cellValue?.kind === GridCellKind.Custom) {
+            // Stay on the SAME custom cell kind while typing (see EditorBox).
+            const data = (cellValue.data ?? {}) as Record<string, unknown>;
+            onChange({ ...cellValue, copyData: newVal, data: { ...data, value: newVal } });
+          } else {
+            onChange(next);
+          }
         };
         const handleClose = () => onFinishedEditing(latestRef.current);
         const handleTabClose = () => onFinishedEditing(latestRef.current, [1, 0] as any);
@@ -171,7 +199,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
           // picker must take it as its search query or the first letter is
           // silently lost and the list opens on its first row. `selectAllOnOpen`
           // false keeps that character out of the next keystroke's way.
-          return <AutocompleteDropdown value={currentVal} initialQuery={initialValue} selectAllOnOpen={selectAllOnOpen} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
+          return <AutocompleteDropdown value={currentVal} initialQuery={initialValue} selectAllOnOpen={selectOnOpen} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
         if (cfg.kind === 'text') {
           // Plain text editor (Glide's own is unavailable to custom editors):
@@ -239,7 +267,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={cfg.seedValue ?? currentVal} resolveEditing={cfg.resolveEditing} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow />;
+        return <EntityDropdown value={cfg.seedValue ?? currentVal} initialQuery={initialValue} resolveEditing={cfg.resolveEditing} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipLeadingComma} selectAllOnOpen={selectOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow />;
       };
       components.set(colKey, Editor);
     }
@@ -253,7 +281,11 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const columnOffset = opts.columnOffset ?? 1;
     if (readOnlyRef.current) return undefined;
     const loc = cellData.location;
-    if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
+    // Text cells use the configured editor; the kit's painted picker cell is
+    // the CLOSED face of the same picker (the chevron lane opens this overlay).
+    const isKitPicker = cellData.kind === GridCellKind.Custom
+      && (cellData.data as { kind?: string } | undefined)?.kind === 'kit-picker';
+    if (!loc || (cellData.kind !== GridCellKind.Text && !isKitPicker)) return undefined;
     const [col, row] = loc;
     const dataCol = col - columnOffset;
     const colDef = columns[dataCol];
@@ -272,11 +304,16 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const alignedStock = !editorCfg && (colDef.align === 'center' || colDef.align === 'right');
     if (!editorCfg && !alignedStock) return undefined;
 
+    const seed = isKitPicker
+      ? String((cellData.data as { seedValue?: string; value?: string }).seedValue
+        ?? (cellData.data as { value?: string }).value ?? '')
+      : undefined;
+    const cellText = seed ?? String(cellData.data ?? '');
     const storedVal = String(getValue(row, colKey) ?? '');
-    const skipComma = storedVal !== (cellData.data ?? '');
+    const skipComma = storedVal !== cellText;
     const selectAllOnOpen = !skipComma;
     const { Editor, box } = editorFor(colKey);
-    box.current = { cfg: editorCfg ?? null, align: colDef.align, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current };
+    box.current = { cfg: editorCfg ?? null, align: colDef.align, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current, seed, customPicker: isKitPicker };
     // Plain text (and time, whose desktop arm IS the stock text entry) keeps
     // Glide's default overlay chrome (padding); entity/enum editors bring
     // their own trigger + panel styling.
