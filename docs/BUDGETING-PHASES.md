@@ -1,12 +1,12 @@
 # Budgeting — AI phase work packages
 
-Status: **execution guide for roadmap 334.** **Phase 1 is LANDED (2026-10-30)**
-— its shipped reality is recorded in §Phase 1 below and in the two companion
-manuals. Phases 2-4 are forward-looking. Read `docs/BUDGETING.md` (model,
-engine, store), `docs/BUDGETING-SURFACES.md` (UI/Day Manager/reports) and
-`docs/BUDGETING-RESEARCH.md` (market evidence) first. This file turns the plan
-into complete, AI-executable phases: scope, exact seams, actions, acceptance
-criteria, tests, docs and pitfalls.
+Status: **execution guide for roadmap 334.** **Phases 1-2 are LANDED
+(2026-10-30)** — their shipped reality is recorded in the phase sections and
+the two companion manuals. Phases 3-4 are forward-looking. Read
+`docs/BUDGETING.md` (model, engine, store), `docs/BUDGETING-SURFACES.md`
+(UI/Day Manager/reports) and `docs/BUDGETING-RESEARCH.md` (market evidence)
+first. This file turns the plan into complete, AI-executable phases: scope,
+exact seams, actions, acceptance criteria, tests, docs and pitfalls.
 
 ## 0. How an agent should work
 
@@ -16,7 +16,7 @@ criteria, tests, docs and pitfalls.
 `docs/UI-PRIMITIVES.md` → `docs/TESTING.md` → `docs/SECURITY.md`.
 
 **One phase per branch/worktree.** If another agent is active, load the
-`parallel-work` skill. Do not start phase 2/3/4 before phase 1's acceptance
+`parallel-work` skill. Do not start phase 3/4 before phase 2's acceptance
 criteria pass. Within a phase, commit in this order:
 
 1. types + migration + factories + store actions/cases + `ACTION_TYPES`
@@ -263,7 +263,10 @@ spec.
 
 ---
 
-## Phase 2 — Cost tracking
+## Phase 2 — Cost tracking — LANDED (2026-10-30)
+
+> Shipped: see `docs/BUDGETING.md` §8 and `docs/BUDGETING-SURFACES.md` §4b.
+> PO authoring remains action/bridge-only (no PO modal yet).
 
 ### Goal
 Turn the budget into a live cost report: expenses, POs, actual/committed/ETC/

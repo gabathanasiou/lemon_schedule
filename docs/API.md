@@ -198,16 +198,16 @@ canonical implementation; read `docs/REPORTS-DESIGNER.md` before deeper work.
 There is **no generic sum/count attribute** on blocks: use an existing count/sum
 field or the DOOD totals, never view logic.
 
-## Budget (roadmap 334 phase 1)
+## Budget & cost tracking (roadmap 334)
 
 Budgets are project state (`Project.budget`) and every write is in the normal
-`Action` union, so `apply_actions` edits them today. The chart/library is
-shared; `BudgetVersion.lines` is the only per-version data. Money is integer
-cents. `docs/BUDGETING.md` is the model/engine manual; `docs/BUDGETING-SURFACES.md`
-maps the UI.
+`Action` union. The chart/library is shared; `BudgetVersion.lines` is the only
+per-version data. Expenses/POs are project arrays (`Project.expenses`/
+`purchaseOrders`), never day meta; money is integer cents. `docs/BUDGETING.md`
+/ `BUDGETING-SURFACES.md` are the manuals.
 
 **Chart + lines:** `ADD/UPDATE/DELETE_BUDGET_CATEGORY`,
-`ADD/UPDATE/DELETE_BUDGET_ACCOUNT` (`DELETE` payload `{ id, reassignToId? }`),
+`ADD/UPDATE/DELETE_BUDGET_ACCOUNT` (delete payload `{ id, reassignToId? }`),
 `ADD/UPDATE/DELETE_BUDGET_LINE`, `BULK_UPDATE_BUDGET_LINES`
 (`{ updates: [{ id, updates }] }`), `LINK_BUDGET_LINE { lineId, source }`,
 `UNLINK_BUDGET_LINE { lineId, keepQty? }`, `PIN_BUDGET_LINE { lineId, qty? }`,
@@ -219,23 +219,26 @@ maps the UI.
 { key: 'blank'|'feature', id? }`, `IMPORT_BUDGET { budget }` (replaces the
 whole budget; one undo).
 
-**Versions:** `NEW_BUDGET_VERSION { name, cloneFromId?, id? }` (omitted/null
-`cloneFromId` clones the ACTIVE version — there is no blank-version action),
-`RENAME_BUDGET_VERSION { id, name }`, `DELETE_BUDGET_VERSION` (id; last version
-protected, deletion goes to `versionTrash`), `RESTORE_BUDGET_VERSION_FROM_TRASH`
-(id), `SET_ACTIVE_BUDGET_VERSION` (id), `LOCK_BUDGET_VERSION { id, pinned? }` /
-`UNLOCK_BUDGET_VERSION` (id).
+**Versions:** `NEW_BUDGET_VERSION { name, cloneFromId?, id? }` (no clone → BLANK),
+`RENAME_BUDGET_VERSION { id, name }`, `DELETE_BUDGET_VERSION` (trash; last
+protected), `RESTORE_BUDGET_VERSION_FROM_TRASH`, `SET_ACTIVE_BUDGET_VERSION`,
+`LOCK_BUDGET_VERSION { id, pinned? }` / `UNLOCK_BUDGET_VERSION`.
 
-- **Lock is a two-step contract**: the caller computes the pinned quantities
-  with `lockBudgetVersion(project, versionId)` and passes
-  `{ id, pinned }`; the reducer only applies the map. Unlock does not unpin.
-- `budgetSummary()` returns the active version's id/name/lock state, every
-  version's line count, category/account/line counts, `linkedLines`,
-  `pinnedLines`, base totals (`baseCents`/`fringeCents`/`markupCents`/
-  `grandTotalCents`) and model errors; `null` when the project has no budget.
-- There is no budget-specific MCP tool yet: use `apply_actions` + `get_schema`
-  (which derives the action payloads) and read `get_project`/`budgetSummary`.
-  Expense/PO/overtime actions are phase 2/3 and do not exist.
+**Cost tracking:** `ADD/UPDATE/DELETE_EXPENSE` (`UPDATE { id, updates }`),
+`BULK_ADD_EXPENSES` (Expense[]; one undo), `ADD/UPDATE/DELETE_PURCHASE_ORDER`
+(`ADD` allocates `PO-####`). The Day Manager filters `expenses` by
+`dayDate`/`dayNumber`; never write a per-day ledger into `daybreakMeta`.
+Purchase-order authoring has no UI yet — use these actions.
+
+- **Lock is a two-step contract**: the caller computes pinned quantities with
+  `lockBudgetVersion(project, versionId)` and passes `{ id, pinned }`; the
+  reducer only applies the map. Unlock does not unpin.
+- `budgetSummary()` returns the active version's id/name/lock, every version's
+  line count, chart counts, linked/pinned counts, base totals and errors.
+- Seams: `makeExpense`/`makePurchaseOrder` build valid entities;
+  `costReportSummary({ asOf, from, to })` returns the same Budget/Actual/
+  Committed/ETC/EFC/Variance/% used totals + flat rows (null without a budget).
+- No budget MCP tool: use `apply_actions`/`get_schema` + the summaries above.
 
 ## Days, analytics & script integrity
 

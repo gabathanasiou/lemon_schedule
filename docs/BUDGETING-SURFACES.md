@@ -1,10 +1,11 @@
 # Budgeting — surfaces manual (Budget tab, reports, later phases)
 
-Status: **phase 1 LANDED (2026-10-30, roadmap 334)**. Companion to
-`docs/BUDGETING.md` (model, engine, store, phases); market evidence is
-`docs/BUDGETING-RESEARCH.md`. This file owns the screens and the `budgetTable`
-report block. Read it before changing `src/components/budget/`, the budget
-report fields/collections or the print templates.
+Status: **phase 2 LANDED (2026-10-30, roadmap 334)** — Budget, Cost Report,
+Expenses and Library are all live, plus the Day Manager Expenses card.
+Companion to `docs/BUDGETING.md` (model, engine, store, phases); market evidence
+is `docs/BUDGETING-RESEARCH.md`. This file owns the screens and the
+`budgetTable` report block. Read it before changing `src/components/budget/`,
+the budget/cost report fields/collections or the print templates.
 
 ## 1. Budget tab — navigation & shell
 
@@ -25,10 +26,12 @@ report fields/collections or the print templates.
 - `PageToolbar` hosts the four sub-tabs plus the `BudgetVersionMenu` in
   `rightContent`. The page is a light `ThemeScope`; project chrome comes from
   `ProjectChromeScope`.
-- **Cost Report and Expenses are intentionally placeholders in phase 1**: each
-  renders a centred "next phase" note explaining that expenses/POs/actuals
-  arrive with cost tracking. Do not add a half-built cost surface there — phase
-  2 replaces the placeholder with the real view.
+- **Cost Report** (`CostReportView.tsx`): as-of date + period menu, KPI strip,
+  expandable category → account → line rows, inline ETC + reason, Print via
+  `ReportPrintDialog` and CSV. **Expenses** (`ExpensesView.tsx`): filters, Add
+  expense, Import CSV, the Glide ledger, footer totals and the shared
+  `ExpenseModal`. Both replace the phase-1 placeholders; neither is a second
+  budget engine (they read `computeCostReport`).
 - **Empty state** (`BudgetEmptyState.tsx`) is the only trigger when
   `project.budget === undefined`, regardless of sub-tab: Blank, Feature, From
   schedule cards, Import budget JSON, and a "linked quantities update live —
@@ -40,20 +43,9 @@ report fields/collections or the print templates.
 
 ## 2. Budget view (`BudgetView.tsx`, `BudgetGrid.tsx`)
 
-```
-┌ toolbar: Category · Markup · N lines follow the schedule   Print · Export · Import ┐
-│ KPI strip: Grand total · ATL · BTL · Post · Fringes · Contingency                    │
-├──────────────┬─────────────────────────────────────────────────────────────────────┤
-│ categories   │ Account / Description · Qty · Unit · Rate · X · Cur · Fringes ·      │
-│ All          │ Groups · Total                         (i)  🗑                       │
-│ 1000 ATL     │ ▸ 1000  Above the Line                        1,350,000             │
-│ 2000 BTL     │   1100  Story & Rights                          120,000             │
-│ ...          │     1101  Screenplay purchase  1 Allow 120,000  120,000             │
-├──────────────┴─────────────────────────────────────────────────────────────────────┤
-│ footer: Fringes · Contingency · Grand total (or focused category total)             │
-└────────────────────────────────────────────────────────────────────────────────────┘
-```
-
+- **Layout:** KPI strip, category rail on the left, one always-expanded sheet in
+  the centre and a footer totals line. Category and account rows are inline
+  bands (grey), line rows white; markup rows sit beneath with signed totals.
 - **Toolbar:** Add Category, Add Markup, a linked-lines summary ("N lines follow
   the schedule" / "No lines linked"), Print (design menu + Save as design),
   Export (CSV / JSON), Import (JSON). No sync button, no View/columns menu, no
@@ -98,7 +90,9 @@ report fields/collections or the print templates.
   opens. No DOM picker per cell.
 - **Actions:** an (i) glyph (`infoGlyphCell`) sits in a trailing info column
   just left of the persistent trash column and opens the row's first action —
-  Edit category/account (node modal), Line details (line modal); the trash
+  Edit category/account (node modal), Line details (line modal); **category
+  rows also carry a + glyph** that adds a line to the category's first account
+  (creating a General account when empty) **without opening a modal**. The trash
   column (`rowActions`) deletes category/account/line/markup after a confirm.
   Right-click (`rowMenuItems`) lists the same actions above the generic
   copy/paste items. Markup rows have trash only.
@@ -170,6 +164,56 @@ Top-to-bottom, one scroll surface:
 - Deleting an in-use definition states "Used by N lines — those references
   will be cleared" (where-used jump is not built). Deletes are undoable.
 
+## 4b. Cost Report & Expenses views
+
+### Cost Report (`CostReportView.tsx`)
+
+- Toolbar: as-of date, period menu, counts, Print + CSV. KPI strip: Budget,
+  Actual, Committed, EFC, Variance (under/over + icon) and % Used. The table
+  expands category → account → line; account-level spend sits under an
+  "Unallocated" child and the project-level bucket is the final row.
+- `computeCostReport(project, { asOf, from, to })` feeds every number; the view
+  never does arithmetic. As-of defaults to today; the period menu offers all /
+  month / quarter / year / custom range. **A period narrows the displayed
+  Actual only — EFC/variance/% used stay as-of.** Out-of-budget categories stay
+  visible with a "Not in budget" cue; variance is colour + icon + text
+  ("under"/"over"), never colour alone.
+- Line rows edit `ETC` with a `MoneyField` (commits `UPDATE_BUDGET_LINE {
+  etcCents }` on blur) and `Reason` with a `BudgetInput` (`etcReason`); an
+  override shows **Auto** to clear it. Edits are gated by `readOnly ||
+  version.locked`. Print uses the Cost Report design via `ReportPrintDialog`;
+  CSV writes the flat rows plus totals.
+
+### Expenses (`ExpensesView.tsx`, `ExpensesGrid.tsx`, `ExpenseModal.tsx`)
+
+- Filters: From/To, status, method, account (grouped by category; "Unallocated"
+  = no account) and production day; **Clear** resets. Add expense creates an
+  actual expense and opens the modal; Import CSV parses Date/Description/
+  Account/Vendor/Method/Status/Amount/Currency/PO/Day/Notes/Receipt into
+  `BULK_ADD_EXPENSES` (unmatched accounts/POs stay blank; skipped rows reported).
+- Ledger = shared `InlineGlideTable`: Date, Description, Account, Vendor,
+  Method, Status, Amount, PO. Editable = white, read-only = grey; (i) opens
+  the modal, trash deletes, right-click mirrors the actions; copy/paste/fill
+  ride the shared grid plumbing. Footer: Actual · Committed · Petty cash ·
+  This period.
+- `ExpenseModal` is the ONE editor (Budget + Day Manager): date, amount,
+  description, vendor, method, status, currency, account, optional line, PO,
+  receipt URL (http(s) only), notes. Fields commit on blur/pick; delete confirms
+  with `lemon_schedule_expense_delete`; one hero footer button (Done).
+  Read-only disables every write.
+
+### Day Manager → Expenses
+
+- `dayTabs`/`DAY_TAB_OPTIONS` include `expenses`; the registry section is
+  `wide: true`, `copyable: false`, `tabs: ['all','overview','expenses']`.
+- Filters `project.expenses` by `dayDate === day.date || dayNumber ===
+  day.chronoDay`; **never stores a ledger in `daybreakMeta`**. The summary is
+  count + Actual; the card shows the compact table with Actual/Committed
+  totals, Add expense and a **Create a budget** CTA without a budget.
+- `DayManagerPage` root-owns the shared `ExpenseModal` (`actions.openExpense`).
+  Copy-from-day does **not** copy expenses; call sheets never print costs by
+  default.
+
 ## 5. Reports — `budgetTable` block
 
 ### Block + inspector
@@ -194,10 +238,12 @@ costAsOf?: string; costPeriod?: { from; to };   // typed, phase 2 only
 ```
 
 `BudgetBlockControls.tsx` renders the Mode Seg (**Top Sheet / Accounts /
-Lines**), category and account checklists, a column checklist (at least one
-column is kept), and Zero rows / Fringes / % of total / Notes checkboxes. The
-other `budgetMode` values are reserved; the read model falls back to
-`topsheet` so a future-typed block never prints a lying table.
+Lines / Cost Report**), category and account checklists, a column checklist
+(at least one column is kept), and Zero rows / % used / Fringes / Notes
+toggles (Fringes and Notes are hidden in Cost Report mode). Cost Report mode
+also exposes **As of** and **Period from/to** date fields (`costAsOf` /
+`costPeriod`). `hotCost` / `cashflow` / `comparison` remain reserved and fall
+back to `topsheet`.
 
 ### Read model (`src/lib/reportBudget.ts`)
 
@@ -214,6 +260,11 @@ Modes and columns:
   (only when the account has more than one visible line) + totals. Columns:
   Account, Description, Qty, Unit, Rate, X, Cur, Fringes, %, (Notes), Total
   (base).
+- **costReport** — `buildCostReportReport(project, budget, options)` (built on
+  `computeCostReport`): category/account/line rows + Unallocated, columns
+  `#`, Account / Description, Budget, Actual, Committed, ETC, EFC, Variance,
+  % Used, Reason. `costAsOf` / `costPeriod` set the view; the period narrows
+  Actual only. Category/account headers keep-with-next.
 
 `showZero: false` hides zero rows; `showFringes: false` drops the column;
 `showPercent: false` drops %; `showNotes` adds Notes. Category selection
@@ -233,8 +284,10 @@ nothing.
 ### Collections + fields (`reportData.ts`, `reportFields.ts`)
 
 - Collections: `budgetCategories`, `budgetAccounts`, `budgetLines` (base) and
-  `budgetLinesOfAccount` (contextual child of `budgetAccounts`). Items carry
-  the canonical computed totals, not re-derived values.
+  `budgetLinesOfAccount` (contextual child of `budgetAccounts`); cost tracking
+  adds `costReport`, `expenses`, `expensesOfDay` (child of `days`) and
+  `purchaseOrders`. Items carry the canonical computed totals, not re-derived
+  values.
 - Document fields (scope `budget`): `budgetGrandTotal`, `budgetBaseTotal`,
   `budgetAtl`, `budgetBtl`, `budgetPost`, `budgetFringes`, `budgetContingency`,
   `budgetNet`, `budgetCostPerShootDay`.
@@ -243,9 +296,12 @@ nothing.
   currency), `budgetMultiplier`, `budgetCurrency`, `budgetLineTotal` (line
   total incl. fringes / account / category, base cents), `budgetLineTotalBase`,
   `budgetPercentOfGrand`, `budgetNotes`.
+- Cost-tracking collections and fields (`costReport`, `expenses`,
+  `expensesOfDay`, `purchaseOrders`; `cr*` / `expense*` / `po*` / day totals)
+  are listed in `docs/REPORTS-DESIGNER.md`.
 - `ReportFieldDef.money` drives right alignment; every money getter formats
-  through `ctx.budget.settings`. `ReportCtx.budget` is computed ONCE in
-  `buildReportCtx` (`computeBudget(project)`), never per block.
+  through `ctx.budget.settings`. `ReportCtx.budget` and `ctx.costReport` are
+  computed ONCE in `buildReportCtx`, never per block.
 
 ### Built-in transient prints (`src/lib/budget/reportTemplates.ts`)
 
@@ -258,13 +314,15 @@ projects), in menu order:
    category/account keep-with-next, repeating header.
 3. **Budget Health** (portrait executive summary): grand total hero, ATL/BTL/
    Post, fringes/contingency/net, cost per shoot day, then an `accounts` table.
+4. **Cost Report — Budget vs Actual** (landscape): as-of/KPI line + the
+   `costReport` table (Budget/Actual/Committed/ETC/EFC/Variance/%/Reason).
 
 The Budget toolbar's **Print** menu passes a design to `onPrintDesign` →
 `setCustomReportPrint` → `ReportPrintDialog` (never a direct `window.print()`).
+The Cost Report view's Print menu does the same with the Cost Report design.
 **Save as design** clones the chosen design into `project.reportDesigns` via
 `ADD_REPORT_DESIGN`; after that it is editable in Design → Reports Designer.
-Cost Report / Hot Cost / Cashflow / Comparison templates belong to later
-phases.
+Hot Cost / Cashflow / Comparison templates belong to later phases.
 
 ## 6. Schedule-driven budget (integral, no sync button)
 
@@ -290,21 +348,9 @@ phases.
 
 ## 7. Later phases (forward-looking — do not treat as built)
 
-### Phase 2 — Cost Report & Expenses
+### Phase 2 — Cost Report & Expenses — LANDED (2026-10-30)
 
-- **Cost Report view** replaces the placeholder: as-of date + period, KPI strip
-  Budget/Actual/Committed/EFC/Variance/%Used, category → account → line rows,
-  inline ETC/reason, negative variance in red + a text cue. `costReport`,
-  `expenses`, `expensesOfDay`, `purchaseOrders` collections/fields; `budgetTable`
-  `costReport` mode + the Cost Report print template; expense CSV. Account-level
-  expenses without a line roll into "Unallocated".
-- **Expenses view** replaces the placeholder: Add expense, Import CSV, filters
-  (date/status/account/day/method), table (Date, Description, Account, Vendor,
-  Method, Status, Amount, PO), footer totals, `ExpenseModal`.
-- **Day Manager Expenses card**: add `'expenses'` to `DAY_MANAGER_TABS` and the
-  day-section registry (`wide: true`, `hideWhenEmpty: false`), root-owned
-  Expense modal, `DaySectionActions.openExpense`, `expensesOfDay` fields.
-  Copy-from-day never copies expenses (actuals), but carries overtime settings.
+See §4b. PO authoring is action/bridge-only (no PO modal yet).
 
 ### Phase 3 — Overtime
 
@@ -345,8 +391,9 @@ its own branch; no "advanced mode" half-built surfaces.
 - Persisted keys: only dialog `suppressKey`s
   (`lemon_schedule_budget_delete_{category,account,line,markup,version}`,
   `lemon_schedule_budget_delete_library`,
-  `lemon_schedule_budget_import_replace`). No budget-specific view prefs in
-  phase 1.
+  `lemon_schedule_budget_import_replace`,
+  `lemon_schedule_expense_delete`). No budget-specific view prefs; the cost
+  report's as-of/period and the ledger filters are local view state.
 - The budget is never in a second context/store; `BudgetTab` reads the project
   once and passes the model/readOnly down. Children take the store only for
   `dispatch`; no row component calls `useProject()`.

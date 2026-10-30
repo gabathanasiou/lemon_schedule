@@ -94,8 +94,8 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ### Crew ↔ elements (roadmap 11)
 - **Read `docs/ELEMENT-LINKS.md` §Reports + warnings.** `CrewRole.categories` (position → categories, `resolveRoleCategories`) makes crew rule-bearing; crew links are records in the SAME `project.links` (person→element is element-anchored `crew` kind; person→person is `crew → crew`), viewed through `lib/crewLinks.ts` (`crewLinkViews`); dangling-target warnings surface via the `dayWarnings` report field and the Day Manager Crew section.
 
-### Budgeting (roadmap 334 phase 1)
-- **Read `docs/BUDGETING.md` + `docs/BUDGETING-SURFACES.md`.** Budget is project state (`project.budget`); one read model `computeBudget(project)`; money is integer cents. Canonical: `lib/budget/`, `store/actions/budget.ts`, `components/budget/`. Links are live (no sync); lock pins via `lockBudgetVersion` and unlock does not unpin; Cost Report/Expenses are phase-2 stubs.
+### Budgeting & cost tracking (roadmap 334 phases 1-2)
+- **Read `docs/BUDGETING.md` + `docs/BUDGETING-SURFACES.md`.** Budget/cost are project state; `computeBudget` + `computeCostReport` are the read models (money in cents). `lockBudgetVersion` pins, unlock does not. Expenses/POs are project arrays — the Day Manager filters by `dayDate`/`dayNumber`, never day meta. Cost Report/Expenses live; PO editing is action/bridge-only.
 
 ## UI Primitives (read the docs before building UI)
 - **`docs/DESIGN-LANGUAGE.md` is the canonical design booklet — read it before changing ANY UI, and update it in the same commit as a shared-pattern change or ui-kit bump.** `docs/UI-PRIMITIVES.md` holds the working summary: tabs/toolbars, header-portal/scene-sheet-view, the primitive list + modal rules, EntityDropdown, hover/tap.
