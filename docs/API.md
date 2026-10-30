@@ -53,8 +53,10 @@ API; `e2e/debug-bridge.spec.ts` proves it.
   dispatches, room applies); a dropped/blocked write notifies nothing. Returns
   an unsubscribe.
 - **Factories:** `makeBlankScene(partial?)`, `makeBlankProject(title?)`,
-  `newId()` — build valid entities; never hand-craft state (cast referenced by
-  ID, scene→row invariant, pinned daybreak).
+  `makeBlankBudget(name?)`, `makeBudgetVersion({name})`,
+  `makeBudgetLine({accountId})`, `newId()` — build valid entities; never
+  hand-craft state (cast referenced by ID, scene→row invariant, pinned
+  daybreak). `budgetSummary()` is the budget read seam.
 - **New action types** must be added to BOTH the `Action` union AND the
   `ACTION_TYPES` set (`src/store/reducer.ts`, "KEEP IN SYNC").
 - **Never expose the OAuth token/session** through the bridge.
@@ -195,6 +197,45 @@ The three pillars — block tree (`lib/reportBlocks.ts`), collection resolver
 canonical implementation; read `docs/REPORTS-DESIGNER.md` before deeper work.
 There is **no generic sum/count attribute** on blocks: use an existing count/sum
 field or the DOOD totals, never view logic.
+
+## Budget (roadmap 334 phase 1)
+
+Budgets are project state (`Project.budget`) and every write is in the normal
+`Action` union, so `apply_actions` edits them today. The chart/library is
+shared; `BudgetVersion.lines` is the only per-version data. Money is integer
+cents. `docs/BUDGETING.md` is the model/engine manual; `docs/BUDGETING-SURFACES.md`
+maps the UI.
+
+**Chart + lines:** `ADD/UPDATE/DELETE_BUDGET_CATEGORY`,
+`ADD/UPDATE/DELETE_BUDGET_ACCOUNT` (`DELETE` payload `{ id, reassignToId? }`),
+`ADD/UPDATE/DELETE_BUDGET_LINE`, `BULK_UPDATE_BUDGET_LINES`
+(`{ updates: [{ id, updates }] }`), `LINK_BUDGET_LINE { lineId, source }`,
+`UNLINK_BUDGET_LINE { lineId, keepQty? }`, `PIN_BUDGET_LINE { lineId, qty? }`,
+`UNPIN_BUDGET_LINE` (lineId).
+
+**Library/settings:** `SET_BUDGET_LIBRARY { key: 'fringes'|'groups'|'globals'|
+'units'|'currencies'|'markups'|'fringeRanges', value }`,
+`UPDATE_BUDGET_SETTINGS` (partial `BudgetSettings`), `APPLY_BUDGET_TEMPLATE
+{ key: 'blank'|'feature', id? }`, `IMPORT_BUDGET { budget }` (replaces the
+whole budget; one undo).
+
+**Versions:** `NEW_BUDGET_VERSION { name, cloneFromId?, id? }` (omitted/null
+`cloneFromId` clones the ACTIVE version — there is no blank-version action),
+`RENAME_BUDGET_VERSION { id, name }`, `DELETE_BUDGET_VERSION` (id; last version
+protected, deletion goes to `versionTrash`), `RESTORE_BUDGET_VERSION_FROM_TRASH`
+(id), `SET_ACTIVE_BUDGET_VERSION` (id), `LOCK_BUDGET_VERSION { id, pinned? }` /
+`UNLOCK_BUDGET_VERSION` (id).
+
+- **Lock is a two-step contract**: the caller computes the pinned quantities
+  with `lockBudgetVersion(project, versionId)` and passes
+  `{ id, pinned }`; the reducer only applies the map. Unlock does not unpin.
+- `budgetSummary()` returns the active version's id/name/lock state, every
+  version's line count, category/account/line counts, `linkedLines`,
+  `pinnedLines`, base totals (`baseCents`/`fringeCents`/`markupCents`/
+  `grandTotalCents`) and model errors; `null` when the project has no budget.
+- There is no budget-specific MCP tool yet: use `apply_actions` + `get_schema`
+  (which derives the action payloads) and read `get_project`/`budgetSummary`.
+  Expense/PO/overtime actions are phase 2/3 and do not exist.
 
 ## Days, analytics & script integrity
 

@@ -1,387 +1,353 @@
-# Budgeting — surfaces plan (UI, Day Manager, reports)
+# Budgeting — surfaces manual (Budget tab, reports, later phases)
 
-Status: **companion to `docs/BUDGETING.md`** (roadmap 334). The domain model,
-engine, store and phases live there; the market evidence is
-`docs/BUDGETING-RESEARCH.md`. This file owns the screens and the report block.
+Status: **phase 1 LANDED (2026-10-30, roadmap 334)**. Companion to
+`docs/BUDGETING.md` (model, engine, store, phases); market evidence is
+`docs/BUDGETING-RESEARCH.md`. This file owns the screens and the `budgetTable`
+report block. Read it before changing `src/components/budget/`, the budget
+report fields/collections or the print templates.
 
 ## 1. Budget tab — navigation & shell
 
-- `src/lib/appNav.ts`: add `'budget'` to `AppTabId`, `TAB_LABELS` (`Budget`),
-  `TAB_ORDER` (between Production and Reports; ⌘/Ctrl+8), and
+- `src/lib/appNav.ts`: `'budget'` is an `AppTabId`, `TAB_LABELS.budget =
+  'Budget'`, `TAB_ORDER` puts it between Production and Reports (⌘/Ctrl+8);
   `SUB_TAB_LABELS.budget = { budget: 'Budget', cost: 'Cost Report', expenses:
   'Expenses', library: 'Library' }`.
-- `src/components/AppHeader.tsx`: `TAB_ICONS.budget` (Wallet), tab row/popout.
-- `src/App.tsx`: render `<BudgetTab subTab onSubTabChange headerTarget />`; add
-  to popout maps and File → Print where appropriate.
-- `isPhoneSupportedPlace` returns false for Budget in v1 (phone read-only
-  summary/expense capture later); desktop/iPad are the authoring surfaces.
-- All navigation goes through `go()`; never raw `setActiveTab`.
-- PageToolbar: light, four sub-tabs, merged budget title/currency in the header
-  portal. `ProjectChromeScope` supplies the project accent; no hand-written
-  colours.
+- `src/components/AppHeader.tsx`: `TAB_ICONS.budget` = Wallet. `src/App.tsx`
+  renders `<BudgetTab subTab onSubTabChange onPrintDesign>` and registers the
+  Budget tab pop-out. All user navigation goes through `go()`; never raw
+  `setActiveTab`.
+- `isPhoneSupportedPlace` excludes Budget (phone authoring is later); desktop
+  and iPad are the surfaces.
+- `BudgetTab.tsx` is the composition root: one project/`computeBudget` read,
+  sub-tab switch, version menu, empty state, JSON import. It passes `readOnly`
+  and the computed model down; `BudgetView`/`BudgetLibraryView` take the store
+  only for `dispatch`, and no row component calls `useProject()`.
+- `PageToolbar` hosts the four sub-tabs plus the `BudgetVersionMenu` in
+  `rightContent`. The page is a light `ThemeScope`; project chrome comes from
+  `ProjectChromeScope`.
+- **Cost Report and Expenses are intentionally placeholders in phase 1**: each
+  renders a centred "next phase" note explaining that expenses/POs/actuals
+  arrive with cost tracking. Do not add a half-built cost surface there — phase
+  2 replaces the placeholder with the real view.
+- **Empty state** (`BudgetEmptyState.tsx`) is the only trigger when
+  `project.budget === undefined`, regardless of sub-tab: Blank, Feature, From
+  schedule cards, Import budget JSON, and a "linked quantities update live —
+  no sync button" note. From schedule shows preview counts (shoot days, crew /
+  cast / location lines), not a wizard. The disclosure line states budgets are
+  project state and visible to viewers.
+- `BudgetTab` owns the hidden JSON file input and the replace-budget confirm;
+  `BudgetView` has its own Import button with the same parse + confirm.
 
-## 2. Budget view
-
-### Layout
+## 2. Budget view (`BudgetView.tsx`, `BudgetGrid.tsx`)
 
 ```
-┌ toolbar: Templates · Generate · Add · View · Print · More ───────────────┐
-│ KPI strip: Grand total · ATL · BTL · Post · Fringes · Contingency · Net  │
-├──────────────┬──────────────────────────────────────────────────────────┤
-│ Categories   │ Grid: Account/Description · Qty · Unit · Rate · X ·     │
-│ 1000 ATL     │       Fringes · Total (+ optional columns)               │
-│ 2000 Prod    │  ▸ 1000 ABOVE THE LINE                     1,350,000    │
-│ ...          │    1100 Story & Rights                       120,000    │
-│              │      1101 Screenplay purchase  1 Allow 120,000 120,000   │
-├──────────────┴──────────────────────────────────────────────────────────┤
-│ Footer: Fringes · Contingency · Grand total · % of budget by group       │
-└─────────────────────────────────────────────────────────────────────────┘
+┌ toolbar: Category · Markup · N lines follow the schedule   Print · Export · Import ┐
+│ KPI strip: Grand total · ATL · BTL · Post · Fringes · Contingency                    │
+├──────────────┬─────────────────────────────────────────────────────────────────────┤
+│ categories   │ Account / Description · Qty · Unit · Rate · X · Cur · Fringes ·      │
+│ All          │ Groups · Total                         (i)  🗑                       │
+│ 1000 ATL     │ ▸ 1000  Above the Line                        1,350,000             │
+│ 2000 BTL     │   1100  Story & Rights                          120,000             │
+│ ...          │     1101  Screenplay purchase  1 Allow 120,000  120,000             │
+├──────────────┴─────────────────────────────────────────────────────────────────────┤
+│ footer: Fringes · Contingency · Grand total (or focused category total)             │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Toolbar:** version picker (`ItemManagerDropdown` — create/rename/duplicate/
-  select/delete/lock), `Templates`, `Add` (category/account/line/markup),
-  `View` (columns, expand/collapse all, show zeros/fringes, currency, pin all
-  linked), `Print`, `More` (Export CSV/JSON, Import CSV, Duplicate, Settings).
-  No "sync" button — linked lines update live.
-- **Summary strip:** Grand total, Above the line, Below the line, Post, Fringes,
-  Contingency/markups, Net (credits later), % of budget by group.
-- **Left rail:** categories with totals; search filters/jumps; collapses to
-  icons on narrow screens. It is navigation, not a second tree editor.
-- **Empty state:** `Blank`, `Feature`, `From schedule` cards + Import CSV. Both
-  blank and schedule-generated budgets are first-class; a blank budget can link
-  individual lines later. `budget === undefined` is the only trigger.
-- **Linked lines:** a link badge on the row; `Pin` (quantity/rate override) and
-  `Unpin` in the row menu; a "N lines follow the schedule" summary. A locked
-  version shows a lock and frozen quantities.
+- **Toolbar:** Add Category, Add Markup, a linked-lines summary ("N lines follow
+  the schedule" / "No lines linked"), Print (design menu + Save as design),
+  Export (CSV / JSON), Import (JSON). No sync button, no View/columns menu, no
+  Templates menu after creation (templates live in the empty state).
+- **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency — all base
+  cents through `formatMoney(model.settings)`. `SectionTile` is local to the
+  view (not a promoted kit primitive).
+- **Left rail:** "All categories" + one button per category with number, name,
+  % of grand and total. Clicking filters the sheet to that category (local
+  state, not project state); it is navigation, not a tree editor.
+- **One sheet, always expanded.** Category and account rows are inline bands:
+  category row = `#e8e8ea` with strong text, account row = `#f6f6f7`; both
+  show number+name, fringe and total columns (qty/unit/rate/X/currency blank).
+  Markup rows sit at the bottom with signed totals. No collapse/disclosure,
+  no drag reorder and no column resize in phase 1; range selection, copy/paste
+  and fill use the shared `InlineGlideTable` plumbing and commit as one batch.
 
-### Grid rows
+### Grid columns & editability
 
-- Category header: number, name, group total, % of grand, disclosure.
-- Account header: number, name, base/fringe/total, disclosure.
-- Line: description, qty, unit, rate, X, fringe chips, total; optional groups/
-  location/phase/notes.
-- Markup/credit rows at the bottom.
-- One sheet, expand in place (Saturation-style), with MMB keyboard/level
-  shortcuts as accelerators. No separate Top Sheet/Accounts/Details screens.
+| Column | Editable | Notes |
+| --- | --- | --- |
+| Account / Description | line: description; category/account: number + name | Category/account commit parses `"1200  Producers"` → number + name; a bare name keeps the number |
+| Qty | line | On a live-linked line this writes `qtyOverride` (pins); otherwise `qty` |
+| Unit | line | Painted enum picker over the library units; typed unknown values are ignored |
+| Rate | line | Money string; commits `rateCents` (2dp display) |
+| X | line | Numeric multiplier |
+| Cur | line | Painted enum picker over the currency codes |
+| Fringes | line | Painted entity multi-picker; typed unknown names create library fringes in the SAME batch |
+| Groups | line | Painted entity multi-picker; typed unknown names create library groups in the same batch |
+| Total | read-only | The line's LOCAL total (line currency); category/account totals are base |
 
-### Columns
+- The grid is the shared **`InlineGlideTable`**, not a bespoke Glide fork:
+  auto-fit columns, content height, one commit per edit, presence scope
+  `budget:detail` keyed by row key.
+- **Colour coding is the shared grid rule** (`docs/UI-PRIMITIVES.md` §Glide
+  grids / `docs/DESIGN-LANGUAGE.md`): editable cells are the white input
+  surface at rest (near-white hover); read-only cells are the neutral grey
+  disabled surface; a row's own `themeOverride.bgCell` (the category/account
+  bands) wins over the disabled tint. Never hand-tint editable cells.
+- **Painted pickers:** unit/currency/fringe/group cells render through the kit
+  `kitPickerCell` chevron lane and open the SAME overlay editor a double-click
+  opens. No DOM picker per cell.
+- **Actions:** an (i) glyph (`infoGlyphCell`) sits in a trailing info column
+  just left of the persistent trash column and opens the row's first action —
+  Edit category/account (node modal), Line details (line modal); the trash
+  column (`rowActions`) deletes category/account/line/markup after a confirm.
+  Right-click (`rowMenuItems`) lists the same actions above the generic
+  copy/paste items. Markup rows have trash only.
+- **Locked/read-only:** `readOnly = !canWrite || version.locked` hides the add
+  buttons, (i), trash and context actions; cells render on the grey disabled
+  surface; print/export remain.
 
-Default: Account/Description (frozen), Qty, Unit, Rate, X, Currency, Fringes,
-Total. `Rate`/line `Subtotal` display in the line's currency; `Total` is the
-base-converted amount (header `Total (base)`), with the line-currency value on
-hover/in the row detail. Account/category/grand totals are base.
-Optional: Use (suppress), Groups, Location, Set, Phase, Start/End, Cap, OT,
-Notes. Cost columns belong to the Cost Report view, not here.
+### Modals
 
-### Interactions
+- **`BudgetLineModal`** — description, qty, rate, multiplier; schedule link
+  picker (shoot days, role/person, cast, locations) with Pin/Unpin and a
+  "following the schedule — N units" / "pinned at N (schedule now M)" line;
+  unit and currency pickers; notes; fringe and group checklists; advanced qty/
+  rate/X formula overrides with the system-global hint. Duplicate / Delete in
+  the footer, total in the footer, Done hero. Every write commits on
+  blur/pick; no Save button.
+- **`BudgetNodeModal`** — category/account number, name, notes; category also
+  group (ATL/BTL/Post/Other) and colour (`ColorField`); Add account/line and
+  Delete actions. Number is a label; ids stay stable.
+- **`BudgetGroupModal`** — group name, colour (`ColorField`), In budget
+  (Yes/No), notes, Delete. Opened by the Library's colour swatch cell.
+- No separate markup editor yet: the Library table edits name/kind/calc/
+  percent/amount/compound; scope/cap fields are model-only.
 
-- Inline edit (money/percent/quantity/text), Enter/Tab, type-to-edit, copy/
-  paste/fill/clear, multi-select, right-click insert line/account/category,
-  duplicate, delete, apply fringe/group, expand/collapse, drag reorder within a
-  level, column resize, keyboard navigation.
-- Every operation commits on blur/Enter, never per keystroke. Bulk operations
-  are one `BULK_UPDATE_BUDGET_LINES`/`BATCH` undo entry.
-- Read-only (`locked`): hide add/delete/edit affordances; cells static;
-  print/export remain.
+## 3. Versions & lock (`BudgetVersionMenu.tsx`)
 
-### Glide wiring (reuse the fork; no second grid engine)
+- Trigger: `Budget: <name>` + lock icon + chevron; backed by the kit
+  `ItemManagerDropdown` (`theme="light"`, label "Budget", header "BUDGET
+  VERSIONS", minItems 1) with create, rename, duplicate, select, delete and
+  trash restore.
+- **Create and Duplicate both clone the current version copy-on-write** (line
+  array shared until edited); Create names the copy `vNN`, Duplicate
+  `<name> Copy`. There is no blank-version action. The chart and library are
+  shared across every version.
+- Delete moves the version to `versionTrash` (30-day TTL + newest 10); the
+  last version is protected. Trash is a modal with Restore per row.
+- **Lock:** a separate lock/unlock button. Locking confirms "freezes editing
+  and pins every line that follows the schedule"; `BudgetTab` computes the
+  pinned map with `lockBudgetVersion(project, id)` and dispatches
+  `LOCK_BUDGET_VERSION`. The reducer only applies the map. **Unlock re-enables
+  editing but does not unpin** — previously pinned quantities stay frozen.
+- A locked version hides budget-content editing (`readOnly` prop); version
+  management, switching, printing and export still work.
+- Compare (two versions, variance) is phase 4.
 
-- Build `BudgetGrid` on the same `DataEditor` + `createGlideCellEditor` +
-  `controlCellRenderers` + `createGlideTheme` + `useGlideFill`/`planGridPaste`
-  used by `BreakdownTabGlide`/`InlineGlideTable`.
-- `freezeColumns` pins Account/Description; horizontal scroll for the rest.
-- Category/account rows are regular rows with `staticCell` totals and a
-  `kitGlyphCell` chevron; expanding rebuilds the row list (cheap, memoized).
-- Money cells: `kind:'money'` editor (overlay `MoneyField` built on the kit
-  `NumberInput`, §10). Percent: `kind:'percent'`. Formula: `kind:'formula'`
-  with global/line autocomplete.
-- Unit/account/category pickers: `kitPickerCell` + shared `PickerField` editor;
-  fringes/groups: multi-select chips.
-- Row actions: `kitGlyphCell`/`kitGlyphGroupCell` in one actions column; no DOM
-  per row.
-- Selection/paste/copy/fill/undo use the existing Glide plumbing; a bulk commit
-  calls `onCommit` once with an edits array.
-- Presence: reuse the existing `InlineGlideTable` presence scope in phase E; no
-  new presence engine.
+## 4. Library view (`BudgetLibraryView.tsx`)
 
-### Versions
+Top-to-bottom, one scroll surface:
 
-- Toolbar `ItemManagerDropdown` (same component as schedule/calendar versions):
-  create, rename, duplicate, select, delete/restore, lock.
-- The **chart of accounts + library are shared** across versions; each
-  `BudgetVersion` owns its `lines`. `cloneBudgetVersion` maps line objects by
-  reference (copy-on-write), so a new version does not deep-clone the chart or
-  untouched lines. Trash: 30-day TTL + newest 10; never delete the last version.
-- Locking a version freezes editing and pins every schedule-linked quantity so
-  an approved budget cannot drift; unlocking does not silently unpin.
-- Compare (two versions, variance) is phase 4; v1 versions are for scenarios,
-  approvals and history.
+1. **Budget settings** — base currency picker, symbol, decimals (whole/2dp),
+   negatives (minus/parentheses), fringe posting (Top sheet/Category/Account),
+   and a read-only cost-context line (line count · linked · grand total).
+2. **System values** — the seven system globals with live values; global
+   formula errors in amber. This card is explanatory, not editable.
+3. **Editable tables** (all `InlineGlideTable`, add button per card, delete
+   warns; deleting an in-use fringe/group also clears it from the active
+   version's lines in the same confirm, one batch):
+   - **Fringes** — name, calc (Percent/Fixed per unit/Flat), percent, amount,
+     cutoff, posting. Groups/range-id are not exposed here yet.
+   - **Groups** — name, colour swatch cell, in-budget Yes/No; row (i) opens
+     `BudgetGroupModal`. The colour cell is a native canvas swatch + hex drawn
+     by `colorSwatchCell` — **no DOM cell** — and clicking it opens the modal
+     where the shared `ColorField` does the picking.
+   - **Globals** — symbol, description, value, formula (a global may reference
+     another global).
+   - **Units** — name, plural, type (Time/Quantity/Flat/Percent), hours.
+   - **Currencies** — code, symbol, rate to base (blank = missing rate).
+   - **Markups** — name, kind (Markup/Discount/Charge/Credit), calc, percent,
+     amount, compound.
+- Deleting an in-use definition states "Used by N lines — those references
+  will be cleared" (where-used jump is not built). Deletes are undoable.
 
-### Per-user prefs (`src/lib/persist.ts`)
+## 5. Reports — `budgetTable` block
 
-Collapsed rows, visible columns, sidebar width, cost filter, last template.
-Never project state. Key names `lemon_schedule_budget_*`.
+### Block + inspector
 
-## 3. Cost Report view
-
-- Toolbar: as-of `DatePicker` (default today), period menu (all / week / custom),
-  level (accounts/lines), show zero, print, export CSV.
-- KPI strip: Budget, Actual, Committed, EFC, Variance, % Used.
-- Grid rows: category → account → line. Columns: Account/Description, Budget,
-  Actual, Committed, ETC, EFC, Variance, % Used, EFC reason. Expand to lines.
-- ETC is editable inline; a reason is prompted when EFC ≠ budget; approved
-  overage is an optional column.
-- Negative variance is red; positive is green; zero neutral. Colour is a
-  secondary cue, never the only one (text/icon too).
-- Account-level expenses without a line roll into an "Unallocated" child row.
-- Empty/no-budget state links to Budget.
-
-## 4. Expenses view
-
-- Toolbar: `Add expense`, `Import CSV`, filters (date range, status, account,
-  day, method), group by day/account, print expense detail.
-- Table: Date, Description, Account, Vendor, Method, Status, Amount, PO.
-- Footer totals: Actual, Committed, Petty cash, This period.
-- Row click opens `ExpenseModal`; bulk select/approve is later.
-- Read-only hides add/edit; the ledger still prints.
-
-## 5. Library view
-
-Editable tables (`InlineGlideTable` is a good fit):
-Fringes (name/calc/rate/cutoff/groups/posting/color), Globals (symbol/
-description/unit/value/formula; system rows read-only), Groups (name/color/
-in-budget), Units (name/plural/type/hours), Currencies (code/symbol/rate to
-base; the line picker uses this), Markups (name/kind/calc/percent/amount/scope/
-marks up/compound/cap).
-Each row shows "Used by N lines" + a "Where used" jump. Deleting an in-use
-definition warns and offers convert-to-value (globals) or clear-from-lines
-(fringes/groups).
-
-## 6. Day Manager — Expenses card
-
-### Wiring
-
-- `src/lib/dayTabs.ts`: add `'expenses'` to `DAY_MANAGER_TABS` and its label.
-- `daySectionRegistry.tsx`: add an `expenses` section (`wide: true`,
-  `tabs: ['all','overview','expenses']`, `copyable: false`, `summary` = count +
-  actual/committed total, `hideWhenEmpty: false` so the CTA always shows).
-- `DayManagerPage.tsx`: add `expenses` to `DAY_TAB_OPTIONS` (Receipt icon) and
-  own the Expense/Overtime modals at the root (like `AddCrewMemberModal`), so
-  the copy modal/popout never nests a modal. Extend `DaySectionActions`:
-  `openExpense?: (expenseId?: string) => void`, `openOvertime?: () => void`.
-- `ExpensesSection.tsx`: the day's expenses (`project.expenses` filtered by
-  `dayDate === day.date`, or `dayNumber === day.chronoDay`), compact table
-  (Description, Account, Vendor, Status, Amount), Actual/Committed totals,
-  `+ Add expense`, and a "Create a budget" CTA when `!project.budget`.
-- `ExpenseModal.tsx`: date (default the day), account picker (grouped by
-  category), optional line picker, description, vendor, amount, currency,
-  method, status, PO link, receipt URL, notes. One `ADD/UPDATE_EXPENSE`; no
-  per-keystroke saves. `MoneyField`; `SearchMenu`/`PickerField`.
-- Copy-from-day: expenses are actuals and are **not** copied. Overtime settings
-  are crew assumptions; include `overtime` in the crew section's `extract`.
-- Call sheets: do not print costs/expenses/OT amounts on crew call sheets by
-  default. Cost visibility is a producer/report-designer choice.
-- Reports: `expensesOfDay` collection + `dayExpenseTotal`/`dayActualTotal`/
-  `dayCommittedTotal`.
-
-## 7. Overtime — Crew card button + modal
-
-- `CrewSection.tsx` header gains an **Overtime** button (`Timer` icon) with a
-  badge `Xh · $Y` (hours always; cost when rates exist) → `actions.openOvertime`.
-  Shown in the Day Manager and day popout; hidden read-only when no OT data;
-  disabled when no crew.
-- `OvertimeModal.tsx` (kit `Modal` + `Seg` tabs Day / Departments / Crew / Cast):
-  - Day: policy source (Project default / Day override), base hours, tiers,
-    allowance, actual wrap, note; live totals.
-  - Departments: one row per department with crew count, base/tier override,
-    computed OT hours, cost; "Apply to all" / "Reset".
-  - Crew: one row per assigned person (name, role, rate/unit, call, hours, OT
-    hours, cost), per-person overrides; no-rate warning.
-  - Cast: one row per cast member working the day (name, rate/per, work day,
-    guarantee, OT hours, cost); default policy from `CastMember.overtime` /
-    project preset; SAG-style tiers are editable, never hardcoded.
-  - Footer: `Post to expenses` (ghost), Cancel (ghost), Save (hero). Posting
-    asks one confirm (one expense per department vs one total) and creates
-    `status='actual'`, `method='payroll'` expenses.
-  - Estimates only; say so once, not on every row.
-- Data flow: `computeDayOvertime(project, day)` resolves policy + rates; the
-  modal writes `DayMeta.overtime` via `patchMeta` and expenses via dispatch.
-  The Day Manager never computes OT itself.
-- No date/wrap: use the section's computed wrap and label it "estimated from
-  schedule". No call/rate: show hours only.
-- Budget projection: schedule-driven lines may use the same policy to estimate
-  crew/cast OT in the budget (phase F); actual OT in the modal is independent.
-
-## 8. Reports Designer + print
-
-### New block
-
-`ReportBlock.type` gains `'budgetTable'`:
+`ReportBlock.type` includes `'budgetTable'`; it is a project-wide LEAF like
+`callTimes`/`crewTable` — top level, inside `columns` or any non-day container,
+**never inside a `days` repeat and not inside a Call Sheet zone**
+(`blockAllowedIn` rejects both with an explanation). Palette entry: "Budget
+Table" (Wallet) in the Budget group; `makeReportBlock('budgetTable')` defaults
+`budgetMode: 'topsheet'`.
 
 ```ts
 budgetMode?: 'topsheet' | 'accounts' | 'lines' | 'costReport' | 'hotCost' | 'cashflow' | 'comparison';
 budgetCategories?: string[];   // selected category ids; unset = all
 budgetAccounts?: string[];     // selected account ids; unset = all
 budgetColumns?: string[];      // subset of the mode's columns
-showZero?: boolean;
-showFringes?: boolean;
-showNotes?: boolean;
-showPercent?: boolean;
-costAsOf?: string;             // ISO; unset = print date
-costPeriod?: { from: string; to: string };
+showZero?: boolean;            // default false
+showFringes?: boolean;         // default true
+showNotes?: boolean;           // default false
+showPercent?: boolean;         // default true
+costAsOf?: string; costPeriod?: { from; to };   // typed, phase 2 only
 ```
 
-- A leaf like `callTimes`/`crewTable`; top level and in `columns`, not inside
-  `days` for budget modes. `hotCost` is the only day-scoped mode and may sit
-  inside a `days` repeat.
-- Read model: `src/lib/reportBudget.ts` (rows per mode, columns, totals) built
-  from `computeBudget`/`computeCostReport`; never re-derive in the view.
-- Renderer: `reports/ReportBudgetTable.tsx` reuses `ReportGridBlock`'s
-  `.report-table-cols`/`.rm-row` recipe, `data-rm-header` for page-break header
-  repetition, and the existing paginator. Category/account headers are
-  keep-with-next (never strand at a page bottom).
-- `reportBlocks.ts`: add to `TITLED_BLOCK_TYPES`/`titleRepeatable`/
-  `reportTitleAutoLabel`; `blockControls.tsx` gets a Budget section (mode,
-  categories/accounts multi-picker, columns, zero/fringes/notes/percent,
-  as-of/period); palette entry in a "Budget" group.
-- `ReportBlockView.tsx`: add the case; pass `ctx.budget`/`ctx.costReport`.
-- `ReportCtx` gains `budget?: BudgetModel` (computed once in `buildReportCtx`)
-  and `costReport?: CostReportModel` (computed for the filter).
-- Money formatting: `ReportFieldDef.money?: boolean`, right-aligned; `get`
-  returns `formatBudgetMoney(ctx, cents)`. Add `scope: 'budget'` fields for
-  cover/exec text: `budgetGrandTotal`, `budgetAtl`, `budgetBtl`, `budgetPost`,
-  `budgetFringes`, `budgetContingency`, `budgetNet`, `budgetActual`,
-  `budgetCommitted`, `budgetEfc`, `budgetVariance`.
+`BudgetBlockControls.tsx` renders the Mode Seg (**Top Sheet / Accounts /
+Lines**), category and account checklists, a column checklist (at least one
+column is kept), and Zero rows / Fringes / % of total / Notes checkboxes. The
+other `budgetMode` values are reserved; the read model falls back to
+`topsheet` so a future-typed block never prints a lying table.
 
-### Collections + fields
+### Read model (`src/lib/reportBudget.ts`)
 
-Add to `ReportCollection`: `budgetCategories`, `budgetAccounts`, `budgetLines`,
-`costReport`, `expenses`, `expensesOfDay`, `purchaseOrders`.
+`buildBudgetReport(ctx.budget, options)` shapes rows/columns from `computeBudget`
+— it never re-derives money. `budgetReportMode()` is the ONE phase gate.
+Modes and columns:
 
-- `budgetCategories`/`budgetAccounts`/`budgetLines` — base collections with
-  budget fields; `budgetLinesOfAccount` as a contextual child of
-  `budgetAccounts` for account-detail repeats.
-- `costReport` — one item per account (or line) with Budget/Actual/Committed/
-  ETC/EFC/Variance/%Used/Reason; `costReportOfAccount` child optional.
-- `expenses` — base ledger; `expensesOfDay` — contextual child of `days`.
-- `purchaseOrders` — base ledger.
-- `fieldScopeFor` maps each to its scope; `reportBlocks.ts`
-  `COLLECTION_LABELS`/`COLLECTION_ORDER`/`NON_SCOPABLE_COLLECTIONS` updated.
-- Field families: `budget*`, `cr*`, `expense*`, `po*`; crew fields gain
-  `crewRate`, `crewRateUnit`, `crewHours`, `crewOtHours`, `crewOtCost`,
-  `crewDayCost`; day fields gain `dayExpenseTotal`, `dayActualTotal`,
-  `dayCommittedTotal`, `dayOvertimeHours`, `dayOvertimeCost`; department fields
-  gain `deptOtHours`, `deptOtCost`.
+- **topsheet** — one row per category plus (when markups are non-zero) a
+  subtotal row, the markups/credits and the grand total. Columns: `#`,
+  Account, %, Subtotal, Fringes, Total.
+- **accounts** — category header + one row per account + totals. Columns:
+  `#`, Account, %, Base, Fringes, (Notes), Total.
+- **lines** — category header + account header + line rows + account subtotal
+  (only when the account has more than one visible line) + totals. Columns:
+  Account, Description, Qty, Unit, Rate, X, Cur, Fringes, %, (Notes), Total
+  (base).
 
-### Built-in print templates
+`showZero: false` hides zero rows; `showFringes: false` drops the column;
+`showPercent: false` drops %; `showNotes` adds Notes. Category selection
+filters both modes; account selection does not hide a top-sheet category.
+Category/account rows carry `keepWithNext`; line/rate cells keep the line's
+currency symbol; the `rate` column is in the line's currency, while `Total
+(base)` and every account/category/grand total are base cents.
 
-`src/lib/budget/reportTemplates.ts` returns transient `ReportDesign` objects
-(not seeded into every project):
+`ReportBudgetTable.tsx` renders the static table with the shared
+`.report-table-cols` / `.rm-row` recipe, `data-rm-header` for header repetition
+on continuation pages and `data-rm-keep-with-next` for headers. Money columns
+are right-aligned and formatted through the budget settings (negative style
+included); percent columns show one decimal; numeric cells use tabular
+figures. No budget yet → the designer shows a hint, print/preview renders
+nothing.
 
-1. **Budget — Top Sheet** (landscape): cover optional; Account, Name, %, Page,
-   Subtotal, Fringes, Total; summary rows; page numbers.
-2. **Budget — Account Detail** (landscape): category/account headers, lines,
-   subtotals, notes; repeating headers.
-3. **Cost Report** (landscape): KPI row; Budget/Actual/Committed/ETC/EFC/
-   Variance/%Used/Reason; category/grand totals; as-of date; signature.
-4. **Budget Health** (portrait, 1 page): grand total, ATL/BTL/Post, fringes,
-   contingency, net, cost per shoot day, cast/crew days, top accounts.
-5. **Hot Cost** (phase D/E, day-scoped).
-6. **Cashflow** (phase G).
-7. **Budget Comparison** (phase G).
+### Collections + fields (`reportData.ts`, `reportFields.ts`)
 
-The Budget tab's **Print** menu opens `ReportPrintDialog` with these designs;
-"Save as design" clones one into `project.reportDesigns` via
-`ADD_REPORT_DESIGN` so it becomes editable in Design → Reports Designer. Never
-auto-seed all projects with budget designs.
+- Collections: `budgetCategories`, `budgetAccounts`, `budgetLines` (base) and
+  `budgetLinesOfAccount` (contextual child of `budgetAccounts`). Items carry
+  the canonical computed totals, not re-derived values.
+- Document fields (scope `budget`): `budgetGrandTotal`, `budgetBaseTotal`,
+  `budgetAtl`, `budgetBtl`, `budgetPost`, `budgetFringes`, `budgetContingency`,
+  `budgetNet`, `budgetCostPerShootDay`.
+- Item fields: `budgetCategoryNumber/Name`, `budgetAccountNumber/Name`,
+  `budgetDescription`, `budgetQty`, `budgetUnit`, `budgetRate` (money, line
+  currency), `budgetMultiplier`, `budgetCurrency`, `budgetLineTotal` (line
+  total incl. fringes / account / category, base cents), `budgetLineTotalBase`,
+  `budgetPercentOfGrand`, `budgetNotes`.
+- `ReportFieldDef.money` drives right alignment; every money getter formats
+  through `ctx.budget.settings`. `ReportCtx.budget` is computed ONCE in
+  `buildReportCtx` (`computeBudget(project)`), never per block.
 
-### Custom blocks & exports
+### Built-in transient prints (`src/lib/budget/reportTemplates.ts`)
 
-- **Custom blocks:** use the existing block tree (`text`, `field`, `repeat`,
-  `table`, `columns`, `image`, …) over the new budget collections/fields. A
-  `budgetTable` leaf is only for subtotal/total rows that generic repeats cannot
-  express. A genuinely new visual (e.g. budget-health bars) is a new leaf in the
-  same `ReportBlock` union/renderer — never a parallel report engine.
-- **PDF:** the existing `ReportPrintDialog` → `ReportPrint` → measured
-  paginator. Built-in budget designs are transient; "Save as design" clones one
-  into `reportDesigns`.
-- **CSV/JSON:** `lib/budget/export.ts` serialises the current version's lines,
-  the cost report, or the full budget; Budget → Export and a `budgetTable`
-  block's export action use it. No XLSX dependency in v1 (CSV opens in Excel).
-- **Formula field:** the Glide `kind:'formula'` editor is a lightweight `=`
-  expression input with global/line autocomplete. Reuse `TOKEN_RE`/`parseToken`
-  and the `#REF!`/`#VALUE!` conventions; the arithmetic evaluator lives in
-  `lib/budget/formula.ts` (the report free table is a token/cell-ref resolver,
-  not an arithmetic engine).
-- **Print scope:** the dialog selects categories/accounts; cost reports choose
-  as-of/period. Never print without the dialog.
+`budgetReportDesigns()` returns fresh `ReportDesign` objects (never seeded into
+projects), in menu order:
 
-### Print mechanics to verify
+1. **Budget — Top Sheet** (landscape): title + subtotal line + `topsheet`
+   table (fringes/percent on, notes off).
+2. **Budget — Account Detail** (landscape): title + `lines` table with notes,
+   category/account keep-with-next, repeating header.
+3. **Budget Health** (portrait executive summary): grand total hero, ATL/BTL/
+   Post, fringes/contingency/net, cost per shoot day, then an `accounts` table.
 
-- Header repeats on continuation pages; category/account headers keep with the
-  next row; totals never orphan.
-- Money right-aligned, negatives per `BudgetSettings.negativeStyle`; zero rows
-  hidden by default in prints, shown in the editor.
-- Page numbers/cover/header/footer use the existing report system.
-- No direct `window.print()`; always the dialog + `ReportPrint` ready signal.
+The Budget toolbar's **Print** menu passes a design to `onPrintDesign` →
+`setCustomReportPrint` → `ReportPrintDialog` (never a direct `window.print()`).
+**Save as design** clones the chosen design into `project.reportDesigns` via
+`ADD_REPORT_DESIGN`; after that it is editable in Design → Reports Designer.
+Cost Report / Hot Cost / Cashflow / Comparison templates belong to later
+phases.
 
-## 9. Schedule-driven budget (integral, no sync button)
+## 6. Schedule-driven budget (integral, no sync button)
 
-- `computeScheduleQuantities(project)` counts shoot days, prep/wrap/post weeks,
-  per-crew-role/person days across production days, cast work/hold/travel days
-  (`deriveDood`/`elementDayStats`), location days (master + keys), element days,
-  crew headcount per shoot day. Built once per read model from the same
-  day/section data the stripboard/DOOD use.
-- **Live links, not a sync step:** a line with `source` derives its quantity at
-  read time. Editing qty sets `qtyOverride` (pin); editing rate sets
-  `rateOverride`. Unlinked/manual lines never change. A locked budget version
-  pins every linked line so an approved budget cannot drift.
-- **Creation:** the new-budget picker offers `Blank`, `Feature`, `From
-  schedule`. "From schedule" runs a preview wizard (crew labour, cast labour,
-  location fees, per-day costs; department→account mapping; totals) and creates
-  linked lines. Individual manual lines can be linked later via the row menu.
-- **No "refresh" button:** the schedule changes, linked quantities follow. Show
-  a link badge and a "N lines follow the schedule" summary; a locked version
-  shows frozen values. No hidden overwrite of manual numbers.
-- Crew labour: role/person day rate × days + OT estimate + fringes; one line per
-  person/role (user can group). Cast labour: one line per cast member (`qty` =
-  work days or weeks from `per`). Locations/elements only when the record has a
-  rate.
-- Rate book: role/person rates first; union/agency rate packs are editable JSON,
-  never live-fetched. No hardcoded legal rates. Rate changes do not auto-rewrite
-  existing lines (only quantities are live-linked by default).
-- System globals work without generation: users can type `=SHOOT_DAYS * 2` in a
-  qty field.
-- **Industry note:** MMB/Hot Budget are manual; Storiara/Rivet/Filmustage
-  generate drafts and expect review; no tool silently rewrites an approved
-  budget. Lemon's live-link + pin + lock is the middle ground: automatic while
-  authoring, frozen when approved.
+- `computeScheduleQuantities(project)` (`lib/budget/scheduleSync.ts`) reads the
+  SAME canonical day model as the Day Manager/DOOD (`computeRowData` +
+  `buildDayViews`): shoot days, prep/post days, per-crew-person and per-role
+  days, cast days, location days and element days.
+- **From schedule** builds a Feature chart plus linked lines: one set-operations
+  day-rate line (account 2400, qty = shoot days), one line per working crew
+  person (2100), one per working cast member (1400, description `N. NAME`), one
+  per used location (3200). Rates start at zero — the schedule knows days, not
+  money. The empty-state card previews the counts only.
+- **Live links:** a line with `source` derives quantity at read time. Editing
+  Qty on such a line stores `qtyOverride` (pin); Pin/Unpin in the line modal
+  freezes/restores the schedule quantity. Linked quantities never mutate the
+  stored `qty`; a missing target resolves 0 + an amber warning.
+- The link covers **quantity only**. Rate is the stored `rateCents` (the
+  `rateOverride` field is a data/agent seam with no UI yet).
+- **No refresh/sync button exists or should be added.** The summary says how
+  many lines follow the schedule; a locked version shows frozen values.
+- System globals work without generation (`=SHOOT_DAYS * 2`); `WRAP_DAYS`/
+  `WRAP_WEEKS` are currently 0 and prep/post weeks divide days by 5.
 
-## 10. UI-kit gaps (corrected)
+## 7. Later phases (forward-looking — do not treat as built)
 
-**`NumberInput` already exists** — free-typed draft, clamp, Enter/blur, Escape,
-steppers, arrow keys, drag-to-scrub. Do not build a second numeric primitive.
+### Phase 2 — Cost Report & Expenses
 
-**Small additions needed:**
-1. **`NumberInput` `suffix`/`prefix`** (or a thin `MoneyField`/`PercentField`
-   wrapper) — currency symbol/grouping/negatives and `%` display. The engine
-   stays the kit `NumberInput`; the wrapper only formats/parses.
-2. **`MoneyField` / `PercentField`** (app-level first, promote if reused) — the
-   two adapters above, using minor units at the boundary.
-3. **`Stat` / `Metric`** — *this does not exist yet*; it was my proposed KPI
-   tile (label, value, sublabel, tone) for the budget/cost header. `CardSection`
-   can cover v1; promote only if a second consumer appears.
-4. **`EmptyState`** — *does not exist yet*; a reusable icon/title/description/
-   action block for empty tables/pages. Build app-level first; promote if reused.
+- **Cost Report view** replaces the placeholder: as-of date + period, KPI strip
+  Budget/Actual/Committed/EFC/Variance/%Used, category → account → line rows,
+  inline ETC/reason, negative variance in red + a text cue. `costReport`,
+  `expenses`, `expensesOfDay`, `purchaseOrders` collections/fields; `budgetTable`
+  `costReport` mode + the Cost Report print template; expense CSV. Account-level
+  expenses without a line roll into "Unallocated".
+- **Expenses view** replaces the placeholder: Add expense, Import CSV, filters
+  (date/status/account/day/method), table (Date, Description, Account, Vendor,
+  Method, Status, Amount, PO), footer totals, `ExpenseModal`.
+- **Day Manager Expenses card**: add `'expenses'` to `DAY_MANAGER_TABS` and the
+  day-section registry (`wide: true`, `hideWhenEmpty: false`), root-owned
+  Expense modal, `DaySectionActions.openExpense`, `expensesOfDay` fields.
+  Copy-from-day never copies expenses (actuals), but carries overtime settings.
 
-**Nice-to-have:** `TreeList` (category rail), `FormulaInput` (expression +
-autocomplete), publishing the kit's full `GlideSheet`, a `Money` formatter,
-`Chart`/`Sparkline`.
+### Phase 3 — Overtime
 
-**Already sufficient:** `Button`, `Seg`, `PickerField`, `SearchMenu`,
-`EntityDropdown`, `DatePicker`, `Checklist`, `NumberInput`, `Modal`/
-`ModalFooter`/`ModalFooterButton`, `ContextMenu`, `Tooltip`, `CardSection`,
-`ThemeScope`/`ProjectChromeScope`, `useSlidingPill`, `TabFace`, and the Glide
-control cells (`kitPickerCell`, `kitGlyphCell`, `kitGlyphGroupCell`).
+- Crew card header **Overtime** button (badge `Xh · $Y`) + root-owned
+  `OvertimeModal` with Day / Departments / Crew / Cast segments; policy
+  project → day → department → person; no-rate warning; Post to expenses creates
+  `status='actual'`, `method='payroll'` expenses in one batch. Day meta holds
+  the settings; the Day Manager never computes OT itself.
+- Report fields: `crewRate/rateUnit/hours/otHours/otCost/dayCost`,
+  `dayOvertimeHours/Cost`, `deptOtHours/Cost`, cast rate/per + OT.
 
+### Phase 4 — Advanced
 
+Version compare/Original-Variance, cashflow, incentives/credits, currency
+report, AICP/episodic, approvals/petty-cash depth, MMB import/export. Each is
+its own branch; no "advanced mode" half-built surfaces.
+
+## 8. UI-kit gaps (actual)
+
+- **`NumberInput` exists** and stays the one numeric primitive.
+  `NumberField`, `MoneyField` (dollars at the field, cents at the boundary) and
+  `PercentField` live in `src/components/budget/fields.tsx`; promote them if a
+  second feature needs them.
+- **`ColorField` already exists** and is reused by the group/category modals.
+- **No generic `Stat`/KPI tile**: `SectionTile` is local to `BudgetView`.
+- **No generic `EmptyState`**: `BudgetEmptyState` is a budget-specific screen
+  with the three template cards; promote only if reused.
+- **Already sufficient:** `Button`, `Seg`, `DropdownMenu`/`ItemManagerDropdown`,
+  `Checklist`, `Modal`/`ModalFooter`/`ModalFooterButton`, `PageToolbar`,
+  `ThemeScope`, `InlineGlideTable`, the kit control cells
+  (`kitPickerCell`/`kitGlyphCell`/`kitGlyphGroupCell`), and the app canvas
+  glyphs (`infoGlyphCell`, `colorSwatchCell`).
+
+## 9. Prefs & state
+
+- Project state: the entire `Budget` (chart, library, versions, settings).
+- Local component state: focused category, open line/node/group modal.
+- Persisted keys: only dialog `suppressKey`s
+  (`lemon_schedule_budget_delete_{category,account,line,markup,version}`,
+  `lemon_schedule_budget_delete_library`,
+  `lemon_schedule_budget_import_replace`). No budget-specific view prefs in
+  phase 1.
+- The budget is never in a second context/store; `BudgetTab` reads the project
+  once and passes the model/readOnly down. Children take the store only for
+  `dispatch`; no row component calls `useProject()`.

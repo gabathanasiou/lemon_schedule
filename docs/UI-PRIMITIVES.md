@@ -287,23 +287,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
     chevron, pointer, hover fill or keyboard stop — it must never look selectable. **Categories
     only expand/jump — never perform the add** (no `onSelectGroup` for adders). Clicking a
     category keeps the field focused, so typing still filters.
-  - **Actions**: `emptyActions` (no-match only — e.g. “Add “…”“”); `leadingActions` /
-    `footerActions` are pinned, always-visible rows (e.g. leading **“New location…”**) whose
-    callbacks receive the query. `fieldActions` are icon buttons INSIDE the expanded textbox
-    (right edge) for the draft — e.g. **Plus → create from the typed query**; the shared
-    `MorphFieldAction` shape (`{ key, label, icon, onClick(value, { close }), keepOpen? }`).
-    Default icon Plus. `hideLeadingOnEmpty` drops the leading row when the empty state's
-    query-aware action already covers the same create path (Add location: “hello” → only
-    **“Add “hello”…”**).
-  - **Deep search**: comma tags AND-match label/`detail`/category/`keywords`/`fields[]`; the
-    matched attribute becomes the row snippet. `detail` is searched, so it is a display
-    **value**, never `"Label: value"` (field labels must not match). Reuse `parseSearchTags` /
-    `searchMenuContent` / `buildSearchMenuRows` for any jump/highlight bookkeeping — never a
-    second matcher. Manager rows use the board-numbered identity (`1. BOB`; cast subtitle =
-    artiste) — `lib/managerSearch.ts`.
-  - **Keyboard**: ↑↓ actionable rows (plain headers skipped), **→/←** expands/collapses a
-    category in accordion browse, Enter activates the highlight (opening highlights the first
-    list row, not a pinned create action), Esc closes.
+  - **Actions**: `emptyActions` (no-match only — e.g. “Add “…”“”); `leadingActions` / `footerActions` are pinned, always-visible rows (e.g. leading **“New location…”**) whose callbacks receive the query. `fieldActions` are icon buttons INSIDE the expanded textbox (right edge) for the draft — e.g. **Plus → create from the typed query**; the shared `MorphFieldAction` shape (`{ key, label, icon, onClick(value, { close }), keepOpen? }`). Default icon Plus. `hideLeadingOnEmpty` drops the leading row when the empty state's query-aware action already covers the same create path (Add location: “hello” → only **“Add “hello”…”**).
+  - **Deep search**: comma tags AND-match label/`detail`/category/`keywords`/`fields[]`; the matched attribute becomes the row snippet. `detail` is searched, so it is a display **value**, never `"Label: value"` (field labels must not match). Reuse `parseSearchTags` / `searchMenuContent` / `buildSearchMenuRows` for any jump/highlight bookkeeping — never a second matcher. Manager rows use the board-numbered identity (`1. BOB`; cast subtitle = artiste) — `lib/managerSearch.ts`.
+  - **Keyboard**: ↑↓ actionable rows (plain headers skipped), **→/←** expands/collapses a category in accordion browse, Enter activates the highlight (opening highlights the first list row, not a pinned create action), Esc closes.
   **Limits (by design)**: single-select OR `multiple` (draft + footer hero, below) ·
   synchronous items only (async lives on `PickerField.loadItems`) · no inline create/rename
   (actions instead) · no controlled `open` · fixed trigger structure (icon + label).
@@ -383,6 +369,15 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
   `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
   border-zinc-800`.
+
+## Glide grids (`InlineGlideTable`)
+
+Engine mechanics (canvas, `provideEditor`, pagination, fill/paste) live in **`docs/GLIDE-BREAKDOWN.md`**. These are the shared surface rules, used by every manager/day/budget grid:
+
+- **Cell colour = affordance** (one rule, every `InlineGlideTable`): EDITABLE cells are the **white input surface** at rest (a near-white hover keeps the row responsive); READ-ONLY cells are the **neutral grey disabled surface** (a touch deeper on hover). A caller's own `themeOverride.bgCell` — e.g. the budget category/account bands — **wins** over the disabled tint. Never hand-tint an editable cell blue, and never paint a read-only cell white.
+- **Painted pickers**: entity/enum cells wrap in the kit `kitPickerCell` chevron lane (the budget unit/currency/fringe/group cells), so the dropdown affordance is visible without opening the cell; the lane opens the SAME overlay editor as a double-click.
+- **Canvas glyphs**: `infoGlyphCell` (+ `infoGlyphRenderer`) is the shared (i) “inspect/edit” affordance — use it instead of a chevron (which reads as collapse); `colorSwatchCell` (+ renderer) draws a live colour swatch **and hex on canvas, with no DOM cell**, and opens the entity modal where the shared `ColorField` picks (Library → Groups). Both renderers are registered once by `InlineGlideTable`.
+- **Row chrome**: `rowInfo(row)` adds a trailing info column immediately before the actions; `rowActions(row)` is the persistent trailing glyph column (keep destructive trash there, not behind hover); `rowMenuItems(row, close)` adds row actions above the generic copy/paste/cut items on right-click; `headerMenuItems(close)` stays the header-menu extension. The (i) and trash columns are excluded from copy/cut.
 
 ## Hover & Tap Feedback
 

@@ -332,6 +332,14 @@ Add to the rail; keep `npm run icons:audit` open when swapping any of these. NEV
 |---|---|---|
 | Manager table rows | grid `border-b` / `border-r border-zinc-200` (lines must stay readable under the hover tint), zebra `bg-white` / `bg-zinc-50/30`, **row hover `hover:bg-zinc-100`** (gray — no blue), `transition-colors` | `managerShell.tsx:452`, `ElementManager.tsx:602` |
 
+**Grid cell colour = affordance (shared `InlineGlideTable` rule).** Editable cells are the
+**white input surface** at rest (near-white hover only — they read as fields, not chips);
+read-only cells are the **neutral grey disabled surface** (`#f4f4f5` light / `#1c1c1f` dark; a
+touch deeper on hover). A caller's own `themeOverride.bgCell` band (budget category/account
+rows) wins over the disabled tint. Never tint an editable cell blue and never paint a read-only
+cell white — the colour is the affordance, not decoration. Canvas glyphs (`infoGlyphCell`,
+`colorSwatchCell`) draw on the canvas, never as DOM cells.
+
 ### Item cards & rows (dark modals)
 
 The grouped-list surface of the element events manager, extracted as the shared `ItemCard` +
@@ -402,7 +410,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
 | Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Kit `DropdownMenu` + `DropdownItem group` — category headers, searchable by row/category, single/multi, light/dark. Never fork a second grouped panel |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
-| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. The local cell/range selection is cached under its presence scope (or data attr) and restored on remount, so a Day Manager tab switch doesn't drop it. Day Manager Call Times + Crew; reuse for manager pages |
+| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), **editable cells = white input surface / read-only = neutral grey disabled** (caller band `bgCell` wins; §Tables), centered headers, one commit per edit/paste/fill/clear. Header right-click exposes `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut and adds `rowMenuItems`. A trailing `rowInfo` (i) glyph opens the row editor just left of a persistent trailing `rowActions` glyph column (trash/plus/chevron) — both canvas-painted, never DOM cells. The local cell/range selection is cached under its presence scope (or data attr) and restored on remount, so a Day Manager tab switch doesn't drop it. Day Manager Call Times + Crew, budget sheet + Library; reuse for manager pages |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
 rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` `:16-17`; selected

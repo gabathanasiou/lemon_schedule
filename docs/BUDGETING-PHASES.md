@@ -1,6 +1,8 @@
 # Budgeting — AI phase work packages
 
-Status: **execution guide for roadmap 334.** Read `docs/BUDGETING.md` (model,
+Status: **execution guide for roadmap 334.** **Phase 1 is LANDED (2026-10-30)**
+— its shipped reality is recorded in §Phase 1 below and in the two companion
+manuals. Phases 2-4 are forward-looking. Read `docs/BUDGETING.md` (model,
 engine, store), `docs/BUDGETING-SURFACES.md` (UI/Day Manager/reports) and
 `docs/BUDGETING-RESEARCH.md` (market evidence) first. This file turns the plan
 into complete, AI-executable phases: scope, exact seams, actions, acceptance
@@ -37,8 +39,9 @@ criteria pass. Within a phase, commit in this order:
 
 **AI guardrails (MUST NOT):**
 - No second budget engine, grid engine, report engine, store/context, or modal
-  shell. Reuse `computeBudget`/`computeCostReport`, the Glide fork, the Reports
-  Designer block tree, `useProject()` once per surface, kit primitives.
+  shell. Reuse `computeBudget` (`computeCostReport` once phase 2 lands), the
+  shared `InlineGlideTable`/Glide recipe, the Reports Designer block tree,
+  `useProject()` once per surface, kit primitives.
 - No per-row `useProject()`; no deriving totals in a component; no mutating
   computed rows; no `any` casts for budget shapes.
 - No per-keystroke persistence; commit on blur/Enter, bulk ops in one
@@ -48,100 +51,147 @@ criteria pass. Within a phase, commit in this order:
 - No "sync" button. Schedule links are live; pin/lock is the control.
 
 **Debug bridge / MCP (every phase):** all writes go through the same `Action`
-union the UI uses; add `makeBlankBudget`, `makeBudgetVersion`, `makeBudgetLine`,
-`makeExpense`, `makePurchaseOrder` factories and a `budgetSummary()` read helper
-to `src/lib/debugBridge.ts`. Run `npm run mcp:schema`; verify a bridge read/write
-and a viewer write refusal in e2e.
+union the UI uses. Phase 1 shipped `makeBlankBudget`, `makeBudgetVersion`,
+`makeBudgetLine` and `budgetSummary()` in `src/lib/debugBridge.ts` (plus the
+derived MCP action schema); phase 2 adds `makeExpense`/`makePurchaseOrder`,
+phase 3 the overtime factories if they are needed. Run `npm run mcp:schema`;
+verify a bridge read/write and a viewer write refusal in e2e.
 
 ---
 
-## Phase 1 — Budget authoring, versions & reports
+## Phase 1 — Budget authoring, versions & reports — LANDED
+
+### Status (2026-10-30)
+Shipped across the phase-1 commits: types + `makeBlankBudget`/version/line
+factories + `migrateBudget`; the pure engine; store actions; Budget tab with
+`Budget`/`Library` live and `Cost Report`/`Expenses` placeholder states; the
+shared `InlineGlideTable` sheet; line/node/group modals; the `budgetTable`
+report block, budget collections/fields and three transient prints; CSV/JSON
+export + JSON import; debug-bridge factories and `budgetSummary`; e2e
+`e2e/budget.spec.ts` + unit `budget.test.ts`/`reportBudget.test.ts`.
+
+**Where the shipped phase diverges from the original package (authoritative):**
+Cost Report/Expenses are placeholders until phase 2; formula grammar has no
+`{{line.*}}` cross-line refs; the grid is the shared `InlineGlideTable` (no
+bespoke Glide fork); fringe ranges/groups are engine+data only (no editor);
+version Create and Duplicate both clone the active version (no blank action);
+lock pins via the UI-computed `lockBudgetVersion` map and unlock does NOT
+unpin; only `topsheet`/`accounts`/`lines` report modes render (others fall back
+to `topsheet`); import is JSON only; markups edit name/kind/calc/percent/
+amount/compound but not scope/caps.
 
 ### Goal
-A complete authoring tool: create a budget (blank or from schedule), edit the
-chart/details, use fringes/globals/groups/units/markups, switch versions, and
-print/export it through the Reports Designer. No cost tracking, no overtime yet.
+A complete authoring tool: create a budget (blank, feature or from schedule),
+edit the chart/details, use fringes/globals/groups/units/markups, switch
+versions, and print/export it through the Reports Designer. No cost tracking,
+no overtime yet.
 
 ### Data (`src/types.ts`)
-Add exactly the types in `docs/BUDGETING.md` §3:
+Shipped exactly: `MoneyCents`, `BudgetGroupKind`, `BudgetLineKind`,
 `BudgetCategory`, `BudgetAccount`, `BudgetLine`, `BudgetLineSource`,
 `BudgetFringe`, `BudgetFringeRange`, `BudgetGroup`, `BudgetGlobal`,
 `BudgetUnit`, `BudgetCurrency`, `BudgetMarkup`, `BudgetSettings`, `Budget`,
-`BudgetVersion`, `BudgetVersionTrashItem`; `Project.budget?: Budget`.
+`BudgetVersion`, `BudgetVersionTrashItem`, `Project.budget?: Budget`.
 `Budget` has `versions`, `activeVersionId`, `versionTrash`; the chart/library
 (fringes/groups/globals/units/currencies/markups/settings) is **shared** across
-versions. `BudgetLine` has `source`, `qtyOverride`, `rateOverride`.
+versions. `BudgetLine` has `source`, `qtyOverride`, `rateOverride` (the last is
+a data seam only — no UI writes it in phase 1).
+`Expense`/`PurchaseOrder` (phase 2) and the overtime types (phase 3) are NOT in
+`types.ts` yet; do not add them without their phase.
 
 ### Store (`src/store/actions/budget.ts` + `reducer.ts`)
 Actions (also in `ACTION_TYPES`):
-`ADD/UPDATE/DELETE_BUDGET_CATEGORY`, `..._ACCOUNT`, `..._LINE`,
-`BULK_UPDATE_BUDGET_LINES`, `SET_BUDGET_LIBRARY`, `UPDATE_BUDGET_SETTINGS`,
-`APPLY_BUDGET_TEMPLATE`, `IMPORT_BUDGET`; `NEW/RENAME/DELETE/RESTORE/SET_ACTIVE/
-LOCK/UNLOCK_BUDGET_VERSION`; `LINK/UNLINK/PIN/UNPIN_BUDGET_LINE`.
+`ADD/UPDATE/DELETE_BUDGET_CATEGORY`, `..._ACCOUNT` (DELETE payload
+`{ id, reassignToId? }`), `..._LINE`, `BULK_UPDATE_BUDGET_LINES`,
+`SET_BUDGET_LIBRARY` (key `fringes|groups|globals|units|currencies|markups|
+fringeRanges`), `UPDATE_BUDGET_SETTINGS`, `APPLY_BUDGET_TEMPLATE { key:
+'blank'|'feature', id? }`, `IMPORT_BUDGET { budget }`;
+`NEW/RENAME/DELETE/RESTORE_BUDGET_VERSION_FROM_TRASH/SET_ACTIVE/LOCK/UNLOCK_
+BUDGET_VERSION`; `LINK/UNLINK/PIN/UNPIN_BUDGET_LINE`.
 
 - `makeBlankProject` leaves `budget` undefined; `makeBlankBudget` creates one
-  version (`v01`), default units/currencies/settings.
-- `migrateBudget(project)` idempotent (arrays/defaults/legacy aliases) in
-  `loadBaseline` and import paths; never auto-create on load.
+  version (`v01`), default units/currencies/groups/settings.
+- `migrateBudget(project)` idempotent in the reducer's `LOAD` (every load path);
+  never auto-creates.
 - `cloneBudgetVersion` shares the chart/library and maps line objects by
   reference (COW); editing a line replaces only that line object.
-- `pruneBudgetVersionTrash` (30-day TTL + newest 10) in `storage.ts`; prune on
-  load/delete. Never delete the last version.
-- `lockBudgetVersion(project, versionId)` pure helper computes `pinned`
-  quantities from the schedule and returns `LOCK_BUDGET_VERSION`; the reducer
-  never computes schedule quantities.
+- `pruneBudgetVersionTrash` (30-day TTL + newest 10) in `model.ts`; pruned on
+  load and delete. Never delete the last version.
+- `lockBudgetVersion(project, versionId)` lives in `scheduleSync.ts` and is
+  pure: it computes `pinned` quantities from the schedule; the **UI** calls it
+  and dispatches `LOCK_BUDGET_VERSION`. The reducer only applies the map and
+  never computes schedule data. `UNLOCK_BUDGET_VERSION` does not unpin.
 - Version picker reuses kit `ItemManagerDropdown` (create/rename/duplicate/
-  select/delete) with `theme="light"`, label "Budget"; delete goes to
-  `versionTrash`; lock is a separate menu action.
-- Bulk edits = one `BULK_UPDATE_BUDGET_LINES`; pastes/fills/applies fringe are
-  one undo entry.
+  select/delete/trash) with `theme="light"`, label "Budget"; Create and
+  Duplicate both clone the active version (COW); lock is a separate button.
+- Bulk edits = one `BULK_UPDATE_BUDGET_LINES`; pastes/fills/fringe or group
+  creation are one `BATCH_START`/`BATCH_COMMIT` undo entry.
 
 ### Engine (`src/lib/budget/`)
-`model.ts` (factories/defaults/templates), `formula.ts` (numbers/operators/
-globals/`{{line.*}}` arithmetic, no `eval`, cycle/unknown = `#ERR`), `calc.ts`
-(`computeBudget(project)` over the active version + schedule quantities),
-`fringes.ts` (percent/fixed/flat, cutoff, ranges, posting, rounding),
-`format.ts` (money/percent), `scheduleSync.ts` (`computeScheduleQuantities`,
-source resolution), `templates/feature.ts`, `templates/blank.ts`,
-`reportTemplates.ts`, `export.ts` (CSV/JSON).
-- `effectiveQty = source && qtyOverride == null ? scheduleQty(source) : qtyOverride ?? qty`;
-  `effectiveRate = rateOverride ?? rateCents`.
-- Line base/fringe/total in cents, round half-up at the line only.
-- Format-linked lines never mutate stored `qty`; the computed model carries the
+`model.ts` (factories/defaults/version helpers/trash/migration), `formula.ts`
+(numbers, `+ - * /`, parentheses, unary minus, global symbols; no `eval`, no
+functions, no `{{line.*}}` cross-line refs; `#REF!`/`#DIV/0!`/`#VALUE!`/
+`#CYCLE!`), `calc.ts` (`computeBudget(project)` over the active version +
+schedule quantities), `fringes.ts` (percent/fixed/flat, cutoff, ranges,
+rounding), `format.ts` (money/percent), `scheduleSync.ts`
+(`computeScheduleQuantities`, `scheduleQtyFor`, `computeSystemGlobals`,
+`lockBudgetVersion`), `templates/index.ts` (Blank/Feature),
+`templates/fromSchedule.ts`, `reportTemplates.ts`, `export.ts` (CSV/JSON export
++ JSON import). `costReport.ts`/`overtime.ts` belong to phases 2/3.
+- `qty = eval(qtyFormula) else source ? (qtyOverride ?? scheduleQty) : (qtyOverride ?? qty)`;
+  `rateCents = eval(rateFormula) else rateOverride ?? rateCents`;
+  `multiplier = eval(multiplierFormula) else multiplier`. A formula wins over a
+  source/override; a formula error is 0 + a line warning.
+- Line base/fringe/total in cents, round half-up at the line only; `capCents`
+  caps the local base; fx converts base + fringe separately.
+- A fringe applies when the line names it OR shares one of its groups. A
+  percent fringe over lines sharing a `fringeRangeId` applies ONCE over the
+  range sum, attached to the first line; fixed/flat stay per line.
+- Linked lines never mutate stored `qty`; the computed model carries the
   derived value. A missing source target is a `BudgetError` (show 0 + warning,
   never crash).
-- `computeScheduleQuantities` uses the same day/section/DOOD data as the
-  stripboard/DOOD; pass it in from `useDaybreakSections`/`useDayViews` rather
-  than re-deriving inside the budget engine. Memoize once per surface.
-- `lockBudgetVersion` pins all linked quantities so an approved version cannot
-  drift when the schedule changes.
+- `computeScheduleQuantities` uses the same canonical day views as the
+  Day Manager/DOOD (`computeRowData` + `buildDayViews`); memoize the model once
+  per surface (`computeBudget(project, { quantities })` accepts a reuse).
+- `lockBudgetVersion` pins all live-linked quantities so an approved version
+  cannot drift when the schedule changes.
 
 ### UI (`src/components/budget/`)
-`BudgetTab.tsx` root (project read once, sub-tab, prefs, modals), `BudgetView`,
-`BudgetToolbar`, `BudgetSidebar`, `BudgetGrid`, `BudgetSummaryBar`,
-`BudgetTemplatesModal`, `BudgetVersionMenu` (wraps `ItemManagerDropdown`),
-`LibraryView` + `FringesTable`/`GlobalsTable`/`GroupsTable`/`UnitsTable`/
-`CurrenciesTable`/`MarkupsTable`, `BudgetSettingsCard`, `FormulaField`.
-- App nav: add `'budget'` to `AppTabId`, labels/order (⌘8), sub-tabs, AppHeader
-  icon, App.tsx render/popout. Route through `go()`.
-- Grid: Glide fork, frozen Account/Description, expandable category/account/
-  line rows, static totals, `kitGlyphCell` chevrons/actions, `kind:'money'`/
-  `'percent'`/`'formula'` editors, `MoneyField`/`PercentField` on the kit
-  `NumberInput`.
-- Empty state: `Blank`, `Feature`, `From schedule`; Import CSV. Blank is
-  first-class; "From schedule" previews lines then creates linked lines.
-- Row menu: insert/duplicate/delete, apply fringe/group, pin/unpin, link/unlink,
-  notes. Locked version/read-only hides edits.
-- Library: editable tables; "used by N lines" + where-used; delete in-use warns.
+Shipped files: `BudgetTab.tsx` (root, one project read, sub-tabs, version menu,
+empty state, JSON import), `BudgetView` (toolbar, KPI strip, rail, grid,
+modals), `BudgetGrid`, `BudgetVersionMenu`, `BudgetEmptyState`,
+`BudgetLibraryView`, `BudgetLineModal`, `BudgetNodeModal`, `BudgetGroupModal`,
+`fields.tsx` (`BudgetInput`, `NumberField`, `MoneyField`, `PercentField`).
+- App nav: `'budget'` in `AppTabId`, labels/order (⌘8), sub-tabs, AppHeader
+  Wallet icon, App.tsx render/popout. Route through `go()`.
+- Grid: the shared `InlineGlideTable` recipe (NOT a bespoke Glide fork):
+  auto-fit columns, content height, category/account inline bands, static
+  totals, painted `kitPickerCell` pickers (unit/currency/fringe/group), a
+  trailing (i) glyph + persistent trash column, right-click row menu,
+  presence scope `budget:detail`.
+- Shared grid colour rule: editable = white input surface at rest; read-only =
+  neutral grey disabled; caller band colours win. `MoneyField`/`PercentField`
+  wrap the kit `NumberInput`; no second numeric primitive.
+- Empty state: `Blank`, `Feature`, `From schedule`; Import budget JSON.
+  "From schedule" shows preview counts and creates linked lines (no wizard).
+  Import is JSON only (CSV is export-only).
+- Row menu/line modal: duplicate/delete, pin/unpin, link/unlink, fringes/groups,
+  formula overrides. Locked version/read-only hides edits.
+- Library: editable tables + settings/system-values cards. An in-use delete
+  warns with the count and clears the references; a where-used jump is not
+  built. Fringe group/range tagging has no UI yet.
 
 ### Reports (`src/lib/reportBudget.ts`, `src/components/reports/`)
 - `ReportBlock.type` += `'budgetTable'` with `budgetMode`/category/account/
-  columns/zero/fringes/notes/percent; leaf; allowed top-level/in `columns`.
+  columns/zero/fringes/notes/percent; project-wide leaf (top level, columns or
+  a non-day container), never inside a Days repeat or a Call Sheet zone.
+- Phase-1 modes: `topsheet`, `accounts`, `lines`; `costReport`/`hotCost`/
+  `cashflow`/`comparison` are typed but fall back to `topsheet`.
 - `ReportCtx` += `budget: BudgetModel` (computed once in `buildReportCtx`).
 - `ReportCollection` += `budgetCategories`, `budgetAccounts`, `budgetLines`,
-  `budgetLinesOfAccount`; fields for budget/category/account/line money and
-  totals; `fieldScopeFor`/`reportBlocks.ts` labels/order/validity; `money`
-  marker/right alignment.
+  `budgetLinesOfAccount`; budget document + item fields; `fieldScopeFor`/
+  `reportBlocks.ts` labels/order/validity; `money` marker/right alignment.
+  `costReport`/`expenses`/`purchaseOrders` collections are phase 2 — not built.
 - `reports/ReportBudgetTable.tsx` reuses `ReportGridBlock`'s `.report-table-cols`
   / `.rm-row` recipe + `data-rm-header` + the paginator; keep-with-next for
   category/account headers.
@@ -149,52 +199,66 @@ source resolution), `templates/feature.ts`, `templates/blank.ts`,
   Account Detail, Budget Health. Budget → Print opens `ReportPrintDialog`;
   "Save as design" uses `ADD_REPORT_DESIGN`.
 - `Budget → Export` CSV/JSON via `lib/budget/export.ts`; no XLSX dep.
-- Formula input: expression field in the grid with global/line autocomplete;
-  reuse `TOKEN_RE`/`parseToken` and `#REF!`/`#VALUE!` conventions where useful,
-  but keep the arithmetic evaluator in `lib/budget/formula.ts` (the report free
-  table is token/cell-ref resolution, not arithmetic).
+- Formula entry: plain expression inputs in `BudgetLineModal` ("Formula
+  overrides (advanced)") with a system-global hint. There is **no** in-grid
+  formula editor or autocomplete; the arithmetic evaluator stays in
+  `lib/budget/formula.ts` (the report free table is token/cell-ref resolution,
+  not arithmetic).
 
-### Acceptance (phase 1)
+### Acceptance (phase 1 — LANDED)
 1. New project → Budget tab shows the empty state; Blank/Feature/From schedule
    each create a valid budget with one version.
-2. Feature template creates categories/accounts; adding a line and editing
-   qty/rate/X updates account/category/grand totals; undo/redo work.
-3. Fringes (percent/fixed/flat/cutoff/range), globals/formulas, groups,
-   units, markups/contingency compute correctly and survive reload.
-4. Per-line currency: change a line's currency/rate; its `Total (base)` converts,
-   account/grand totals stay base, missing rate warns, and a currency-round-trip
-   survives reload.
-5. Versions: create from current, rename, switch, duplicate, delete/restore,
-   lock/unlock; last version cannot be deleted; editing an account name shows in
-   every version (chart shared); duplicate lines are COW until edited.
-6. Schedule link: a line linked to shoot days changes when the calendar's
-   production-day count changes; pinning freezes it; locking a version freezes
-   all linked lines; manual lines never change. No sync button exists.
-7. Blank budget stays manual; a line can be linked later; generated lines are
-   previewed before creation.
+2. Feature template creates 4 categories / 25 accounts; adding a line and
+   editing qty/rate/X updates account/category/grand totals; undo/redo work.
+3. Fringes (percent/fixed/flat/cutoff/range engine), globals/formulas,
+   groups, units and markups/contingency compute and survive reload. Fringe
+   group/range tagging and markup scope/caps are model-only (no UI).
+4. Per-line currency: change a line's currency/rate; local totals stay in that
+   currency, account/grand totals stay base, a missing rate warns, and the
+   value survives reload.
+5. Versions: create/duplicate (both COW clones of the active version), rename,
+   switch, delete/restore, lock/unlock; last version cannot be deleted; editing
+   an account name shows in every version (chart shared). There is no blank
+   "new version" action.
+6. Schedule link: a line linked to shoot days changes when the production-day
+   count changes; editing Qty pins it; Pin/Unpin in the line modal; locking a
+   version pins every live-linked quantity and unlock does not unpin; manual
+   lines never change. No sync button exists.
+7. Blank budget stays manual; a line can be linked later; From schedule shows
+   preview counts (not a line-by-line wizard) and creates linked lines.
 8. Top Sheet/Account Detail/Budget Health print with correct totals, repeated
    headers, page numbers and money formatting; "Save as design" creates an
    editable design.
-9. CSV/JSON export round-trips the active version; viewer read-only hides edits
-   and the bridge/MCP refuses writes.
-10. `ItemManagerDropdown` version menu matches schedule/calendar behaviour; trash
-   restore works; project file size stays sane at 1,000 lines.
+9. CSV exports the active version; JSON exports the whole budget (chart/
+   library/all versions) and JSON import replaces the budget (there is no CSV
+   import). Viewer read-only hides edits and the bridge/MCP refuses writes.
+10. `ItemManagerDropdown` version menu matches schedule/calendar behaviour;
+   trash restore works; project file size stays sane at 1,000 lines.
 11. No per-row `useProject()`, no second report/grid engine, no hardcoded rates.
 
+Deferred from the original acceptance: cost report (phase 2), rich
+currency-round-trip import (JSON carries raw cents; no re-import UI beyond the
+whole budget), viewer-refusal e2e (covered by the shared bridge/MCP tests),
+and a print-per-template e2e (print is manual-verified; the read model is unit
+tested).
+
 ### Tests/docs
-Vitest: line maths/rounding, fringe cutoff/range, formula cycles, markup scope/
-compound, version COW/lock, schedule source resolution, template apply. E2E:
-create-from-template, edit/totals/undo/reload, version switch/lock, schedule
-change→linked qty, print, export, viewer refusal. Docs: `BUDGETING*.md`,
-`REPORTS-DESIGNER.md`, `UI-KIT.md`, `API.md`, `AGENTS.md` pointer, roadmap.
-Extend `scripts/smart-test.mjs` `RULES` with budget specs.
+Vitest: line maths/rounding, fringe applicability/cutoff/range, formula
+cycles/errors, markup behaviour, version COW/lock, schedule source resolution,
+template apply, report rows/columns (`reportBudget.test.ts`). E2E
+(`e2e/budget.spec.ts`): create-from-template + persistence, schedule
+change → linked qty, pin and lock. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md`,
+`UI-PRIMITIVES.md`/`DESIGN-LANGUAGE.md` (grid colour rule), `API.md`,
+`AGENTS.md` pointer. Extend `scripts/smart-test.mjs` `RULES` with the budget
+spec.
 
 ### Pitfalls
 - Do not put `budget` in a new context/store; it is project state.
 - Do not clone the chart/library per version; share them.
 - Do not deep-clone lines on version create; COW only.
 - Do not compute schedule quantities inside the reducer; pass pinned values.
-- Do not use the rich-text token editor for the Glide formula cell.
+- Do not use the rich-text token editor for the budget formula fields (plain
+  expression inputs; no cross-line refs in v1).
 - Do not print without `ReportPrintDialog`.
 
 ---
@@ -220,11 +284,11 @@ returning account/line rows with Budget/Actual/Committed/ETC/EFC/Variance/
 POs optional: committed = committed expenses + open PO remaining.
 
 ### UI
-`CostReportView` (as-of/period, KPI strip, expandable rows, inline ETC/reason),
-`ExpensesView` (filters/group/add/import), `ExpenseModal`; `ExpenseSection` in
-the Day Manager (`dayTabs`, registry, `DAY_TAB_OPTIONS`, root-owned modal,
-`DaySectionActions.openExpense`). `CostReport`/`Expenses` sub-tabs become live.
-Read-only hides edits.
+`CostReportView` (as-of/period, KPI strip, expandable rows, inline ETC/reason)
+replaces the phase-1 Cost Report placeholder; `ExpensesView` (filters/group/
+add/import) + `ExpenseModal` replace the Expenses placeholder; `ExpenseSection`
+in the Day Manager (`dayTabs`, registry, `DAY_TAB_OPTIONS`, root-owned modal,
+`DaySectionActions.openExpense`). Read-only hides edits.
 
 ### Reports
 `costReport`, `expenses`, `expensesOfDay`, `purchaseOrders` collections/fields;
