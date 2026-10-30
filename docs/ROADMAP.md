@@ -1364,3 +1364,42 @@ Phases 3-4 remain (PO authoring UI is action/bridge-only for now).
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
 **Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
+
+## 335. Budget — the (i) row action must mean ONE thing (`[ ]`, bug)
+
+**Asked 2026-10-30 (user):** in the Budget sheet the (i) icon does different
+things depending on where it is pressed. It must always be the inspect/edit
+affordance, never a side effect.
+
+**Cause:** `BudgetGrid.rowInfo` returns `actionsFor(row)[0]`; the quick-add
+"Add line" action now sits first on category/account rows (roadmap 334 phase
+2), so their (i) adds a line while a line row's (i) still opens the line modal.
+
+**Fix:** make the (i) target explicit per row kind (category/account → node
+modal, line → line modal), independent of context-menu ordering; quick-add
+stays on the `+` glyph and right-click only. Audit the same `rowInfo → first
+action` pattern in other grids while there.
+**Verify:** clicking (i) on a category, an account and a line opens the
+corresponding editor and never mutates; fold one assertion into
+`e2e/budget.spec.ts` without raising the cap.
+
+**Relations:** `relates to` **334**.
+
+## 336. Day Manager — Expenses in a Glide table for fast entry (`[ ]`)
+
+**Asked 2026-10-30 (user):** the Day Manager Expenses card should be a Glide
+table so expenses can be added/edited very quickly, the same feel as the
+Budget sheet.
+
+**Work:** replace the compact DOM table with the shared `InlineGlideTable`
+recipe: Date / Description / Account / Vendor / Method / Status / Amount / PO,
+commit-on-blur `UPDATE_EXPENSE`, (i) opens the shared `ExpenseModal`, persistent
+trash + right-click actions, copy/paste/fill. Keep the day filter
+(`dayDate`/`dayNumber`), Actual/Committed summary, Add expense and the
+no-budget CTA. A new expense should land as an editable row without opening
+the modal (quick add, like the Budget `+`); read-only and copy-from-day
+semantics stay.
+
+**Verify:** extend `e2e/budget.spec.ts` (within the 71/292 caps) for card
+add/edit/reload; manual quick-add pass. **Relations:** `depends on` **315** +
+**334**; `relates to` **326**.
