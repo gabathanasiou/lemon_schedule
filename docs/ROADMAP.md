@@ -1633,3 +1633,39 @@ backgrounds coloured appropriately.
 and read-only) + existing grid specs unchanged; a tiny unit test for the
 status→tone mapping if the palette grows beyond a lookup table.
 **Relations:** `relates to` **334**, **336**, **343**.
+
+## 346. Budget — formula book + autocomplete (formula editor) (`[ ]`)
+
+**Asked 2026-10-30 (user):** is there better formula support / a formula book,
+and can formula inputs autocomplete? Consider the kit rich-text machinery.
+
+**Current state:** `lib/budget/formula.ts` is a safe arithmetic evaluator —
+numbers, `+ - * /`, parentheses, unary minus and global symbols only. No
+functions, no `{{line.*}}` cross-line refs, no formula book and no
+autocomplete; the line modal just shows a static globals hint. Formula fields
+are plain `BudgetInput`s.
+
+**Work:**
+- **Don’t use the kit `RichTextEditor` for formulas** — it stores HTML/token
+  chips and formatting the evaluator cannot parse. Reuse its suggestion-popup
+  interaction (or `SearchMenu` filtered rows) behind a new plain-text
+  `FormulaField` shared by the line modal and Library globals.
+- **Autocomplete:** type-to-filter available symbols/functions; ↑↓ choose,
+  Enter/Tab inserts, Esc closes; insert at the caret, never replace the whole
+  expression. Live-validate with `evaluateFormula` and show `#REF!`/`#VALUE!`
+  inline (never block typing).
+- **Formula book:** a searchable popover/modal grouped System globals / Project
+  globals / Functions, each with a one-line description, example and Insert
+  action; a `?`/book button next to each formula field. One registry feeds the
+  book AND autocomplete (no duplicated lists).
+- **Evaluator v1:** add a small safe function set (ROUND, MIN, MAX, ABS,
+  maybe CLAMP) with arity checks; keep no `eval`, no cross-line refs until a
+  separate scoped item. Unknown function/symbol stays `#REF!`.
+- Read-only hides Insert; keyboard/touch parity; docs in `BUDGETING.md`
+  (grammar + book) and `BUDGETING-SURFACES.md` (field/controls).
+
+**Verify:** Vitest for tokenizer/function/autocomplete matching and error
+codes; manual formula-book/insert pass; no new spec unless the autocomplete
+can silently write malformed formulas (then fold into the budget spec within
+the caps). **Relations:** `relates to` **334**, **344**; builds on the retired
+**172** search/suggestion pattern and **322** picker architecture.
