@@ -177,8 +177,9 @@ promoted to the kit (56) and every kit primitive takes the ambient theme (302).
 (`src/components/Modal.tsx` `modalThemeHarness`); an explicit `theme` prop still wins.
 Use it for the light/dark × zinc/blue/emerald pass. Kit components with an explicit
 `theme` prop (Button, SearchMenu, Seg) keep their own palette until 302 makes them ambient.
-The app `Modal` shim pins `theme="dark"` by default (302), so a light page scope never
-flips an overlay — modals stay dark until light modals land.
+The app `Modal` shim pins `theme="dark"` by default (two-layer rule), so a light page scope
+never flips an overlay; its surface/accent come from `projectModalThemeOf` (333) and dialogs share
+the same mapping through `ProjectDialogProvider`.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's
@@ -213,7 +214,7 @@ Sheet/Days buttons.
 ### Buttons
 | Role | Classes |
 |---|---|
-| Toolbar button (kit `Button`) | base `inline-flex items-center gap-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`; `subtle` `px-2.5 py-1 text-zinc-600 hover:bg-zinc-200`; `primary` `px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white` (Drive: `bg-blue-950 hover:bg-blue-900`; shared: `bg-emerald-950 hover:bg-emerald-900`); `danger-ghost` `px-2.5 py-1 text-rose-600 hover:bg-rose-50`; dark theme mirrors with `hover:bg-zinc-800`/`hover:bg-zinc-700` — `ui-kit/src/Button.tsx` |
+| Toolbar button (kit `Button`) | base `inline-flex items-center gap-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`; `subtle` `px-2.5 py-1 text-zinc-600 hover:bg-zinc-200`; `primary` reads `--ui-btn-primary-bg`/`-hover` — the project IDENTITY header step (zinc `#09090b`, Drive `#172554`, shared `#022c22`), deliberately kept through a neutral surface via `data-identity-accent`; `danger-ghost` `px-2.5 py-1 text-rose-600 hover:bg-rose-50`; `cloud` forces blue/emerald when no scope supplies identity — `ui-kit/src/Button.tsx` |
 | Ghost (Cancel, Close) | `px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors` (`DayTypeModals.tsx:29`) |
 | Solid (primary action) | `px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors` (`DayTypeModals.tsx:30`) |
 | Labeled icon action | `flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white` (`LinkManagerModal.tsx:33` — icon-only buttons need text labels) |
@@ -523,14 +524,16 @@ Structure (all in `src/components/Modal.tsx`):
 - **Theme (roadmap 302)**: the shell reads kit tokens, never Tailwind zinc. `theme` picks the mode
   (`light | dark`; default = ambient `ThemeScope`, else dark), `accent` (`zinc | blue | emerald`)
   is project identity, and `surface="accent"` opts into the accent ladder: `accent-950` header (THE
-  app-header colour, white title), NEUTRAL body, `accent-100` wells/footer. Every normal app modal
-  uses `surface="neutral"`: light/dark shell, **no accent inside** (selection/checks/Seg/date chips
-  are neutral) — Drive/shared keep their blue/emerald colour in the chrome (header/tabs), not in the
-  modal. Card and calendar headers use `accent-900` only on an accent surface; the calendar body +
-  checklist/radio panels stay neutral; every outline stays neutral (`--ui-border` /
-  `--ui-border-strong`). A nested accent-only `ThemeProvider`/`ThemeScope` is a manual Lego
-  override. The app's `src/components/Modal.tsx` shim maps the open project
-  (`projectModalThemeOf`); callers can override either prop. `color-scheme` follows the mode.
+  app-header colour, white title), NEUTRAL body, neutral footer. Every app modal uses
+  `surface="accent"` (roadmap 333): the project colour is the painted INNER header card (accent-950,
+  white title, 6px neutral gutter), the body/footer stay neutral, and a primary `Button` keeps the
+  identity header step. The footer HERO is deliberately not that: it keeps the familiar bordered
+  zinc `ModalFooterButton` recipe. Local resolves to zinc — the same near-black header, with the
+  kit's inner-card geometry. Accent states inside follow the project colour; every outline stays neutral
+  (`--ui-border` / `--ui-border-strong`). A nested accent-only `ThemeProvider`/`ThemeScope` is a
+  manual Lego override. The app's `src/components/Modal.tsx` shim maps the open project
+  (`projectModalThemeOf`); callers can override either prop. `ProjectDialogProvider` passes the same
+  mapping to `DialogProvider`, so confirm/prompt/alert always match. `color-scheme` follows the mode.
 - **Header**: `flex items-center justify-between px-5 py-2.5 border-b border-[var(--ui-modal-header-border)] bg-[var(--ui-modal-header-bg)]`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-[var(--ui-modal-icon)]`) + title `text-xs font-bold text-[var(--ui-modal-title)] truncate` + optional Reset (`text-[var(--ui-modal-muted)] bg-[var(--ui-modal-control-bg)]`) + close X (`text-[var(--ui-modal-muted)] hover:text-[var(--ui-modal-title)]`).
 - **Body**: `overflow-y-auto flex-1 bg-[var(--ui-modal-body-bg)] text-[var(--ui-modal-body-text)]`; content carries `p-6 space-y-5`.
 - **Footer** (`ModalFooter`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-[var(--ui-modal-border)] bg-[var(--ui-modal-header-base)]` (the NEUTRAL band, so an accent header stays the only tinted strip).

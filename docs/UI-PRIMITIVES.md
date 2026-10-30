@@ -250,13 +250,13 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `bg-zinc-800`, e.g. "+ New Project"); EVERY other button — Cancel, secondary actions, Import — is
   `variant="ghost"` (e.g. "Import"). Destructive: `variant="danger"` (ghost, `mr-auto`) for Delete,
   `variant="danger-solid"` for red confirms. Never hand-write footer button classes.
-- **Modal theming (roadmap 302)**: the app `Modal` shim applies `projectModalThemeOf` — every
-  project kind is a neutral surface, so the shell and its kit children carry NO project accent
-  inside; Drive/shared colour stays in the chrome. Pass `surface="accent"` to opt one surface into
-  the accent ladder, or wrap a single control in an accent-only `ThemeProvider` for a manual (Lego)
-  override. Never hand-tint modal bodies with `bg-blue/emerald-*`. The shim pins `theme="dark"` until
-  the light-modal work lands, so a light page scope (e.g. the Day Manager pilot, 310) never flips an
-  overlay.
+- **Modal theming (roadmap 333)**: the app `Modal` shim applies `projectModalThemeOf` — every
+  project kind is an ACCENT surface: painted inner header card, neutral body/footer, accent
+  selection states, and a primary `Button` on the identity header step (`--ui-btn-primary-bg`).
+  The footer HERO keeps the bordered zinc `ModalFooterButton` recipe. Local resolves to zinc
+  (same near-black header); `ProjectDialogProvider` passes the same mapping to `DialogProvider`,
+  so confirm/prompt/alert match. Never hand-tint modal bodies with `bg-blue/emerald-*`; the shim
+  pins `theme="dark"` (two-layer rule), so a light page scope never flips an overlay.
 - **Project chrome (roadmap 311)**: wrap the app header / pop-out toolbar / page toolbar in
   `ProjectChromeScope` (`src/components/ProjectChromeScope.tsx`) — one kit `ThemeScope` publishing
   `mode`, the project accent and `context="chrome"`. Bar/hover/title-ring/tab-pill read
