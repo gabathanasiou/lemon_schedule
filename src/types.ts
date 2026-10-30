@@ -240,6 +240,9 @@ export interface DayMeta {
   /** Break/NOTE row ids ticked for call-sheet inclusion (default: all). */
   includeBreaks?: string[];
   includeNotes?: string[];
+  /** Phase 3 (roadmap 334): actual times, policy overrides and the posted
+   *  expense ids for this day's overtime. */
+  overtime?: DayOvertime;
 }
 
 export interface ScheduleRow {
@@ -460,6 +463,12 @@ export interface CastMember {
   address?: string;
   rate?: string;
   per?: string;
+  /** Phase 3 (roadmap 334) — numeric pay basis for overtime. `rate`/`per`
+   *  stay the MMS display/import fields; these are the computed source. */
+  rateCents?: number;
+  rateUnit?: 'hour' | 'day' | 'flat';
+  guaranteeHours?: number;
+  overtime?: OvertimePersonSettings;
   notes?: string;
 }
 
@@ -593,6 +602,12 @@ export interface CrewPerson {
   name: string;
   phone?: string;
   email?: string;
+  /** Phase 3 (roadmap 334) — pay basis. `rateCents` is per `rateUnit`; hourly
+   *  overtime derives from a day rate ÷ the policy's daily hours. */
+  rateCents?: number;
+  rateUnit?: 'hour' | 'day' | 'flat';
+  guaranteeHours?: number;
+  overtime?: OvertimePersonSettings;
 }
 
 export interface CrewRole {
@@ -705,6 +720,10 @@ export interface ProductionInfo {
   timezone?: string;   // IANA id (e.g. 'Europe/London'); empty = browser default
   /** Optional 1st-AD call-time helper settings (item 99). */
   callTimes?: CallTimeSettings;
+  /** Phase 3 (roadmap 334): the project default overtime policy for crew and
+   *  the separate cast preset. Editable data — no hardcoded union rules. */
+  overtime?: OvertimePolicy;
+  castOvertime?: OvertimePolicy;
 }
 
 export type ReportCollection =
@@ -1113,6 +1132,57 @@ export interface BudgetSettings {
   templateKey?: string;
   locked?: boolean;
   notes?: string;
+}
+
+// ---- Overtime (roadmap 334 phase 3) ----------------------------------------
+
+/** One overtime band: hours beyond `afterHours` are paid at `multiplier`. */
+export interface OvertimeTier {
+  afterHours: number;
+  multiplier: number;
+  label?: string;
+}
+
+/** Editable overtime policy (no hardcoded union rules — these are data). */
+export interface OvertimePolicy {
+  /** Paid hours before overtime starts (also the day-rate hourly basis). */
+  dailyHours?: number;
+  /** Ascending tiers; an omitted policy uses the 10h/1.5x + 12h/2x preset. */
+  tiers?: OvertimeTier[];
+  /** Multipliers applied to every OT hour on the 6th/7th consecutive work day. */
+  sixthDayMultiplier?: number;
+  seventhDayMultiplier?: number;
+  notes?: string;
+}
+
+/** Per-person pay settings (crew or cast) — merged over the resolved policy. */
+export interface OvertimePersonSettings {
+  dailyHours?: number;
+  /** Scales every OT multiplier for this person (1 = policy as-is). */
+  multiplier?: number;
+  guaranteeHours?: number;
+}
+
+/** A day-level override for one department or person. */
+export interface OvertimeOverride {
+  target: 'department' | 'person';
+  /** Department name or crew/cast person id. */
+  targetId: string;
+  dailyHours?: number;
+  tiers?: OvertimeTier[];
+  multiplier?: number;
+  note?: string;
+}
+
+/** `DayMeta.overtime` — actual times, overrides and the post-to-expenses stamp. */
+export interface DayOvertime {
+  policy?: OvertimePolicy;
+  overrides?: OvertimeOverride[];
+  /** Actual call/wrap expressions (`HH:MM`, relative, etc.). Blank = scheduled. */
+  actualCall?: string;
+  actualWrap?: string;
+  postedAt?: string;
+  postedExpenseIds?: string[];
 }
 
 // ---- Cost tracking (roadmap 334 phase 2) ------------------------------------
