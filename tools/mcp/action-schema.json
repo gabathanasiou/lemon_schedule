@@ -500,6 +500,34 @@
     {
       "type": "UNLOCK_BUDGET_VERSION",
       "payload": "string"
+    },
+    {
+      "type": "ADD_EXPENSE",
+      "payload": "Partial<Expense>"
+    },
+    {
+      "type": "UPDATE_EXPENSE",
+      "payload": "{ id: string; updates: Partial<Expense> }"
+    },
+    {
+      "type": "DELETE_EXPENSE",
+      "payload": "string"
+    },
+    {
+      "type": "BULK_ADD_EXPENSES",
+      "payload": "Partial<Expense>[]"
+    },
+    {
+      "type": "ADD_PURCHASE_ORDER",
+      "payload": "Partial<PurchaseOrder>"
+    },
+    {
+      "type": "UPDATE_PURCHASE_ORDER",
+      "payload": "{ id: string; updates: Partial<PurchaseOrder> }"
+    },
+    {
+      "type": "DELETE_PURCHASE_ORDER",
+      "payload": "string"
     }
   ],
   "entities": {
@@ -1950,8 +1978,8 @@
     }
   },
   "consistency": {
-    "unionCount": 125,
-    "mirrorCount": 125,
+    "unionCount": 132,
+    "mirrorCount": 132,
     "missingInMirror": [],
     "extraInMirror": []
   }
