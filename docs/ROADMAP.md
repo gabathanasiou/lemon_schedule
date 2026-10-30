@@ -1403,3 +1403,26 @@ semantics stay.
 **Verify:** extend `e2e/budget.spec.ts` (within the 71/292 caps) for card
 add/edit/reload; manual quick-add pass. **Relations:** `depends on` **315** +
 **334**; `relates to` **326**.
+
+## 337. Budget Glide — add lines in bulk + Shift+Enter quick-add (`[ ]`)
+
+**Asked 2026-10-30 (user):** in the Budget sheet, the context menu's new-item
+"Add line" should ask how many lines to add, and Shift+Enter in the grid should
+create a new line as well — both without opening the line editor.
+
+**Work:**
+- Context menu: "Add line…" asks for a count (kit dialog, default 1, sane max)
+  and commits N new lines in ONE `BATCH_START`/`BATCH_COMMIT` undo entry, in
+  the row's account (a category row uses its first account, or creates General,
+  exactly like the `+` glyph).
+- Shift+Enter: the shared `InlineGlideTable` keyboard handler adds a row in the
+  focused row's context (append at the end when nothing is focused) and puts
+  the selection/caret on the new row with no modal; hosts supply the add-row
+  callback. Plain Enter keeps committing the current cell.
+- Gating: `readOnly || version.locked` disables both. Update
+  `docs/BUDGETING-SURFACES.md` §2 (grid actions/keyboard) and Help as needed.
+
+**Verify:** fold into `e2e/budget.spec.ts` within the caps — N lines in one
+undo, Shift+Enter adds and focuses a row, read-only no-op; manual quick-add
+pass. **Relations:** `relates to` **334**, **335** (quick-add / (i) semantics),
+**326** (canvas native controls).
