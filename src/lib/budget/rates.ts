@@ -2,11 +2,13 @@ import type { BudgetCurrency } from '../../types';
 
 /**
  * Manual FX rate sync (roadmap 341). Frankfurter is the key-free, CORS-friendly
- * ECB feed: `GET /latest?from=<BASE>` returns X per 1 BASE. `rateToBase` stores
- * base units per 1 X, so it is the reciprocal. NO key/token ever lands in
- * project state; a failure leaves every rate untouched.
+ * ECB feed: `GET /v1/latest?from=<BASE>` returns X per 1 BASE. `rateToBase`
+ * stores base units per 1 X, so it is the reciprocal. NO key/token ever lands in
+ * project state; a failure leaves every rate untouched. The old `.app` host
+ * 301-redirects to `.dev` — a redirect is a new origin and the CSP blocked it,
+ * so use the canonical `.dev/v1` endpoint directly.
  */
-export const RATES_PROVIDER_ORIGIN = 'https://api.frankfurter.app';
+export const RATES_PROVIDER_ORIGIN = 'https://api.frankfurter.dev';
 
 export interface RateSyncResult {
   /** Currency code → units of that currency per 1 base unit. */
@@ -29,7 +31,7 @@ export async function fetchDailyRates(base: string, options: FetchRatesOptions =
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 12000);
   let res: Response;
   try {
-    res = await fetchImpl(`${RATES_PROVIDER_ORIGIN}/latest?from=${encodeURIComponent(code)}`, {
+    res = await fetchImpl(`${RATES_PROVIDER_ORIGIN}/v1/latest?from=${encodeURIComponent(code)}`, {
       signal: controller.signal,
       headers: { accept: 'application/json' },
     });

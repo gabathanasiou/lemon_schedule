@@ -11,7 +11,7 @@ import DataEditor, {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 import { ClipboardPaste, Copy, Scissors, Trash2 } from 'lucide-react';
-import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { useKitTheme } from '@gabriel/ui-kit';
@@ -224,6 +224,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const { ref: gridSizeRef, width: gridWidth } = useGlideFill<HTMLDivElement>();
 
   const [fontSize] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
+  // Every Glide grid shares ONE smooth-scroll pref (default on).
+  const [smoothScroll] = useGlideSmoothScroll();
   const rowH = Math.round((baseRowHeight * fontSize) / SS_FONT_SIZE_DEFAULT);
   const headerH = Math.round((baseHeaderHeight * fontSize) / SS_FONT_SIZE_DEFAULT);
 
@@ -834,7 +836,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   return (
     <div
       ref={wrapperRef}
-      className={`inline-glide-table${heightMode === 'fill' ? ' flex-1 min-h-0 flex flex-col' : ''}`}
+      className={`inline-glide-table${heightMode === 'fill' ? ' inline-glide-table--scroll flex-1 min-h-0 flex flex-col' : ''}`}
       {...(dataAttr ? { [dataAttr]: '' } : {})}
       {...(dataCategory ? { 'data-category': dataCategory } : {})}
       data-presence-grid={presenceScope}
@@ -918,6 +920,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onCellContextMenu={onCellContextMenu}
             onHeaderContextMenu={onHeaderContextMenu}
             editOnType
+            smoothScrollX={smoothScroll}
+            smoothScrollY={smoothScroll}
             rangeSelect="rect"
             cellActivationBehavior="double-click"
             rowSelectionMode="single"

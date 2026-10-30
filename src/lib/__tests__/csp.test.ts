@@ -36,7 +36,7 @@ describe('buildCsp', () => {
       'https://nominatim.openstreetmap.org',
       'https://tile.openstreetmap.org',
       'https://api.open-meteo.com', 'https://archive-api.open-meteo.com',
-      'https://api.frankfurter.app',
+      'https://api.frankfurter.dev',
       'https://www.gstatic.com', 'https://*.supabase.co', 'wss://*.supabase.co',
       'https://*.workers.dev', 'wss://*.workers.dev', 'ws://127.0.0.1:3939',
     ]) {

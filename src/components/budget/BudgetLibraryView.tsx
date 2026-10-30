@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import { Seg, type PickerItem } from '@gabriel/ui-kit';
 import { ChevronDown } from 'lucide-react';
@@ -36,7 +36,8 @@ interface LibraryRow extends Record<string, string> {
 }
 
 function LibraryTable({
-  title, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit, headerActions, footerNote,
+  title, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit,
+  headerActions, footerNote, collapsed, onToggleCollapsed, closedSummary, gridHeightClass,
 }: {
   title: string;
   hint?: string;
@@ -53,6 +54,13 @@ function LibraryTable({
   headerActions?: React.ReactNode;
   /** Inline status line under the header (the rate-sync error/stamp). */
   footerNote?: React.ReactNode;
+  /** Collapsible body (the long currency catalogue): the header keeps its
+   *  actions, the closed body shows `closedSummary`, and the expanded table
+   *  gets a FIXED height so its own scroller pins the column header. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  closedSummary?: React.ReactNode;
+  gridHeightClass?: string;
 }) {
   const editable = React.useMemo(() => new Set(columns.filter(c => c.editable).map(c => c.key)), [columns]);
   const getCellContent = React.useCallback((col: InlineGlideColumn & { swatch?: boolean }, row: LibraryRow): GridCell => {
@@ -85,6 +93,18 @@ function LibraryTable({
   return (
     <section className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)]">
       <header className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)]">
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="p-1 -ml-1 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]"
+            title={collapsed ? `Show ${title.toLowerCase()}` : `Hide ${title.toLowerCase()}`}
+            aria-label={collapsed ? `Show ${title.toLowerCase()}` : `Hide ${title.toLowerCase()}`}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        )}
         <div className="min-w-0">
           <h2 className="text-xs font-semibold text-[color:var(--ui-text-strong)]">{title}</h2>
           {hint && <p className="text-[10px] text-[color:var(--ui-text-faint)]">{hint}</p>}
@@ -96,38 +116,47 @@ function LibraryTable({
           </Button>
         </div>
       </header>
-      {footerNote && <div className="px-3 py-1.5 border-b border-[color:var(--ui-border)]">{footerNote}</div>}
-      <InlineGlideTable
-        columns={columns}
-        rows={rows}
-        getCellContent={getCellContent}
-        onCommit={onCommit}
-        editableKeys={editable}
-        readOnly={readOnly}
-        rowActions={rowActions}
-        rowInfo={onEdit ? rowInfo : undefined}
-        editors={editors}
-        rowMenuItems={(rowIndex, close) => {
-          if (readOnly) return null;
-          const row = rows[rowIndex];
-          if (!row) return null;
-          return (
-            <>
-              {onEdit && (
-                <ContextMenuItem onClick={() => { close(); onEdit(row.id); }}>
-                  Edit {row[columns[0].key] || 'row'}
-                </ContextMenuItem>
-              )}
-              <ContextMenuItem onClick={() => { close(); onDelete(row.id); }}>
-                Delete {row[columns[0].key] || 'row'}
-              </ContextMenuItem>
-            </>
-          );
-        }}
-        baseRowHeight={26}
-        baseHeaderHeight={28}
-        emptyLabel={`No ${title.toLowerCase()} yet`}
-      />
+      {onToggleCollapsed && collapsed ? (
+        <div className="px-3 py-2 text-[11px] text-[color:var(--ui-text-muted)]" data-library-collapsed-summary>
+          {closedSummary}
+        </div>
+      ) : (
+        <div className={gridHeightClass ? `${gridHeightClass} flex flex-col` : undefined}>
+          <InlineGlideTable
+            columns={columns}
+            rows={rows}
+            getCellContent={getCellContent}
+            onCommit={onCommit}
+            editableKeys={editable}
+            readOnly={readOnly}
+            rowActions={rowActions}
+            rowInfo={onEdit ? rowInfo : undefined}
+            editors={editors}
+            heightMode={gridHeightClass ? 'fill' : 'content'}
+            rowMenuItems={(rowIndex, close) => {
+              if (readOnly) return null;
+              const row = rows[rowIndex];
+              if (!row) return null;
+              return (
+                <>
+                  {onEdit && (
+                    <ContextMenuItem onClick={() => { close(); onEdit(row.id); }}>
+                      Edit {row[columns[0].key] || 'row'}
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem onClick={() => { close(); onDelete(row.id); }}>
+                    Delete {row[columns[0].key] || 'row'}
+                  </ContextMenuItem>
+                </>
+              );
+            }}
+            baseRowHeight={26}
+            baseHeaderHeight={28}
+            emptyLabel={`No ${title.toLowerCase()} yet`}
+          />
+        </div>
+      )}
+      {footerNote && <div className="px-3 py-1.5 border-t border-[color:var(--ui-border)]">{footerNote}</div>}
     </section>
   );
 }
@@ -169,6 +198,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
   const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
   const [rateSyncing, setRateSyncing] = React.useState(false);
   const [rateError, setRateError] = React.useState<string | null>(null);
+  const [currenciesOpen, setCurrenciesOpen] = React.useState(false);
   const editingGroup = editingGroupId ? (budget.groups || []).find(g => g.id === editingGroupId) : undefined;
   const editingGlobal = editingGlobalId ? (budget.globals || []).find(g => g.id === editingGlobalId) : undefined;
 
@@ -300,6 +330,23 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
   const currencyRows: LibraryRow[] = (budget.currencies || []).map(c => ({
     key: `cur:${c.code}`, id: c.code, code: c.code, symbol: c.symbol || '', rate: c.rateToBase != null ? String(c.rateToBase) : '',
   }));
+  const currencySummary = React.useMemo(() => {
+    const all = budget.currencies || [];
+    const rated = all.filter(c => c.rateToBase != null);
+    const preview = rated
+      .filter(c => c.code !== settings.currency)
+      .slice(0, 4)
+      .map(c => `${c.code} ${c.rateToBase}`)
+      .join(' · ');
+    return (
+      <>
+        <span className="font-medium text-[color:var(--ui-text-strong)]">Base {settings.currency} = 1</span>
+        <span> · {rated.length} of {all.length} rates set</span>
+        {preview ? <span> · {preview}{rated.length > 5 ? ' · …' : ''}</span> : <span> · Sync rates or edit any row to add them</span>}
+      </>
+    );
+  }, [budget.currencies, settings.currency]);
+
   const commitCurrencies = (edits: InlineGlideEdit[]) => {
     const next = (budget.currencies || []).map(c => {
       const idx = currencyRows.findIndex(r => r.id === c.code);
@@ -582,6 +629,10 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           title="Currencies"
           hint="A line in another currency converts with its rate; a missing rate is a warning, never 1:1."
           addLabel="Currency"
+          collapsed={!currenciesOpen}
+          onToggleCollapsed={() => setCurrenciesOpen(open => !open)}
+          closedSummary={currencySummary}
+          gridHeightClass="h-80"
           rows={currencyRows}
           readOnly={readOnly}
           onCommit={commitCurrencies}

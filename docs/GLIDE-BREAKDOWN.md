@@ -167,6 +167,11 @@ auto-repaint.
   `onEscape` into EntityDropdown/AutocompleteDropdown (`createGlideCellEditor`): one Esc closes the
   dropdown AND cancels the whole cell-edit overlay (`onFinishedEditing(undefined, [0,0])` — no
   commit), so the edit popout never lingers.
+- **Smooth scroll is the default on every Glide grid.** `useGlideSmoothScroll`
+  (`src/lib/persist.ts`, localStorage `lemon_schedule_glide_smooth_scroll`)
+  defaults to ON on every device; the Breakdown/Crew/Locations View menus toggle
+  it and `InlineGlideTable` (Budget, Day Manager, Library, Expenses) follows the
+  same pref, so all grids scroll identically. Never hardcode per-grid motion.
 - **One overlay geometry for every grid (roadmap 347).** `createGlideCellEditor` returns picker
   editors in Glide's NORMAL padded cell box (no `disablePadding`), so the popout trigger/text sits at
   the same margins/size/alignment as the canvas cell — the Budget sheet, Library, Expenses, Day

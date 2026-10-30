@@ -50,8 +50,8 @@ the budget/cost report fields/collections or the print templates.
   the schedule" / "No lines linked"), Print (design menu + Save as design),
   Export (CSV / JSON), Import (JSON). No sync button, no View/columns menu, no
   Templates menu after creation (templates live in the empty state).
-- **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency — base cents
-  through `formatMoney(model.settings)`; `SectionTile` stays view-local.
+- **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency via
+  `formatMoney(model.settings)`; `SectionTile` stays view-local.
 - **Left rail:** "All categories" + one button per category with number, name,
   % of grand and total. Clicking filters the sheet to that category (local
   state, not project state); it is navigation, not a tree editor. Right-click
@@ -114,12 +114,11 @@ the budget/cost report fields/collections or the print templates.
   (`rowMenuItems`) lists the same actions above the generic copy/paste items.
   Markup rows have trash only.
 - **Collapse/expand (roadmap 340):** a leading canvas disclosure glyph
-  (`disclosureGlyphCell`) collapses a category's accounts+lines or an account's
-  lines; totals stay on the band. It is drawn ONLY when the band actually has
-  child rows (childless bands keep a blank lane and Left/Right keeps
-  navigating); Left/Right on a band toggles it — view-only state that survives
-  tab switches and works read-only. **Picking a category in the rail (or All /
-  adding one) unfolds every band.** Copy/cut skip the glyph.
+  (`disclosureGlyphCell`) folds a category's accounts+lines or an account's
+  lines; totals stay. It is drawn ONLY when the band has child rows (childless
+  bands keep a blank lane; Left/Right navigates normally). Left/Right toggles a
+  band — view-only, survives tab switches, works read-only. **Picking a category
+  in the rail (or All / adding one) unfolds every band.** Copy/cut skip it.
 - **Bands & header (roadmap 343):** `rowThemeOverride` paints EVERY cell of a
   category/account band — data and the trailing info/actions lanes — with the
   band colour; hover never punches a grey hole. The sheet runs
@@ -199,12 +198,14 @@ Top-to-bottom, one scroll surface:
      another global). Row (i) opens `BudgetGlobalModal` with the shared
      `FormulaField` (autocomplete + formula book, roadmap 346).
    - **Units** — name, plural, type (Time/Quantity/Flat/Percent), hours.
-   - **Currencies** — code, symbol, rate to base (blank = missing rate). The
-     table seeds ~30 production currencies with blank rates (roadmap 341); the
-     **Sync rates** button fetches the keyless ECB feed (Frankfurter, base = 1,
-     reciprocal `rateToBase`) and writes rates + `ratesSyncedAt` in ONE batch; a
-     failure shows an inline error and leaves every rate untouched. Hand
-     editing always wins; per-line `fxRate` is never touched.
+   - **Currencies** — code, symbol, rate to base (blank = missing rate). ~30
+     production currencies seed with blank rates (roadmap 341), so the card is
+     **collapsible and closed by default** (one-line summary: base = 1 · rates
+     set · examples); expanded it is capped at `h-80` with its own scroller.
+     **Sync rates** (always in the header) fetches the keyless ECB feed
+     (Frankfurter `.dev/v1`, base = 1, reciprocal `rateToBase`) and writes rates
+     + `ratesSyncedAt` in ONE batch; a failure leaves every rate untouched.
+     Hand editing wins; per-line `fxRate` is never touched.
    - **Markups** — name, kind (Markup/Discount/Charge/Credit), calc, percent,
      amount, compound.
 - Deleting an in-use definition states "Used by N lines — those references

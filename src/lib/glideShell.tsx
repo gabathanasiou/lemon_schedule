@@ -219,7 +219,7 @@ export const GlideGridShell: React.FC<{
   const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
-  const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll(IS_COARSE);
+  const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll();
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
   const kbLocked = IS_COARSE && !hwKeyboard && keyboardMode === 'off';

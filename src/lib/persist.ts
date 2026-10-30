@@ -238,12 +238,15 @@ export function useActiveDesignId(
 
 const GLIDE_SMOOTH_SCROLL_KEY = 'lemon_schedule_glide_smooth_scroll';
 
-export function useGlideSmoothScroll(isCoarse: boolean): [boolean, (v: boolean) => void] {
+/** One smooth-scroll preference for EVERY Glide grid (roadmap 340 follow-up):
+ *  smooth is the default on every device; the View menus' toggle stores the
+ *  user's choice and inline grids follow the same key. */
+export function useGlideSmoothScroll(): [boolean, (v: boolean) => void] {
   const [mode, setMode] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem(GLIDE_SMOOTH_SCROLL_KEY);
-      return stored !== null ? stored === 'true' : isCoarse;
-    } catch { return isCoarse; }
+      return stored !== null ? stored === 'true' : true;
+    } catch { return true; }
   });
 
   const setSmooth = useCallback((v: boolean) => {

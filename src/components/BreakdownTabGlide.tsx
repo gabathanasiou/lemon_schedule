@@ -168,7 +168,7 @@ export function GlideBreakdownTab({
   const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
-  const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll(IS_COARSE);
+  const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll();
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
   /** Keyboard off + no physical keyboard: text cells are read-only, entity cells become pickers. */

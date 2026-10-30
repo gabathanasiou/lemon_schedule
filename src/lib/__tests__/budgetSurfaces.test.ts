@@ -115,8 +115,13 @@ describe('currency polish + rate sync (roadmap 341)', () => {
   });
 
   it('fetches the provider and rejects a bad base', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ base: 'USD', date: '2026-10-30', rates: { EUR: 0.8 } }), { status: 200 })));
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      calls.push(String(url));
+      return new Response(JSON.stringify({ base: 'USD', date: '2026-10-30', rates: { EUR: 0.8 } }), { status: 200 });
+    }));
     const ok = await fetchDailyRates('USD');
+    expect(calls[0]).toBe('https://api.frankfurter.dev/v1/latest?from=USD');
     expect(ok.base).toBe('USD');
     expect(ok.rates.EUR).toBe(0.8);
     expect(formatRatesSyncedAt('2026-10-30T16:42:00.000Z')).toMatch(/^2026-10-30 \d\d:\d\d$/);

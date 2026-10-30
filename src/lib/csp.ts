@@ -45,7 +45,7 @@ const CONNECT_SRC = [
   'https://nominatim.openstreetmap.org', // keyless geocoding fallback + weather labels
   'https://api.open-meteo.com', // weather (forecast window)
   'https://archive-api.open-meteo.com', // weather (past dates)
-  'https://api.frankfurter.app', // manual FX rate sync (budget Library, keyless ECB)
+  'https://api.frankfurter.dev', // manual FX rate sync (budget Library, keyless ECB)
   'https://www.gstatic.com', // connectivity probe (generate_204)
   'https://*.supabase.co', // auth / REST / Edge Functions
   'wss://*.supabase.co', // Realtime presence channel
