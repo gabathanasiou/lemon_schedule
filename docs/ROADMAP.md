@@ -1416,6 +1416,15 @@ of the updated ui-kit modals.
   `theme="dark"` props in files that open a modal (app total 119) set the MODE
   and stay correct while modals are dark; dropping them is 302's
   ambient-widget cleanup, not this item's prerequisite.
+- The kit playground is the proof this is ONE recipe, not per-widget work:
+  `playground/src/main.tsx` wraps the whole app in one `<ThemeScope
+  mode accent surface="accent">` (and mirrors the axes onto `<body>` for
+  portaled CSS), and `BasicModalDemo` opens a Modal with ZERO theme props —
+  the kit Modal resolves from `useKitTheme()` (`Modal.tsx` `resolveKitTheme`).
+  Only the Theme lab passes explicit props, because it demonstrates them. The
+  lab also nests its own `DialogProvider` inside the scope
+  (`ThemeLabSection.tsx`) — the root playground one sits outside it, which is
+  exactly the app-side gap to fix.
 - This SUPERSEDES the 302 stage-2 choice ("every app modal is a neutral
   surface; Drive/shared keep their colour in the chrome") — record the reversal
   in the 302 progress notes, AGENTS.md and the docs. Mode stays dark (the
@@ -1427,13 +1436,13 @@ of the updated ui-kit modals.
   resolves to zinc — the same near-black header, now with the kit's inner-card
   geometry; Drive/shared take blue/emerald); update the mapper's unit test
   (`src/lib/__tests__/projectTheme.test.ts`). Keep the `?modalTheme=` harness.
-- Hero: the app `ModalFooterButton` wrapper defaults the hero to
-  `tone="accent"` (one file — `src/components/ModalFooterButton.tsx` is a
-  re-export today); footers stay one hero + ghosts.
-- Dialogs: pass the same mapped `theme`/`accent`/`surface` to `DialogProvider`
-  (via the `src/components/Dialog.tsx` wrapper or `main.tsx`) — mounted above
-  the page scopes, it otherwise stays dark/neutral/zinc while the modals turn
-  accent.
+- Hero — fix it in the KIT, not the app: `ModalFooterButton` defaults `tone`
+  from `useKitTheme()` (accent on an accent/chrome surface, zinc otherwise —
+  mirror `Button`'s `buttonCloudOf`). Then every footer hero follows with zero
+  app call-site changes; no wrapper.
+- Dialogs: move `<DialogProvider>` inside a project-scoped `ThemeScope` (its
+  props are optional and inherit the nearest scope) or pass the mapper at
+  `main.tsx` — one structural change, no per-dialog props.
 - Non-ambient controls inside modals (SearchMenu defaults `light`, NumberInput
   and RuleCard still take explicit palettes) keep their current look: the app
   passes `theme="dark"` there, so they stay consistent with the dark modal but
@@ -1449,13 +1458,15 @@ of the updated ui-kit modals.
 light harness): a Day modal, the Element View, the Link Manager, Import, Trash,
 Account, a dark-pinned Design/Reports modal; `?modalTheme=light` check; iPad
 spot-check of a stacked modal (the morph/dim machinery is unchanged). The
-visual pass is the bulk of the item — the code change is the mapper line + two
-small wrappers (hero tone, DialogProvider).
+visual pass is the bulk of the item — after the kit hero default, the app-side
+code is the mapper line plus moving `DialogProvider`, exactly like the
+playground's single scope.
 
 **Docs:** `docs/DESIGN-LANGUAGE.md` §Modal anatomy & rules + §Theming,
 `docs/UI-PRIMITIVES.md` §UI Primitives (Modal theming), `docs/UI-KIT.md`
-(release note), the `AGENTS.md` modal-theme sentence — the app now uses the
-accent surface, not "every kind = neutral".
+(release note), `ui-kit/docs/CONTROLS.md` (`ModalFooterButton` ambient tone),
+the `AGENTS.md` modal-theme sentence — the app now uses the accent surface, not
+"every kind = neutral".
 
 **Relations:** `supersedes` the app-modal neutral-surface decision in 302
 (stage 2); `relates to` 302 (optional ambient-widget cleanup — not a blocker),
