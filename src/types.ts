@@ -923,6 +923,200 @@ export interface ReportTrashItem {
   deletedAt: number;
 }
 
+// ---- Budgeting (roadmap 334) -------------------------------------------------
+// Canonical model: `docs/BUDGETING.md` §3. Money is ALWAYS integer minor units
+// (cents); percentages/quantities are plain numbers. The chart of accounts and
+// library are shared across versions; only line values are per version.
+
+export type MoneyCents = number;
+export type BudgetGroupKind = 'atl' | 'btl' | 'post' | 'other';
+export type BudgetLineKind = 'labor' | 'purchase' | 'rental' | 'allowance' | 'flat';
+
+export interface BudgetCategory {
+  id: string;
+  number: string;
+  name: string;
+  group: BudgetGroupKind;
+  sort: number;
+  color?: string;
+  notes?: string;
+  locked?: boolean;
+}
+
+export interface BudgetAccount {
+  id: string;
+  categoryId: string;
+  number: string;
+  name: string;
+  sort: number;
+  notes?: string;
+  locked?: boolean;
+}
+
+/** A schedule-derived quantity source. The line's quantity is computed at read
+ *  time from the active schedule/calendar unless `qtyOverride` pins it. */
+export type BudgetLineSource =
+  | { kind: 'shootDays'; label?: string }
+  | { kind: 'crewRole'; roleKey: string; personId?: string }
+  | { kind: 'cast'; castId: string }
+  | { kind: 'location'; locationId: string }
+  | { kind: 'element'; category: string; key: string }
+  | { kind: 'perDay'; method?: string };
+
+export interface BudgetLine {
+  id: string;
+  accountId: string;
+  description: string;
+  kind?: BudgetLineKind;
+  qty: number;
+  unit: string;
+  rateCents: MoneyCents;
+  multiplier: number;
+  qtyFormula?: string;
+  rateFormula?: string;
+  multiplierFormula?: string;
+  currency?: string;
+  fxRate?: number;
+  fringes?: string[];
+  fringeRangeId?: string;
+  groups?: string[];
+  locationId?: string;
+  setId?: string;
+  phase?: 'prep' | 'shoot' | 'wrap' | 'post';
+  startDate?: string;
+  endDate?: string;
+  capCents?: MoneyCents;
+  notes?: string;
+  etcCents?: MoneyCents;
+  etcReason?: string;
+  approvedOverageCents?: MoneyCents;
+  original?: { qty: number; rateCents: MoneyCents; multiplier: number; totalCents: MoneyCents };
+  /** Schedule link: quantity/rate derive from the schedule unless pinned. */
+  source?: BudgetLineSource;
+  qtyOverride?: number;
+  rateOverride?: MoneyCents;
+  sort: number;
+}
+
+export interface BudgetVersion {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  lines: BudgetLine[];
+  /** Per-version overrides for settings (currency/fringe posting); unset = Budget.settings. */
+  settings?: Partial<BudgetSettings>;
+  /** Approved scenario: editing is frozen and linked quantities are pinned. */
+  locked?: boolean;
+  lockedAt?: number;
+  note?: string;
+}
+
+export interface BudgetVersionTrashItem {
+  version: BudgetVersion;
+  deletedAt: number;
+}
+
+export interface BudgetFringe {
+  id: string;
+  name: string;
+  calc: 'percent' | 'fixedPerUnit' | 'flat';
+  percent?: number;
+  amountCents?: MoneyCents;
+  cutoffCents?: MoneyCents;
+  groups?: string[];
+  posting?: 'topsheet' | 'category' | 'account';
+  color?: string;
+  notes?: string;
+}
+
+export interface BudgetGroup {
+  id: string;
+  name: string;
+  color?: string;
+  /** false = excluded from totals (MMB InBT off). */
+  inBudget?: boolean;
+  notes?: string;
+}
+
+/** Lines sharing a fringeRangeId form one cutoff range (MMB fringe range). */
+export interface BudgetFringeRange {
+  id: string;
+  name: string;
+}
+
+export interface BudgetGlobal {
+  id: string;
+  symbol: string;
+  description?: string;
+  unit?: string;
+  value?: number;
+  formula?: string;
+  system?: boolean;
+}
+
+export interface BudgetUnit {
+  id: string;
+  name: string;
+  plural: string;
+  type: 'time' | 'quantity' | 'flat' | 'percent';
+  hours?: number;
+  color?: string;
+}
+
+export interface BudgetCurrency {
+  code: string;
+  symbol?: string;
+  rateToBase?: number;
+}
+
+export interface BudgetMarkup {
+  id: string;
+  name: string;
+  kind: 'markup' | 'discount' | 'charge' | 'credit';
+  calc: 'percent' | 'flat';
+  percent?: number;
+  amountCents?: MoneyCents;
+  appliesTo?: { all?: boolean; categories?: string[]; accounts?: string[]; groups?: string[] };
+  except?: { categories?: string[]; accounts?: string[]; groups?: string[] };
+  marksUp?: 'base' | 'fringes' | 'both';
+  compound?: boolean;
+  capCents?: MoneyCents;
+  capType?: 'none' | 'qualifiedSpend' | 'credit';
+  discountPercent?: number;
+  sort: number;
+}
+
+export interface BudgetSettings {
+  currency: string;
+  currencySymbol?: string;
+  decimals: 0 | 2;
+  negativeStyle?: 'minus' | 'parentheses';
+  fringePosting?: 'topsheet' | 'category' | 'account';
+  templateKey?: string;
+  locked?: boolean;
+  notes?: string;
+}
+
+export interface Budget {
+  /** Shared across every version — the non-duplication boundary. */
+  categories: BudgetCategory[];
+  accounts: BudgetAccount[];
+  fringes: BudgetFringe[];
+  fringeRanges?: BudgetFringeRange[];
+  groups: BudgetGroup[];
+  globals: BudgetGlobal[];
+  units: BudgetUnit[];
+  currencies: BudgetCurrency[];
+  markups: BudgetMarkup[];
+  settings: BudgetSettings;
+  versions: BudgetVersion[];
+  activeVersionId: string;
+  versionTrash?: BudgetVersionTrashItem[];
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -1000,4 +1194,6 @@ export interface Project {
   scriptAnnotations?: ScriptAnnotation[];
   /** Custom/localized INT-EXT & day-night value mappings (roadmap 127). */
   headingAliases?: HeadingAliases;
+  /** Budgeting & cost tracking (roadmap 334) — undefined until created. */
+  budget?: Budget;
 }
