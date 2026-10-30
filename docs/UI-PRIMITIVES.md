@@ -386,15 +386,15 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 
 ## Hover & Tap Feedback
 
-- **Hover styles are UNGATED by design** (`index.css @custom-variant hover` — no media query; kit
-  `tokens.css` header): iOS Safari's native tap-to-hover needs a real `:hover` rule on the tapped
-  element — first tap applies `:hover` (sticky highlight/reveal), the click defers to the second tap.
-  `(hover: hover)` is false on iPadOS and `(any-hover: hover)` is false when no hovering pointer is
-  attached — either gate kills the native behavior on touch. Every hover is still a Tailwind `hover:`
-  variant or `.group:hover`/`.group:focus-within`.
-- `.hover-reveal`: hidden until hover/tap (`opacity: 0`), revealed by `.group:hover` +
-  `.group:focus-within` — on iOS the first tap on the row reveals it, the second tap activates.
-- iOS sticky hover (tap → `:hover` sticks until the next tap) IS the tap feedback — no JS
-  flash/pulse workarounds; they double with it and read as delays.
-- Pen = finger = touch: Apple Pencil is `pointerType 'pen'` (`isTouchLike()` in device.ts). Safari
-  doesn't synthesize clicks for pen in overlays (device.ts shim) and never fires `:active` for pen.
+- **Hover styles are UNGATED** (`index.css @custom-variant hover`; kit `tokens.css` header): iOS's
+  tap-to-hover needs a real `:hover` rule — tap 1 applies it (sticky), tap 2 clicks. `(hover: hover)` /
+  `(any-hover: hover)` are false on iPadOS and with no hovering pointer — either gate kills it. Hover
+  is always a Tailwind `hover:` or `.group:hover`/`.group:focus-within`; sticky hover IS the feedback.
+- **Touch audit (331/182)**: plain controls act on tap 1; `.hover-reveal`/`.ui-reveal`/collapsed labels
+  also reveal on `:active` (press = reveal, release = the row action). Coarse submenus default by viewport: phones use
+  the in-place card (child covers the parent, Back row), iPad the inline accordion (tap the header to
+  collapse); `touchPresentation` forces either. Never cancel `pointerdown` to suppress a click (use `mousedown`); controls set
+  `touch-action: manipulation`; tooltips clear on outside `pointerdown`; morph fields focus inside the
+  tap's task (iOS keyboard). Playwright's WebKit canNOT emulate the native two-tap deferral (`:hover`
+  never matches after `tap()`); the specs assert the preconditions + one-tap behavior instead.
+- Pen = finger = touch: `pointerType 'pen'`; Safari doesn't synthesize overlay clicks for pen and never fires `:active`.

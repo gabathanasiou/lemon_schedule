@@ -145,6 +145,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
   two probes (`workers/rooms/test/room-probe.ts` + `room-client-probe.ts`, no Supabase needed);
   future real-account UI specs belong here, not in `e2e/`.
 - iPad touch/keyboard specs are gated to `playwright.ipad.config.ts` (webkit iPad project).
+- iPhone portrait touch specs are gated to `playwright.iphone.config.ts` (webkit iPhone 14 Pro
+  project, `testMatch` = `e2e/iphone-touch.spec.ts`; the phone shell replaces the desktop suite).
+  The kit's mirror is the playground `#touch` page + its `iphone` project. Playwright's WebKit is
+  not iOS Safari: it does NOT emulate the native "first tap applies `:hover`, the click defers to
+  the second tap" model, so those specs assert one-tap behavior + the hover preconditions; the
+  deferral itself stays a device check.
 
 ## Rules (MUST NOT)
 

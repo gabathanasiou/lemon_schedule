@@ -372,6 +372,26 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 - `.hover-reveal`: hidden until hover/tap (`opacity: 0`, un-gated), revealed by `.group:hover` +
   `.group:focus-within` (`index.css`) — on iOS the first tap on the row reveals it, the second tap
   activates; `:focus-within` keeps the revealed controls keyboard-reachable.
+- **Touch tap rules (roadmap 331/182)**:
+  - `touch-action: manipulation` sits on every interactive element in the kit base
+    (`button, a, input, textarea, select, [role=button|menuitem|option|tab]`) — without it iOS waits
+    ~300ms for a possible double-tap zoom before the click. Never remove it from a control; gesture
+    surfaces override with `touch-action: none` at a higher specificity.
+  - **Never cancel `pointerdown` to suppress a click** (`e.preventDefault()`): WebKit then drops the
+    tap's click entirely (the kit `NumberInput` steppers and `SearchMenu` Clear were dead on iPhone).
+    Use `mousedown` when the only goal is keeping an input's focus, or act directly on the
+    `pointerdown` (TimeKeypad).
+  - Press-to-reveal: `.hover-reveal`, kit `.ui-reveal` and `TabFace` labels reveal on `:active` as
+    well as `:hover`/`:focus-within`, so resting a finger shows the affordance and the release still
+    fires the click.
+  - Coarse-pointer submenus default by viewport (kit `DropdownSubmenu`): phones use the **in-place card**
+    (the child covers the parent, with a Back row); iPad uses the **inline accordion** (header row
+    survives, panel expands beneath it, tapping the header collapses). `touchPresentation` forces
+    either; desktop keeps the Radix side flyout.
+  - Tooltips / hover tips clear on any outside `pointerdown` (app `useHoverTip`, kit `Tooltip`) —
+    iOS's sticky `:hover` must never strand a bubble.
+  - Morph fields focus their text box synchronously inside the tap handler; a `requestAnimationFrame`
+    / `setTimeout` focus loses the user gesture and iOS never raises the keyboard.
 - Focus-visible: kit applies `outline: 2px solid var(--ui-accent-soft-text); outline-offset: 1px`
   (`node_modules/@gabriel/ui-kit/dist/ui-kit.css:210-213`).
 
