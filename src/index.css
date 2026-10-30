@@ -665,9 +665,30 @@ input, textarea, [contenteditable] {
 /* Inline Glide tables (Day Manager Call Times / Crew / category fallbacks)
    auto-fit columns + height to their card — no scrollbars, no wheel trapping.
    Native scrollbars would peek in on any sub-pixel/rounding overflow; hide
-   them and clamp the scroller so the grid is exactly its content. */
-.inline-glide-table .dvn-scroller { overflow: hidden !important; }
+   them and clamp the scroller so the grid is exactly its content.
+   `heightMode="fill"` (the Budget sheet) is the exception: the grid scrolls
+   its own rows under a pinned header, so its scroller MUST scroll — the class
+   flips the overflow back to auto and brings a thin scrollbar back. */
+.inline-glide-table .dvn-scroller { overflow: var(--glide-scroll-overflow, hidden) !important; }
 .inline-glide-table .dvn-scroller::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.inline-glide-table--scroll .dvn-scroller {
+  --glide-scroll-overflow: auto;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.inline-glide-table--scroll .dvn-scroller::-webkit-scrollbar {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+.inline-glide-table--scroll .dvn-scroller::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ui-text-faint) 45%, transparent);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.inline-glide-table--scroll .dvn-scroller::-webkit-scrollbar-track { background: transparent; }
 
 /* Script razor (cut) tool — Premiere-style scissors cursor over the page.
    SVG cursor with a crosshair fallback (Safari ignores some SVG cursors). */
