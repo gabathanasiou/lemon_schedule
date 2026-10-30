@@ -3,7 +3,8 @@ import { makeBlankProject } from '../../store/reducer';
 import { featureBudget } from '../budget/templates';
 import { activeBudgetVersion, makeBudgetLine } from '../budget/model';
 import { computeBudget } from '../budget/calc';
-import { budgetReportColumnDefs, buildBudgetReport } from '../reportBudget';
+import { budgetReportColumnDefs, buildBudgetReport, buildCostReportReport } from '../reportBudget';
+import { makeExpense } from '../budget/model';
 import { buildReportCtx, resolveCollection } from '../reportData';
 
 function makeBudgetProject() {
@@ -99,5 +100,18 @@ describe('budget report read model', () => {
 
     const ofAccount = resolveCollection(ctx, 'budgetLinesOfAccount', undefined, atlStory) as any[];
     expect(ofAccount.map(l => l.line.description)).toEqual(['Screenplay']);
+  });
+
+  it('renders the costReport mode from the cost read model', () => {
+    const project = makeBudgetProject();
+    const line = activeBudgetVersion(project.budget!)!.lines[0];
+    project.expenses = [makeExpense({ lineId: line.id, accountId: line.accountId, amountCents: 30000, status: 'actual', date: '2026-01-10' })];
+    const report = buildCostReportReport(project, computeBudget(project)!, { asOf: '2026-12-31' })!;
+    expect(report.mode).toBe('costReport');
+    expect(report.columns.map(c => c.key)).toEqual(['number', 'name', 'budget', 'actual', 'committed', 'etc', 'efc', 'variance', 'percent', 'reason']);
+    const lineRow = report.rows.find(r => r.kind === 'line' && r.cells.description === 'Screenplay')!;
+    expect(lineRow.cells.actual).toBe(30000);
+    expect(lineRow.cells.budget).toBe(600000);
+    expect(report.totals.grandTotalCents).toBeGreaterThanOrEqual(30000);
   });
 });

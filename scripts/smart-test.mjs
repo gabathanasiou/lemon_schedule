@@ -250,7 +250,7 @@ const RULES = [
   // day manager (roadmap 98) + day times sheet (roadmap 101)
   // Day Manager weather chip (roadmap 299) — proven by the weather spec
   { g: 'src/components/production/day/DayWeatherChip.tsx', s: ['report-sun-weather-map'] },
-  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day', 'report-grid-blocks', ...CREWLINKS] },
+  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day', 'report-grid-blocks', ...CREWLINKS, ...BUDGET] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },
   { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide', 'report-collections'] },

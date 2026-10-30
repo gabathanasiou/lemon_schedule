@@ -41,6 +41,38 @@ test.describe('Budget', () => {
     const afterReload = await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary());
     expect(afterReload.categories).toBe(4);
     expect(afterReload.accounts).toBe(25);
+
+    await test.step('an expense becomes Actual spend in the cost report', async () => {
+      await page.locator('[data-presence-anchor="nav:subtab:expenses"]').click();
+      await page.getByRole('button', { name: 'Add expense' }).click();
+      await expect(page.getByRole('heading', { name: /Expense —/ })).toBeVisible({ timeout: 5000 });
+
+      await page.getByRole('textbox', { name: 'What was bought' }).fill('Lens rental');
+      await page.getByRole('textbox', { name: 'What was bought' }).blur();
+      const amount = page.getByRole('spinbutton', { name: 'Expense amount' });
+      await amount.fill('1200');
+      await amount.blur();
+
+      // Charge the chart's first account (seed-agnostic: resolve via the bridge).
+      const accountLabel = await page.evaluate(() => {
+        const b = (window as any).__lemonSchedule;
+        const account = b.getProject().budget.accounts.find((a: any) => a.number === '1100');
+        return `${account.number} ${account.name}`.trim();
+      });
+      await page.locator('[data-presence-anchor="ui:text:Unallocated"]').click();
+      await page.getByText(accountLabel, { exact: true }).click();
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+
+      await expect.poll(async () => (await page.evaluate(() => (window as any).__lemonSchedule.costReportSummary())).totals.actualCents).toBe(120000);
+      const cost = await page.evaluate(() => (window as any).__lemonSchedule.costReportSummary());
+      const unallocated = cost.rows.find((r: any) => r.kind === 'unallocated' && r.number === '1100');
+      expect(unallocated.actualCents).toBe(120000);
+      expect(cost.totals.efcCents).toBeGreaterThanOrEqual(120000);
+
+      await page.locator('[data-presence-anchor="nav:subtab:cost"]').click();
+      await expect(page.locator('[data-cost-report]')).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('$1,200', { exact: true }).first()).toBeVisible();
+    });
   });
 
   test('linked lines follow the schedule, pin freezes them, and a locked version cannot drift', async ({ page }) => {
@@ -116,5 +148,43 @@ test.describe('Budget', () => {
       b.dispatch({ type: 'UPDATE_VERSION', payload: { id: v.id, rows: [...v.rows, { id: b.newId(), type: 'DAYBREAK', containerId: 1, order: 99999, daybreakCallTime: '08:00' }] } });
     });
     expect((await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary().totals.baseCents))).toBe(lockedTotal);
+
+    await test.step('the Day Manager Expenses card adds, edits and persists a day cost', async () => {
+      await page.getByRole('button', { name: 'Production', exact: true }).click();
+      await page.locator('[data-day-tab="expenses"]').click();
+      const day = await page.evaluate(() => (window as any).__lemonSchedule.getDays().days[0]);
+      expect(day).toBeTruthy();
+
+      await page.locator('[data-expenses-section]').getByRole('button', { name: 'Add expense' }).click();
+      await page.getByRole('textbox', { name: 'What was bought' }).fill('Craft service');
+      await page.getByRole('textbox', { name: 'What was bought' }).blur();
+      const amount = page.getByRole('spinbutton', { name: 'Expense amount' });
+      await amount.fill('750');
+      await amount.blur();
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+
+      await expect(page.locator('[data-expenses-section]')).toContainText('$750');
+      const attributed = await page.evaluate(() => {
+        const expenses = (window as any).__lemonSchedule.getProject().expenses;
+        return expenses[expenses.length - 1];
+      });
+      expect(attributed.dayNumber).toBe(day.chronoDay);
+      expect(attributed.dayDate).toBe(day.date);
+
+      // Edit through the same shared modal, then prove the card survives reload.
+      await page.locator('[data-expenses-section]').getByText('Craft service', { exact: true }).click();
+      const editAmount = page.getByRole('spinbutton', { name: 'Expense amount' });
+      await editAmount.fill('800');
+      await editAmount.blur();
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(page.locator('[data-expenses-section]')).toContainText('$800');
+
+      await waitForPersistedProject(page, 'p.expenses && p.expenses.some(e => e.description === "Craft service" && e.amountCents === 80000)');
+      await page.reload();
+      await ensureProject(page);
+      await page.getByRole('button', { name: 'Production', exact: true }).click();
+      await page.locator('[data-day-tab="expenses"]').click();
+      await expect(page.locator('[data-expenses-section]')).toContainText('$800');
+    });
   });
 });
