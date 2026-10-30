@@ -62,23 +62,14 @@ verify a bridge read/write and a viewer write refusal in e2e.
 ## Phase 1 — Budget authoring, versions & reports — LANDED
 
 ### Status (2026-10-30)
-Shipped across the phase-1 commits: types + `makeBlankBudget`/version/line
-factories + `migrateBudget`; the pure engine; store actions; Budget tab with
-`Budget`/`Library` live and `Cost Report`/`Expenses` placeholder states; the
-shared `InlineGlideTable` sheet; line/node/group modals; the `budgetTable`
-report block, budget collections/fields and three transient prints; CSV/JSON
-export + JSON import; debug-bridge factories and `budgetSummary`; e2e
-`e2e/budget.spec.ts` + unit `budget.test.ts`/`reportBudget.test.ts`.
-
-**Where the shipped phase diverges from the original package (authoritative):**
-Cost Report/Expenses are placeholders until phase 2; formula grammar has no
-`{{line.*}}` cross-line refs; the grid is the shared `InlineGlideTable` (no
-bespoke Glide fork); fringe ranges are engine+data only (no range editor; fringe
-group tags ARE editable in the Library); version Create adds a blank version and Duplicate clones the active one;
-lock pins via the UI-computed `lockBudgetVersion` map and unlock does NOT
-unpin; only `topsheet`/`accounts`/`lines` report modes render (others fall back
-to `topsheet`); import is JSON only; markups edit name/kind/calc/percent/
-amount/compound but not scope/caps.
+Shipped: types/factories/migration, engine, store actions, Budget/Library, the
+shared `InlineGlideTable` sheet, line/node/group modals, `budgetTable` +
+collections/fields/prints, CSV/JSON, bridge `budgetSummary`, unit + e2e.
+Divergences (authoritative): no `{{line.*}}` refs; shared grid (no Glide fork);
+fringe ranges are engine/data-only (group tags editable); Create = blank and
+Duplicate = clone; lock pins via `lockBudgetVersion`, unlock does not unpin;
+JSON import only; markup scope/caps not editable. Phase 2 replaced the
+Cost Report/Expenses placeholders and added the `costReport` mode.
 
 ### Goal
 A complete authoring tool: create a budget (blank, feature or from schedule),
@@ -265,8 +256,7 @@ spec.
 
 ## Phase 2 — Cost tracking — LANDED (2026-10-30)
 
-> Shipped: see `docs/BUDGETING.md` §8 and `docs/BUDGETING-SURFACES.md` §4b.
-> PO authoring remains action/bridge-only (no PO modal yet).
+> Shipped: `BUDGETING.md` §8 + `BUDGETING-SURFACES.md` §4b; PO authoring is bridge-only.
 
 ### Goal
 Turn the budget into a live cost report: expenses, POs, actual/committed/ETC/
@@ -305,6 +295,24 @@ unallocated; PO commitment; Day Manager add/edit/reload; period/as-of; print;
 CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
+
+### Open phase-2 follow-ups (roadmap 335-338)
+These refine the landed phase-2 surfaces and land as separate small items; each
+keeps the canonical seams (no second engine/table/grid).
+- **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
+  (category/account → node modal, line → line modal), not context-menu-first;
+  quick-add stays on `+`/right-click.
+- **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline
+  commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the
+  day filter, Actual/Committed summary, CTA and read-only rules.
+- **337** Budget Glide bulk entry: context-menu "Add line…" asks a count and
+  commits N lines in one batch; Shift+Enter adds/focuses a row via the shared
+  grid keyboard hook.
+- **338** Fringe pickers show each fringe's computed line contribution
+  (`computeBudget` → `computedLine.fringes[].cents`; per-row picker config),
+  never re-derived in the UI.
+Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps;
+visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
 
@@ -370,15 +378,13 @@ Ship each as its own branch/PR; do not bundle.
 7. **MMB import/export.** CSV/Excel bridge first; binary MMB only if a stable
    format/mapping is verified.
 
-Each sub-package gets its own acceptance/tests/docs; no "advanced mode" flag
-that leaves half-built surfaces live.
+Each sub-package gets its own acceptance/tests/docs; no half-built "advanced mode".
 
 ---
 
 ## Cross-phase checklist
 
-- **Actions:** every new type in `Action` + `ACTION_TYPES`; bridge/MCP schema
-  regenerated; write refusal tested.
+- **Actions:** every new type in `Action` + `ACTION_TYPES`; bridge/MCP schema regenerated; write refusal tested.
 - **Selectors:** one `computeBudget`/`computeCostReport` per surface; memoized;
   no component arithmetic.
 - **Versions:** chart/library shared; lines COW; lock freezes links; trash
