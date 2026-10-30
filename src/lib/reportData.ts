@@ -983,6 +983,8 @@ export function buildReportCtx(
     budget,
     // ONE cost computation, reused by every cost report block/field.
     costReport: computeCostReport(project, { budget: budget ?? null }) ?? undefined,
+    // ONE overtime computation per day, reused by the crew/day/department fields.
+    overtimeByDay,
   };
 }
 
