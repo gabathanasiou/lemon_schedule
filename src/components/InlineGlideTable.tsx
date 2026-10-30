@@ -26,7 +26,7 @@ import {
   pressControlCell,
 } from '@gabriel/ui-kit/glide-controls';
 import { useGlideFill } from '../lib/glideFill';
-import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
+import { textCell, buildCopyText, buildCutPlan, infoGlyphCell, infoGlyphRenderer, colorSwatchRenderer } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
@@ -72,7 +72,7 @@ export interface InlineGlideEdit {
 export interface InlineGlideRowAction {
   key: string;
   title: string;
-  icon: 'plus' | 'trash';
+  icon: 'plus' | 'trash' | 'chevron' | 'info';
   onClick: () => void;
 }
 
@@ -119,8 +119,15 @@ export interface InlineGlideTableProps {
    *  editor's options depend on the row (e.g. a crew slot's person list). */
   getEditor?: (row: number, colKey: string) => GlideColumnEditor | undefined | null;
   /** Optional trailing actions column: shows each row's action glyphs and
-   *  dispatches the one clicked. */
+   *  dispatches the one clicked. `info` renders the shared (i) glyph. */
   rowActions?: (rowIndex: number) => InlineGlideRowAction[];
+  /** Optional leading glyph column (drawn before the trailing actions): the
+   *  shared (i) "edit/inspect" affordance, so destructive actions can stay in
+   *  their own persistent trash column. */
+  rowInfo?: (rowIndex: number) => { title: string; onClick: () => void } | null;
+  /** Right-click menu items for a data row (rendered above the generic
+   *  copy/paste items). Return `null` to fall back to the generic menu. */
+  rowMenuItems?: (rowIndex: number, close: () => void) => React.ReactNode;
   /** Presence scope (roadmap 234): the stable id of THIS logical table shared
    *  by every client (e.g. `day:3:times:cast`). Every mounted instance — main
    *  window, popped-out sheet, portalled canvas — publishes its own selection
@@ -147,6 +154,8 @@ const EMPTY_SELECTION: GridSelection = {
 };
 /** Synthetic trailing row-actions column (key `actions` — skipped by copy/cut). */
 const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 56 };
+/** Synthetic leading info column (key `info` — skipped by copy/cut). */
+const INFO_COLUMN: InlineGlideColumn = { key: 'info', label: '', width: 30 };
 /** Stable identity for the "no presence scope" key lists (memo deps). */
 const NO_KEYS: string[] = [];
 
@@ -165,11 +174,13 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   dataAttr,
   dataCategory,
   headerMenuItems,
+  rowMenuItems,
   rowTooltip,
   onRowHover,
   editors,
   getEditor,
   rowActions,
+  rowInfo,
   presenceScope,
   presenceRowKey,
 }) => {
@@ -189,10 +200,14 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 
   const COLUMNS = useMemo(() => {
     const total = columns.reduce((s, c) => s + c.width, 0);
-    if (!gridWidth || gridWidth <= 0 || total <= 0) {
-      return rowActions ? [...columns, ACTIONS_COLUMN] : columns;
-    }
-    const target = Math.max(120, Math.floor(gridWidth) - 1) - (rowActions ? ACTIONS_COLUMN.width : 0);
+    const trailingWidth = (rowInfo ? INFO_COLUMN.width : 0) + (rowActions ? ACTIONS_COLUMN.width : 0);
+    const withTrailing = (list: InlineGlideColumn[]) => [
+      ...list,
+      ...(rowInfo ? [INFO_COLUMN] : []),
+      ...(rowActions ? [ACTIONS_COLUMN] : []),
+    ];
+    if (!gridWidth || gridWidth <= 0 || total <= 0) return withTrailing(columns);
+    const target = Math.max(120, Math.floor(gridWidth) - 1) - trailingWidth;
     const flexIdx = Math.min(1, columns.length - 1);
     const widths = columns.map(c => Math.max(40, Math.floor((c.width / total) * target)));
     let sum = widths.reduce((s, w) => s + w, 0);
@@ -202,9 +217,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       if (sum < target) widths[flexIdx] += target - sum;
     }
     const out = columns.map((c, i) => ({ ...c, width: widths[i] }));
+    if (rowInfo) out.push(INFO_COLUMN);
     if (rowActions) out.push(ACTIONS_COLUMN);
     return out;
-  }, [columns, gridWidth, rowActions]);
+  }, [columns, gridWidth, rowActions, rowInfo]);
 
   const glideColumns: GridColumn[] = useMemo(
     () => COLUMNS.map(c => ({ title: c.label.toUpperCase(), width: c.width })),
@@ -384,20 +400,16 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     return { x: (rect?.left ?? 0) + t.bx + t.bw / 2, y: (rect?.top ?? 0) + t.by };
   }, [gridSizeRef]);
 
-  // Hover/affordance model: EDITABLE cells get a light-blue fill (they read as
-  // "you can type here") that deepens on the hovered row; READ-ONLY cells stay
-  // on the plain card background with faint text at rest and pick up a subtle
-  // NEUTRAL hover so the whole row still responds — never a gray "disabled"
-  // box, never the blue (which is the editable cue). Fully read-only grids
-  // (stage-less fallbacks) don't tint at all. Repaint just the two affected
+  // Hover/affordance model: EDITABLE cells are the INPUT surface — plain white
+  // (the grid's own background) at rest, so they read like a field. READ-ONLY
+  // cells are the DISABLED surface — a neutral grey at rest, a touch deeper on
+  // the hovered row. A caller's own `themeOverride.bgCell` (budget category/
+  // account bands) wins over the disabled tint. Repaint just the two affected
   // rows on hover change.
-  /* Editable-cell cue follows the ambient mode: the light blue wash on the
-     Day pages / call-sheet paper, a raised neutral wash inside a dark modal
-     (a neutral surface never carries the project accent). */
   const gridMode = useKitTheme()?.mode ?? 'light';
-  const EDITABLE_BG = gridMode === 'dark' ? '#27272a' : '#eff6ff';
-  const EDITABLE_HOVER_BG = gridMode === 'dark' ? '#3f3f46' : '#dbeafe';
-  const READONLY_HOVER_BG = gridMode === 'dark' ? '#27272a' : '#f4f4f5';
+  const EDITABLE_HOVER_BG = gridMode === 'dark' ? '#1f1f22' : '#fbfbfc';
+  const READONLY_BG = gridMode === 'dark' ? '#1c1c1f' : '#f4f4f5';
+  const READONLY_HOVER_BG = gridMode === 'dark' ? '#27272a' : '#e4e4e7';
   const hoveredRowRef = useRef<number | null>(null);
   const onItemHovered = useCallback((args: any) => {
     const loc = args?.location;
@@ -430,14 +442,26 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const colDef = COLUMNS[col];
     const r = rowsRef.current[row];
     if (!colDef || !r) return textCell('', { readonly: true, allowOverlay: false });
+    if (colDef.key === 'info') {
+      const info = rowInfo?.(row);
+      if (readOnlyRef.current || !info) return textCell('', { readonly: true, allowOverlay: false });
+      return infoGlyphCell({ label: info.title, onActivate: info.onClick });
+    }
     if (colDef.key === 'actions') {
-      // Painted row actions — the kit's canvas-native control cells.
+      // Painted row actions — the kit's canvas-native control cells. A lone
+      // (i) action is the shared app glyph (details/inspect, NOT a chevron,
+      // which reads as collapse/expand).
       const actions = rowActions?.(row) ?? [];
       if (readOnlyRef.current || actions.length === 0) return textCell('', { readonly: true, allowOverlay: false });
-      const buttons = actions.map(action => ({
-        icon: action.icon,
+      if (actions.length === 1 && actions[0].icon === 'info') {
+        return infoGlyphCell({ label: actions[0].title, onActivate: actions[0].onClick });
+      }
+      const kitActions = actions.filter(action => action.icon !== 'info');
+      if (kitActions.length === 0) return textCell('', { readonly: true, allowOverlay: false });
+      const buttons = kitActions.map(action => ({
+        icon: action.icon as 'plus' | 'trash' | 'chevron',
         label: action.title,
-        tone: action.icon === 'trash' ? ('danger' as const) : ('accent' as const),
+        tone: action.icon === 'trash' ? ('danger' as const) : action.icon === 'chevron' || action.icon === 'info' ? ('neutral' as const) : ('accent' as const),
         onActivate: action.onClick,
       }));
       return buttons.length > 1
@@ -445,9 +469,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         : kitGlyphCell({ lane: 'full', ...buttons[0] });
     }
     const cell = getCellContent(colDef, r, row);
-    if (readOnlyRef.current) return cell;
     const hovered = row === hoveredRowRef.current;
-    const isReadonly = !!(cell as any).readonly;
+    const isReadonly = readOnlyRef.current || !!(cell as any).readonly;
     if (!isReadonly) {
       // Picker columns (entity/enum editors) carry the kit's chevron lane so
       // the dropdown affordance is visible without opening the cell. The
@@ -462,19 +485,18 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onOpen: () => gridRef.current?.openCellEditor(col, row),
           })
         : null;
-      // Editable: the mode's rest wash (light blue on the pages, a raised
-      // neutral in a dark modal), deeper on the hovered row. Preserves the
-      // caller's text colour (e.g. amber overrides).
+      // Editable inputs stay white at rest (the grid's own bg — the "field"
+      // surface); only a near-white hover repaint keeps the row responsive.
       const editable = picker ?? cell;
-      const bg = hovered ? EDITABLE_HOVER_BG : EDITABLE_BG;
-      return { ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
+      if (!hovered) return editable;
+      return { ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: EDITABLE_HOVER_BG, bgCellMedium: EDITABLE_HOVER_BG } };
     }
-    if (hovered) {
-      // Read-only: neutral hover only — plain idle, faint text.
-      return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: READONLY_HOVER_BG, bgCellMedium: READONLY_HOVER_BG } };
-    }
-    return cell;
-  }, [COLUMNS, getCellContent, getEditor, editors, rowActions, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
+    // Read-only = disabled: neutral grey at rest, a touch deeper on hover,
+    // unless the caller supplied its own band colour.
+    const own = (cell as any).themeOverride?.bgCell as string | undefined;
+    const bg = hovered ? READONLY_HOVER_BG : (own ?? READONLY_BG);
+    return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
+  }, [COLUMNS, getCellContent, getEditor, editors, rowActions, rowInfo, EDITABLE_HOVER_BG, READONLY_BG, READONLY_HOVER_BG]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
    *  each title lines up with its (centered) cells. `wrapHeaders` wraps the
@@ -530,9 +552,18 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (isControlCell(getCell(cell))) requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
   }, [rowActions, getCell]);
 
-  /** Enter/Space on a painted row action fires it once (the first button). */
+  /** Enter/Space on a painted control or app glyph fires it once. The custom
+   *  canvas cells (info, colour swatch, pencil picker) are REAL grid cells, so
+   *  keyboard activation must match their pointer behaviour. */
   const onCellActivated = useCallback((cell: Item) => {
     const content = getCell(cell);
+    const data = (content as any).data as { kind?: string; onActivate?: () => void; onOpen?: () => void } | undefined;
+    if (!readOnlyRef.current && data) {
+      if (data.kind === 'lemon-info') {
+        data.onActivate?.();
+        return;
+      }
+    }
     const button = isKitGlyphGroupCell(content)
       ? content.data.buttons[0]
       : isKitGlyphCell(content)
@@ -770,7 +801,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             provideEditor={provideEditor}
             onFinishedEditing={escapeCancel.onFinishedEditing}
             onCellActivated={onCellActivated}
-            customRenderers={controlCellRenderers}
+            customRenderers={[...controlCellRenderers, infoGlyphRenderer, colorSwatchRenderer]}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={onGridSelectionChange}
@@ -804,6 +835,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
           <>{headerMenuItems(() => setContextMenu(null))}</>
         ) : contextMenu ? (
           <>
+            {rowMenuItems && contextMenu.row >= 0 && (
+              <>
+                {rowMenuItems(contextMenu.row, () => setContextMenu(null))}
+                <ContextMenuDivider />
+              </>
+            )}
             <ContextMenuItem onClick={() => void handleCopy()} icon={<Copy className="w-3.5 h-3.5" />} disabled={!hasSelection}>
               Copy
             </ContextMenuItem>
