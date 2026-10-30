@@ -75,7 +75,7 @@ export function SessionsPanel({ onSignedOutEverywhere }: { onSignedOutEverywhere
         <p className="text-[11px] text-[color:var(--ui-text-faint)]">
           Sign out every other device that is signed in to this account. This device stays signed in.
         </p>
-        <Button variant="primary" theme="dark" onClick={() => void runOthers()} disabled={busy !== null}>
+        <Button variant="solid" onClick={() => void runOthers()} disabled={busy !== null}>
           {busy === 'others' && <Loader2 className="w-3 h-3 animate-spin" />}
           Sign out other devices
         </Button>

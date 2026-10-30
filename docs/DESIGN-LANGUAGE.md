@@ -214,9 +214,9 @@ Sheet/Days buttons.
 ### Buttons
 | Role | Classes |
 |---|---|
-| Toolbar button (kit `Button`) | base `inline-flex items-center gap-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`; `subtle` `px-2.5 py-1 text-zinc-600 hover:bg-zinc-200`; `primary` reads `--ui-btn-primary-bg`/`-hover` — the project IDENTITY header step (zinc `#09090b`, Drive `#172554`, shared `#022c22`), deliberately kept through a neutral surface via `data-identity-accent`; `danger-ghost` `px-2.5 py-1 text-rose-600 hover:bg-rose-50`; `cloud` forces blue/emerald when no scope supplies identity — `ui-kit/src/Button.tsx` |
+| Toolbar button (kit `Button`) | base `inline-flex items-center gap-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`; `subtle` `px-2.5 py-1 text-zinc-600 hover:bg-zinc-200`; `primary` reads `--ui-btn-primary-bg`/`-hover` — the project IDENTITY header step (zinc `#09090b`, Drive `#172554`, shared `#022c22`), deliberately kept through a neutral surface via `data-identity-accent`; `solid` = the registered raised modal primary (`--ui-btn-solid-*`, mode zinc; accent surfaces use the project colour); `danger-ghost` `px-2.5 py-1 text-rose-600 hover:bg-rose-50`; `cloud` forces blue/emerald when no scope supplies identity — `ui-kit/src/Button.tsx` |
 | Ghost (Cancel, Close) | `px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors` (`DayTypeModals.tsx:29`) |
-| Solid (primary action) | `px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors` (`DayTypeModals.tsx:30`) |
+| Solid (modal primary) | kit `Button variant="solid"` / `ModalFooterButton` hero — `--ui-btn-solid-bg`/`-border` (dark zinc-800/zinc-700, light zinc-900/zinc-800), hover one step lighter; on an accent surface the same roles take the project accent (A800/A700). One recipe for a body primary and the footer hero |
 | Labeled icon action | `flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white` (`LinkManagerModal.tsx:33` — icon-only buttons need text labels) |
 | Chip button (dark-modal dropdown triggers) | `DD_CHIP_TRIGGER_CLASS` (`src/lib/dropdown.ts`): `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900` — the cast-dropdown/chip look. Text size NOT included (add `text-xs`), layout extras (`relative` for an absolute value overlay, `justify-between`, min-widths, `w-full px-3 py-2` for full-width) append on top. Single source for the EntityDropdown `variant="chip"` trigger AND every value-displaying menu trigger styled like it (day-status + event-type pickers, `CategoryDropdown`, rule-type picker, print-dialog ribbon-layout/page-size/category pickers) — never hand-write the strings |
 | Icon-only | `p-1.5 rounded-md transition-colors shrink-0 text-zinc-600 hover:text-red-400 hover:bg-zinc-800` (`LinkManagerModal.tsx:29-30`) |
@@ -540,11 +540,12 @@ Structure (all in `src/components/Modal.tsx`):
 - **Footer buttons — one hero, rest ghost**: every modal footer has exactly ONE hero button — the
   primary action — and EVERY other button (Cancel, secondary actions, Import) is the ghost style.
   Use the kit's `ModalFooterButton` (`src/components/ModalFooterButton.tsx` re-export) — never
-  hand-write footer classes. Variants: `hero` (default; solid `--ui-footer-hero-*`, e.g. "+ New
-  Project" in the Project Manager), `ghost` (e.g. "Import"), `danger` (text+ghost destructive,
-  left-aligned with `mr-auto` — Delete), and `danger-solid` (red confirm — Delete Selected). The
-  hero's `tone="accent"` uses the project accent (`--ui-accent-solid`) — pass it from
-  `projectAccentOf(useProjectTheme())` when the action should wear the chrome. Sizes (coarse-aware
+  hand-write footer classes. Variants: `hero` (default; the registered `solid` recipe
+  `--ui-btn-solid-*` — mode zinc, project accent on an accent surface — e.g. "+ New Project" in the
+  Project Manager), `ghost` (e.g. "Import"), `danger` (text+ghost destructive, left-aligned with
+  `mr-auto` — Delete), and `danger-solid` (red confirm — Delete Selected). A body primary action
+  uses `Button variant="solid"` so it matches the hero. `tone="accent"` forces the accent fill
+  (`--ui-accent-solid`). Sizes (coarse-aware
   `px-6 py-2` / `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A
   single-button footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin +
   `disabled`.
