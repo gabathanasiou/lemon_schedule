@@ -679,6 +679,9 @@ export interface ReportCtx {
   /** The project's budget read model (roadmap 334), computed ONCE here from
    *  `computeBudget` — budget report blocks/fields never do budget arithmetic. */
   budget?: BudgetModel;
+  /** Lazy read of another budget version for the comparison block (phase 4) —
+   *  memoized per context; read-only, never changes the active version. */
+  budgetForVersion?: (versionId: string) => BudgetModel | undefined;
   /** The cost read model (roadmap 334 phase 2), computed ONCE from
    *  `computeCostReport` — cost report collections/fields read these numbers. */
   costReport?: CostReportModel;
@@ -960,6 +963,19 @@ export function buildReportCtx(
   // ONE budget computation per report context (`computeBudget` is pure); the
   // cost model reuses it instead of re-deriving the chart.
   const budget = computeBudget(project) ?? undefined;
+  // Comparison mode may read any two versions; memoise each distinct version
+  // in this context so a block never re-runs the engine per render.
+  const budgetByVersion = new Map<string, BudgetModel | undefined>();
+  if (budget) budgetByVersion.set(budget.version.id, budget);
+  const budgetForVersion = (versionId: string): BudgetModel | undefined => {
+    if (budgetByVersion.has(versionId)) return budgetByVersion.get(versionId);
+    const exists = !!project.budget?.versions.some(v => v.id === versionId);
+    // Guard the engine's active-version fallback: a missing compare id must
+    // render a hint, never a silent self-comparison.
+    const model = exists ? computeBudget(project, { versionId }) ?? undefined : undefined;
+    budgetByVersion.set(versionId, model);
+    return model;
+  };
 
   return {
     project,
@@ -981,6 +997,7 @@ export function buildReportCtx(
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
     computedByRowId,
     budget,
+    budgetForVersion,
     // ONE cost computation, reused by every cost report block/field.
     costReport: computeCostReport(project, { budget: budget ?? null }) ?? undefined,
     // ONE overtime computation per day, reused by the crew/day/department fields.

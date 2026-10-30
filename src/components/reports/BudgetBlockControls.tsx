@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Seg } from '@gabriel/ui-kit';
 import type { Project, ReportBlock } from '../../types';
 import { budgetReportColumnDefs, budgetReportMode } from '../../lib/reportBudget';
 import { ContentRow, EditorCheckbox, EditorGroup } from './reportEditorLayout';
 import Checklist from '../Checklist';
 import DateField from '../DateField';
+import Button from '../Button';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
 
 /**
  * Budget block inspector (`budgetTable`, roadmap 334). Extracted from
@@ -24,6 +28,15 @@ interface BudgetBlockControlsProps {
 const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, project, readOnly, onPatch, panel, title }) => {
   const budget = project.budget;
   const mode = budgetReportMode(block.budgetMode);
+  const [versionMenu, setVersionMenu] = useState<'primary' | 'compare' | null>(null);
+
+  const versionItems = useMemo(
+    () => (budget?.versions || []).map(v => ({ id: v.id, name: v.name })),
+    [budget],
+  );
+  const primaryVersionId = block.budgetVersionId || budget?.activeVersionId || '';
+  const compareVersionId = block.budgetCompareVersionId || '';
+  const versionName = (id: string) => versionItems.find(v => v.id === id)?.name || 'Select version';
 
   const categoryItems = useMemo(() => [...(budget?.categories || [])]
     .sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number))
@@ -87,13 +100,81 @@ const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, projec
             { v: 'topsheet', l: 'Top Sheet' },
             { v: 'accounts', l: 'Accounts' },
             { v: 'lines', l: 'Lines' },
+            { v: 'comparison', l: 'Compare' },
             { v: 'costReport', l: 'Cost Report' },
           ]}
-          onChange={v => onPatch({ budgetMode: v as 'topsheet' | 'accounts' | 'lines' | 'costReport' })}
+          onChange={v => onPatch({ budgetMode: v as 'topsheet' | 'accounts' | 'lines' | 'comparison' | 'costReport' })}
           disabled={readOnly}
           stretch={panel}
         />
       </ContentRow>
+
+      {mode === 'comparison' && (
+        <>
+          <ContentRow key="budgetVersion" label="Budget">
+            <DropdownMenu
+              open={versionMenu === 'primary'}
+              onOpenChange={open => setVersionMenu(open ? 'primary' : null)}
+              width="w-56"
+              theme="dark"
+              trigger={(
+                <Button theme="dark" className="w-full justify-between" disabled={readOnly}>
+                  <span className="truncate text-xs">{versionName(primaryVersionId)}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </Button>
+              )}
+            >
+              {versionItems.map(v => (
+                <DropdownItem
+                  key={v.id}
+                  onClick={() => {
+                    onPatch({ budgetVersionId: v.id });
+                    setVersionMenu(null);
+                  }}
+                  icon={v.id === primaryVersionId ? <span className="text-[10px]">✓</span> : undefined}
+                >
+                  <span className="truncate">{v.name}</span>
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </ContentRow>
+          {versionItems.length > 1 ? (
+            <ContentRow key="compareVersion" label="Compare to">
+              <DropdownMenu
+                open={versionMenu === 'compare'}
+                onOpenChange={open => setVersionMenu(open ? 'compare' : null)}
+                width="w-56"
+                theme="dark"
+                trigger={(
+                  <Button theme="dark" className="w-full justify-between" disabled={readOnly}>
+                    <span className="truncate text-xs">{versionName(compareVersionId)}</span>
+                    <ChevronDown className="w-3 h-3 shrink-0" />
+                  </Button>
+                )}
+              >
+                {versionItems.map(v => (
+                  <DropdownItem
+                    key={v.id}
+                    onClick={() => {
+                      onPatch({ budgetCompareVersionId: v.id });
+                      setVersionMenu(null);
+                    }}
+                    icon={v.id === compareVersionId ? <span className="text-[10px]">✓</span> : undefined}
+                  >
+                    <span className="truncate">{v.name}</span>
+                  </DropdownItem>
+                ))}
+              </DropdownMenu>
+            </ContentRow>
+          ) : (
+            <ContentRow key="compareVersion" label="Compare to">
+              <span className="text-[10px] text-[color:var(--ui-text-muted)]">
+                Add a second budget version to compare.
+              </span>
+            </ContentRow>
+          )}
+        </>
+      )}
 
       {mode === 'costReport' && (
         <>
@@ -170,11 +251,16 @@ const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, projec
       <ContentRow key="display" label="Show">
         <EditorGroup className={panel ? 'w-full flex-wrap' : 'flex-wrap'}>
           <EditorCheckbox checked={block.showZero === true} disabled={readOnly} onChange={on => onPatch({ showZero: on })} label="Zero rows" />
-          {mode !== 'costReport' && (
+          {mode !== 'costReport' && mode !== 'comparison' && (
             <EditorCheckbox checked={block.showFringes !== false} disabled={readOnly} onChange={on => onPatch({ showFringes: on })} label="Fringes" />
           )}
-          <EditorCheckbox checked={block.showPercent !== false} disabled={readOnly} onChange={on => onPatch({ showPercent: on })} label={mode === 'costReport' ? '% used' : '% of total'} />
-          {mode !== 'costReport' && (
+          <EditorCheckbox
+            checked={block.showPercent !== false}
+            disabled={readOnly}
+            onChange={on => onPatch({ showPercent: on })}
+            label={mode === 'comparison' ? 'Variance %' : mode === 'costReport' ? '% used' : '% of total'}
+          />
+          {mode !== 'costReport' && mode !== 'comparison' && (
             <EditorCheckbox checked={block.showNotes === true} disabled={readOnly} onChange={on => onPatch({ showNotes: on })} label="Notes" />
           )}
         </EditorGroup>

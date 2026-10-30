@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { ReportBlock } from '../../types';
 import type { ReportCtx } from '../../lib/reportData';
-import { budgetReportMode, buildBudgetReport, buildCostReportReport, type BudgetReportColumn, type BudgetReportRow } from '../../lib/reportBudget';
+import { budgetReportMode, buildBudgetReport, buildComparisonReport, buildCostReportReport, type BudgetReportColumn, type BudgetReportRow } from '../../lib/reportBudget';
 import { formatMoney, formatPercent } from '../../lib/budget/format';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { getReportBlockBaseStyle } from './reportStyle';
@@ -34,18 +34,36 @@ const depthPadding = (row: BudgetReportRow): number => (row.kind === 'line' ? 16
 
 const ReportBudgetTable: React.FC<ReportBudgetTableProps> = ({ block, ctx, hint, showKeys, rowRange, repeatTableHeader, title }) => {
   const mode = budgetReportMode(block.budgetMode);
-  const model = useMemo(() => mode === 'costReport'
-    ? buildCostReportReport(ctx.project, ctx.budget, {
-      asOf: block.costAsOf,
-      from: block.costPeriod?.from,
-      to: block.costPeriod?.to,
-      categories: block.budgetCategories,
-      accounts: block.budgetAccounts,
-      columns: block.budgetColumns,
-      showZero: block.showZero === true,
-      showPercent: block.showPercent !== false,
-    })
-    : buildBudgetReport(ctx.budget, {
+  const model = useMemo(() => {
+    if (mode === 'costReport') {
+      return buildCostReportReport(ctx.project, ctx.budget, {
+        asOf: block.costAsOf,
+        from: block.costPeriod?.from,
+        to: block.costPeriod?.to,
+        categories: block.budgetCategories,
+        accounts: block.budgetAccounts,
+        columns: block.budgetColumns,
+        showZero: block.showZero === true,
+        showPercent: block.showPercent !== false,
+      });
+    }
+    if (mode === 'comparison') {
+      const primary = block.budgetVersionId
+        ? ctx.budgetForVersion?.(block.budgetVersionId)
+        : ctx.budget;
+      const original = block.budgetCompareVersionId
+        ? ctx.budgetForVersion?.(block.budgetCompareVersionId)
+        : undefined;
+      return buildComparisonReport(primary, original, {
+        mode: 'comparison',
+        categories: block.budgetCategories,
+        accounts: block.budgetAccounts,
+        columns: block.budgetColumns,
+        showZero: block.showZero === true,
+        showPercent: block.showPercent !== false,
+      });
+    }
+    return buildBudgetReport(ctx.budget, {
       mode: block.budgetMode,
       categories: block.budgetCategories,
       accounts: block.budgetAccounts,
@@ -54,7 +72,8 @@ const ReportBudgetTable: React.FC<ReportBudgetTableProps> = ({ block, ctx, hint,
       showFringes: block.showFringes !== false,
       showNotes: block.showNotes === true,
       showPercent: block.showPercent !== false,
-    }), [ctx.project, ctx.budget, mode, block.budgetMode, block.budgetCategories, block.budgetAccounts, block.budgetColumns, block.costAsOf, block.costPeriod, block.showZero, block.showFringes, block.showNotes, block.showPercent]);
+    });
+  }, [ctx.project, ctx.budget, ctx.budgetForVersion, mode, block.budgetMode, block.budgetCategories, block.budgetAccounts, block.budgetColumns, block.budgetVersionId, block.budgetCompareVersionId, block.costAsOf, block.costPeriod, block.showZero, block.showFringes, block.showNotes, block.showPercent]);
 
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
@@ -63,9 +82,26 @@ const ReportBudgetTable: React.FC<ReportBudgetTableProps> = ({ block, ctx, hint,
 
   if (!model || model.rows.length === 0) {
     if (!hint) return null;
+    let message: string;
+    if (mode === 'comparison') {
+      const primaryMissing = block.budgetVersionId
+        ? !ctx.budgetForVersion?.(block.budgetVersionId)
+        : !ctx.budget;
+      const compareMissing = !block.budgetCompareVersionId
+        || !ctx.budgetForVersion?.(block.budgetCompareVersionId);
+      message = primaryMissing || compareMissing
+        ? (block.budgetCompareVersionId
+          ? 'That budget version is no longer available — choose another in the block settings.'
+          : 'Choose two budget versions in the block settings.')
+        : 'No budget rows to print — add categories/lines or widen the filters.';
+    } else {
+      message = ctx.project.budget
+        ? 'No budget rows to print — add categories/lines or widen the filters.'
+        : 'No budget yet — create one in the Budget tab.';
+    }
     return (
       <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>
-        {ctx.project.budget ? 'No budget rows to print — add categories/lines or widen the filters.' : 'No budget yet — create one in the Budget tab.'}
+        {message}
       </div>
     );
   }

@@ -40,9 +40,9 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
   }, []);
   const [exportOpen, setExportOpen] = React.useState(false);
   const [printOpen, setPrintOpen] = React.useState(false);
-  const printDesigns = React.useMemo(() => budgetReportDesigns(), []);
-  const fileRef = React.useRef<HTMLInputElement>(null);
   const budget = model.budget;
+  const printDesigns = React.useMemo(() => budgetReportDesigns(budget), [budget]);
+  const fileRef = React.useRef<HTMLInputElement>(null);
   const settings = model.settings;
 
   const linesById = React.useMemo(() => {
