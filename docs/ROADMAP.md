@@ -1451,3 +1451,37 @@ fringe showing how much that fringe adds to the line.
 match the line total delta). Existing Vitest fringe maths is the arithmetic
 gate; no new e2e unless the computed subtitle can silently drift.
 **Relations:** `relates to` **334**.
+
+## 339. Budget — category manager context menu + trailing “+ New category” (`[ ]`)
+
+**Asked 2026-10-30 (user):** the category manager should expose a right-click
+context menu, with a last-row **+ New category** option.
+
+**Work:** add the kit `ContextMenu` to the Budget category rail (and any future
+category manager surface): right-click a category → Edit category, Add account,
+Delete category (confirm) then a divider and **+ New category**; right-clicking
+blank rail space opens the same menu with only New category. Also show a
+trailing **+ New category** row at the bottom of the rail so the action is
+discoverable without right-click. Read-only hides category/account actions but
+may keep the menu inspectable; no second category editor.
+
+**Verify:** manual pass (right-click a category, blank space and the trailing
+row all create/open the same actions; read-only no-op). **Relations:**
+`relates to` **334**, **335**.
+
+## 340. Budget Glide — collapse/expand category headings (`[ ]`)
+
+**Asked 2026-10-30 (user):** category heading rows in the Budget sheet need the
+extra dropdown/disclosure icon so their children can be collapsed and expanded.
+
+**Work:** add a `kitGlyphCell` chevron to category band rows (and account band
+rows where it helps) that collapses the child account/line rows in place.
+Collapsed totals stay visible and unchanged; the state is view-local (not
+project/undo, not shared presence state) and survives tab/view switches per
+session. Keyboard Left/Right toggles the focused band, Shift+Enter quick-add
+(337) stays available. No DOM inside cells; copy/paste/fill still skip the
+synthetic glyph lanes.
+
+**Verify:** manual pass on a multi-account category — collapse hides children
+but totals hold; expand restores; read-only still allows collapsing because it
+is view-only state. **Relations:** `relates to` **334**, **326**, **337**.

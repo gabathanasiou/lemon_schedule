@@ -296,23 +296,22 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Open phase-2 follow-ups (roadmap 335-338)
-These refine the landed phase-2 surfaces and land as separate small items; each
-keeps the canonical seams (no second engine/table/grid).
+### Open phase-2 follow-ups (roadmap 335-340)
+Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid).
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
-  (category/account → node modal, line → line modal), not context-menu-first;
-  quick-add stays on `+`/right-click.
+  (category/account → node modal, line → line modal), not context-menu-first.
 - **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline
   commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the
-  day filter, Actual/Committed summary, CTA and read-only rules.
-- **337** Budget Glide bulk entry: context-menu "Add line…" asks a count and
-  commits N lines in one batch; Shift+Enter adds/focuses a row via the shared
-  grid keyboard hook.
+  day filter, summary, CTA and read-only rules.
+- **337** Budget Glide bulk entry: context-menu "Add line…" count → N lines in
+  one batch; Shift+Enter adds/focuses a row via the shared keyboard hook.
 - **338** Fringe pickers show each fringe's computed line contribution
-  (`computeBudget` → `computedLine.fringes[].cents`; per-row picker config),
-  never re-derived in the UI.
-Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps;
-visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
+  (`computeBudget` → `computedLine.fringes[].cents`), never re-derived.
+- **339/340** Category navigation: rail context menu + trailing "+ New category"
+  (kit `ContextMenu`, no second editor); Glide category bands get a disclosure
+  chevron that collapses children as view-only state.
+Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual
+checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
 
