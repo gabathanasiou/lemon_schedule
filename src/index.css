@@ -233,12 +233,15 @@ input, textarea, [contenteditable] {
 /* Reveal-on-hover chrome (row/card action buttons). Ungated: desktop shows
    them on hover; iOS shows them on tap (sticky :hover) so the first tap
    reveals, the second tap activates. :focus-within keeps them reachable by
-   keyboard. */
+   keyboard. :active = press-to-reveal on touch (roadmap 331): resting a finger
+   on the row shows its actions immediately, and releasing still fires the
+   row's click — the affordance appears without stealing the action. */
 .hover-reveal {
   opacity: 0;
 }
 .group:hover .hover-reveal,
-.group:focus-within .hover-reveal {
+.group:focus-within .hover-reveal,
+.group:active .hover-reveal {
   opacity: 1;
 }
 

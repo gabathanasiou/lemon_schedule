@@ -29,12 +29,20 @@ export const DelegatedTooltip: React.FC = () => {
     const onOut = (e: MouseEvent) => {
       if ((e.target as HTMLElement | null)?.closest?.('[data-ui-tooltip]')) setTip(null);
     };
+    /* Touch dismissal (roadmap 331): tapping anywhere that is NOT a tooltip
+       tag clears the bubble — the tap's sticky hover never fires mouseout on a
+       blank area, which left report tooltips stuck on iPhone. */
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.('[data-ui-tooltip]')) setTip(null);
+    };
     doc.addEventListener('mouseover', onOver);
     doc.addEventListener('mouseout', onOut);
+    doc.addEventListener('pointerdown', onDown, true);
     currentWin.addEventListener('scroll', hide, true);
     return () => {
       doc.removeEventListener('mouseover', onOver);
       doc.removeEventListener('mouseout', onOut);
+      doc.removeEventListener('pointerdown', onDown, true);
       currentWin.removeEventListener('scroll', hide, true);
     };
   }, [currentWin]);

@@ -61,6 +61,22 @@ export const HoverTooltip: React.FC<{
     if (cooldownRef.current) clearTimeout(cooldownRef.current);
   }, []);
 
+  /* Touch dismissal (roadmap 331): iOS keeps the tap's hover sticky and a tap
+     on a non-interactive spot never fires mouseleave, so the bubble could stay
+     up forever. Any pointerdown outside the trigger clears it. */
+  useEffect(() => {
+    if (!show) return undefined;
+    const doc = ref.current?.ownerDocument ?? document;
+    const onPointerDown = (event: PointerEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setShow(false);
+      }
+    };
+    doc.addEventListener('pointerdown', onPointerDown, true);
+    return () => doc.removeEventListener('pointerdown', onPointerDown, true);
+  }, [show]);
+
   useLayoutEffect(() => {
     if (show && tipRef.current) {
       const r = tipRef.current.getBoundingClientRect();

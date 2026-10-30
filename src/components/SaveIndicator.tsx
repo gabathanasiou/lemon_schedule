@@ -4,6 +4,7 @@ import { useProject, useIsOnlineProject } from '../store';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { roomBadgeState, roomBadgeText } from '../lib/rooms/roomBadge';
 import { roomsConfigured } from '../lib/rooms/roomsEnv';
+import { useHoverTip } from '../lib/useHoverTip';
 
 export interface SaveState {
   status: 'idle' | 'saving' | 'saved' | 'offline' | 'viewOnly';
@@ -115,9 +116,9 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   const { canEdit, readOnly, roomStatus, roomPending, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
   const isOnlineProject = useIsOnlineProject();
   const auth = useGoogleAuth();
-  const [showTooltip, setShowTooltip] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const tip = useHoverTip<HTMLDivElement>();
 
   const iconColor = isCloudProject ? 'text-white' : 'text-[color:var(--ui-text-faint)]';
 
@@ -141,12 +142,12 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
         data-testid="view-only-indicator"
       >
         <Eye className={`w-3.5 h-3.5 ${iconColor}`} />
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {driveErrorMsg || 'View only — you can’t make changes to this shared project'}
           </div>
@@ -166,11 +167,11 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <WifiOff className={`w-3.5 h-3.5 ${iconColor}`} />
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {tooltipText}
           </div>
@@ -187,8 +188,8 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <button
           type="button"
@@ -202,7 +203,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
             !
           </span>
         </button>
-        {(showTooltip || pinned) && (
+        {(tip.show || pinned) && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] w-56 whitespace-normal z-50">
             {text}
           </div>
@@ -215,11 +216,11 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <Loader2 className={`w-3.5 h-3.5 animate-spin ${iconColor}`} />
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Saving...
           </div>
@@ -234,11 +235,11 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <HardDrive className="w-3.5 h-3.5 text-rose-400" />
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Storage full - changes not saved
           </div>
@@ -251,8 +252,8 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <button
           onClick={() => auth.signIn()}
@@ -261,7 +262,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
         >
           <CloudOff className="w-3.5 h-3.5 text-amber-400" />
         </button>
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Sign in to resume sync
           </div>
@@ -274,11 +275,11 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <Loader2 className={`w-3.5 h-3.5 animate-spin ${iconColor}`} />
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Retrying sync…
           </div>
@@ -292,11 +293,11 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       return (
         <div
           className="relative"
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
+          ref={tip.ref}
+          {...tip.bind}
         >
           <WifiOff className="w-3.5 h-3.5 text-[color:var(--ui-text-muted)]" />
-          {showTooltip && (
+          {tip.show && (
             <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
               Working offline
             </div>
@@ -307,8 +308,8 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
     return (
       <div
         className="relative"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        ref={tip.ref}
+        {...tip.bind}
       >
         <button
           onClick={async () => { setRetrying(true); await retryDriveSync(); setRetrying(false); }}
@@ -322,7 +323,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
             <CloudOff className="w-3.5 h-3.5 text-rose-400" />
           )}
         </button>
-        {showTooltip && (
+        {tip.show && (
           <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {driveErrorMsg ? `Sync failed: ${driveErrorMsg} - click to retry` : 'Sync failed - click to retry'}
           </div>
@@ -339,15 +340,15 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   return (
     <div
       className="relative"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      ref={tip.ref}
+      {...tip.bind}
     >
       {isCloudProject ? (
         <Cloud className={`w-3.5 h-3.5 ${iconColor}`} />
       ) : (
         <Save className={`w-3.5 h-3.5 ${iconColor}`} />
       )}
-      {showTooltip && (
+      {tip.show && (
         <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
           {tooltip}
         </div>
