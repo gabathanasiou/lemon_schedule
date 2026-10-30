@@ -182,7 +182,9 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
     amount: (Number(f.amountCents || 0) / 100).toFixed(2),
     cutoff: f.cutoffCents != null ? (f.cutoffCents / 100).toFixed(2) : '',
     posting: POSTING_OPTIONS.find(o => o.v === (f.posting || settings.fringePosting))?.l || 'Top sheet',
+    groups: (f.groups || []).map(id => (budget.groups || []).find(g => g.id === id)?.name || '').filter(Boolean).join(', '),
   }));
+  const groupIdByName = new Map((budget.groups || []).map(g => [g.name.trim().toLowerCase(), g.id]));
   const commitFringes = (edits: InlineGlideEdit[]) => {
     const next = (budget.fringes || []).map(f => {
       const e = edits.find(x => x.row === fringeRows.findIndex(r => r.id === f.id));
@@ -194,6 +196,11 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
         case 'amount': return { ...f, amountCents: parseMoney(e.value) };
         case 'cutoff': return { ...f, cutoffCents: e.value.trim() ? parseMoney(e.value) : undefined };
         case 'posting': return { ...f, posting: (POSTING_OPTIONS.find(o => o.l === e.value)?.v || f.posting) as BudgetFringe['posting'] };
+        case 'groups': return {
+          ...f,
+          groups: e.value.split(',').map(x => x.trim()).filter(Boolean)
+            .map(name => groupIdByName.get(name.toLowerCase())).filter(Boolean) as string[],
+        };
         default: return f;
       }
     });
@@ -453,6 +460,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           editors={{
             calc: { kind: 'enum', options: CALC_OPTIONS.map(o => o.l) },
             posting: { kind: 'enum', options: POSTING_OPTIONS.map(o => o.l) },
+            groups: { kind: 'entity', mode: 'multi', displayMode: 'name', allowFreeText: false, items: (budget.groups || []).map(g => ({ id: g.id, name: g.name })), placeholder: 'Groups' },
           }}
           columns={[
             { key: 'name', label: 'Name', width: 200, editable: true },
@@ -461,6 +469,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
             { key: 'amount', label: 'Amount', width: 80, align: 'right', editable: true },
             { key: 'cutoff', label: 'Cutoff', width: 80, align: 'right', editable: true },
             { key: 'posting', label: 'Posting', width: 90, editable: true },
+            { key: 'groups', label: 'Groups', width: 120, editable: true },
           ]}
         />
 

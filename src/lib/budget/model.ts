@@ -251,9 +251,9 @@ export function cloneBudgetVersion(
   cloneFromId?: string | null,
   id?: string,
 ): { version: BudgetVersion; budgetPatch: Partial<Budget> } {
-  const source = cloneFromId
-    ? budget.versions.find(v => v.id === cloneFromId)
-    : activeBudgetVersion(budget);
+  // Explicit `cloneFromId` = duplicate; omitted/null = a BLANK version
+  // (the version menu's Create action, matching the schedule version flow).
+  const source = cloneFromId ? budget.versions.find(v => v.id === cloneFromId) : undefined;
   const version = makeBudgetVersion({
     id,
     name,

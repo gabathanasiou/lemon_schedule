@@ -129,10 +129,9 @@ report fields/collections or the print templates.
   `ItemManagerDropdown` (`theme="light"`, label "Budget", header "BUDGET
   VERSIONS", minItems 1) with create, rename, duplicate, select, delete and
   trash restore.
-- **Create and Duplicate both clone the current version copy-on-write** (line
-  array shared until edited); Create names the copy `vNN`, Duplicate
-  `<name> Copy`. There is no blank-version action. The chart and library are
-  shared across every version.
+- **Create adds a BLANK version** (`vNN`); **Duplicate clones the current
+  version copy-on-write** (line array shared until edited) as `<name> Copy`.
+  The chart and library are shared across every version.
 - Delete moves the version to `versionTrash` (30-day TTL + newest 10); the
   last version is protected. Trash is a modal with Restore per row.
 - **Lock:** a separate lock/unlock button. Locking confirms "freezes editing

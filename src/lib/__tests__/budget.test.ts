@@ -233,10 +233,19 @@ describe('budget versions', () => {
     p.budget = featureBudget();
     const source = activeBudgetVersion(p.budget)!;
     addLine(p, { accountId: accountId(p, '1100'), qty: 1, rateCents: 1000 });
-    const { version, budgetPatch } = cloneBudgetVersion(p.budget, 'v02');
+    const { version, budgetPatch } = cloneBudgetVersion(p.budget, 'v02', source.id);
     expect(version.lines).toBe(source.lines);
     expect(budgetPatch.activeVersionId).toBe(version.id);
     expect(p.budget.accounts).toBe(p.budget.accounts); // chart stays shared
+  });
+
+  it('creates a BLANK version when no clone source is given', () => {
+    const p = makeTestProject();
+    p.budget = featureBudget();
+    addLine(p, { accountId: accountId(p, '1100'), qty: 1, rateCents: 1000 });
+    const { version } = cloneBudgetVersion(p.budget, 'v03', null);
+    expect(version.lines).toHaveLength(0);
+    expect(p.budget.versions[0].lines).toHaveLength(1);
   });
 
   it('prunes trash by age and keeps the newest ten', () => {

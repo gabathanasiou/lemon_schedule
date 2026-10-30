@@ -259,9 +259,9 @@ LOCK_BUDGET_VERSION { id, pinned? } / UNLOCK_BUDGET_VERSION (id)
   SYNC"). Bulk UI operations wrap `BATCH_START`/`BATCH_COMMIT` so a paste or a
   fringe apply is one undo entry.
 - `NEW_BUDGET_VERSION` copies `cloneFromId`'s line array by reference
-  (copy-on-write); an omitted/null id falls back to the ACTIVE version, so the
-  UI's Create and Duplicate both clone the current version (Create names it
-  `vNN`, Duplicate `<name> Copy`). The chart/library is never cloned.
+  (copy-on-write); an omitted/null id creates a BLANK version. The UI's Create
+  adds `vNN` blank; Duplicate clones the current version as `<name> Copy`. The
+  chart/library is never cloned.
 - `LOCK_BUDGET_VERSION` pins only live-linked lines (`source` set,
   `qtyOverride == null`) using the UI-computed map; `locked` freezes editing.
 - `migrateBudget(project)` runs in the reducer's `LOAD` (every local/Drive/
@@ -325,8 +325,8 @@ Divergences from the original plan (authoritative):
   `fringeRangeId` apply once over the range sum (first line owns it).
 - Version **lock** pins live-linked quantities (UI computes via
   `lockBudgetVersion`, reducer applies); **unlock does not unpin**.
-- Version **Create and Duplicate both clone the active version** (copy-on-write
-  lines); there is no blank-version action.
+- Version **Create adds a blank version**; **Duplicate clones** the active
+  version copy-on-write.
 - The grid is the shared `InlineGlideTable`, not a bespoke Glide fork.
 - Reports support `topsheet`/`accounts`/`lines`; `costReport`, `hotCost`,
   `cashflow` and `comparison` fall back to `topsheet` until their engines land.

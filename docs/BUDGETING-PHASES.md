@@ -73,8 +73,8 @@ export + JSON import; debug-bridge factories and `budgetSummary`; e2e
 **Where the shipped phase diverges from the original package (authoritative):**
 Cost Report/Expenses are placeholders until phase 2; formula grammar has no
 `{{line.*}}` cross-line refs; the grid is the shared `InlineGlideTable` (no
-bespoke Glide fork); fringe ranges/groups are engine+data only (no editor);
-version Create and Duplicate both clone the active version (no blank action);
+bespoke Glide fork); fringe ranges are engine+data only (no range editor; fringe
+group tags ARE editable in the Library); version Create adds a blank version and Duplicate clones the active one;
 lock pins via the UI-computed `lockBudgetVersion` map and unlock does NOT
 unpin; only `topsheet`/`accounts`/`lines` report modes render (others fall back
 to `topsheet`); import is JSON only; markups edit name/kind/calc/percent/

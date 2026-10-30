@@ -29,6 +29,7 @@ interface BudgetRow extends Record<string, string> {
   rate: string;
   x: string;
   cur: string;
+  curSymbol: string;
   fringes: string;
   groups: string;
   total: string;
@@ -102,7 +103,7 @@ export function BudgetGrid({
       out.push({
         key: `cat:${cat.category.id}`, kind: 'category', id: cat.category.id,
         item: itemLabel(cat.category.number, cat.category.name),
-        qty: '', unit: '', rate: '', x: '', cur: '',
+        qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
         fringes: formatMoney(cat.fringeCents, settings),
         groups: '',
         total: formatMoney(cat.totalCents, settings),
@@ -111,7 +112,7 @@ export function BudgetGrid({
         out.push({
           key: `acc:${acc.account.id}`, kind: 'account', id: acc.account.id,
           item: itemLabel(acc.account.number, acc.account.name),
-          qty: '', unit: '', rate: '', x: '', cur: '',
+          qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
           fringes: formatMoney(acc.fringeCents, settings),
           groups: '',
           total: formatMoney(acc.totalCents, settings),
@@ -125,6 +126,7 @@ export function BudgetGrid({
             rate: (line.rateCents / 100).toFixed(2),
             x: String(line.multiplier),
             cur: line.currency,
+            curSymbol: line.currencySymbol,
             fringes: namesById(line.line.fringes, fringes),
             groups: namesById(line.line.groups, groups),
             total: lineTotalLabel(line, settings),
@@ -137,7 +139,7 @@ export function BudgetGrid({
       out.push({
         key: `markup:${markup.markup.id}`, kind: 'markup', id: markup.markup.id,
         item: `${markup.markup.name} — ${markup.markup.calc === 'percent' ? `${markup.markup.percent || 0}%` : 'flat'}`,
-        qty: '', unit: '', rate: '', x: '', cur: '', fringes: '', groups: '',
+        qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '', fringes: '', groups: '',
         total: formatMoney(signed, settings),
       });
     }
@@ -266,7 +268,7 @@ export function BudgetGrid({
       case 'qty':
         return textCell(row.qty, { readonly: !editable, align: 'center' });
       case 'rate':
-        return textCell(row.rate, { readonly: !editable, align: 'right', displayData: row.rate ? formatMoney(Math.round(Number(row.rate) * 100), { ...settings, decimals: 2 }) : '' });
+        return textCell(row.rate, { readonly: !editable, align: 'right', displayData: row.rate ? formatMoney(Math.round(Number(row.rate) * 100), { ...settings, decimals: 2, currencySymbol: row.curSymbol || settings.currencySymbol }) : '' });
       case 'x':
         return textCell(row.x, { readonly: !editable, align: 'center' });
       case 'cur':
