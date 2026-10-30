@@ -346,3 +346,16 @@ with `--workers=1` (24s), and the changes in 305 touch no overlay code.
 **Rule:** never run the unit suite alongside the e2e suite; both are
 wall-clock sensitive. Re-run the spec alone before treating a zero-sample
 morph as a regression.
+
+## M. iPad suite — Add Events chip input locator (2026-10-30, pre-existing)
+
+**Symptom:** under `playwright.ipad.config.ts` (project `ipad`), two cases fail:
+`ipad-touch-scroll.spec.ts:73` and `:93`, both timing out at
+`openAdderEntityDropdown` → `adder.locator('input.cursor-pointer')`.
+
+**Evidence:** reproduced on clean `main` with kit v0.2.2 and again on the
+331/182 branch with kit v0.2.8; the Add Events modal opens and shows the cast
+chip field, but the chip input no longer carries `cursor-pointer`. The spec's
+helper should target the shared chip input (e.g. `[data-picker-field] input`)
+or a stable data hook instead of that class. Not caused by the touch audit;
+left for the iPad-spec owner (the two other iPad touch cases pass).
