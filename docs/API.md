@@ -236,8 +236,9 @@ Purchase-order authoring has no UI yet — use these actions.
 - `budgetSummary()` returns the active version's id/name/lock, every version's
   line count, chart counts, linked/pinned counts, base totals and errors.
 - Seams: `makeExpense`/`makePurchaseOrder` build valid entities;
-  `costReportSummary({ asOf, from, to })` returns the same Budget/Actual/
-  Committed/ETC/EFC/Variance/% used totals + flat rows (null without a budget).
+  `costReportSummary({ asOf, from, to })` returns Budget/Actual/Committed/ETC/
+  EFC/Variance/% used + rows; `overtimeSummary({ dayNumber? })` returns per-day
+  hours/OT/cost/no-rate from the ONE overtime engine (null without a budget).
 - No budget MCP tool: use `apply_actions`/`get_schema` + the summaries above.
 
 ## Days, analytics & script integrity
