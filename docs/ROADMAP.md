@@ -1567,3 +1567,35 @@ should be sticky.
 and both band kinds; selected/disabled cells still read). No e2e for pure
 visuals per `docs/TESTING.md`; geometry only if it silently breaks hit
 targets. **Relations:** `relates to` **334**, **326**, **340**, **342**.
+
+## 344. UI — morph/search controls + category accordion audit (new budget surfaces included) (`[ ]`)
+
+**Asked 2026-10-30 (user):** use the kit’s transform (button → field) controls
+wherever they fit; avoid always-inline search fields inside dropdowns; prefer
+category accordion dropdowns whenever the catalogue is grouped. Audit
+everything new, including the budget phase-1/2 surfaces.
+
+**Work:**
+- **Morph first.** Prefer `MorphSearchField`/`GlideFilter` for filters and
+  `MorphActionField` for inline create/rename: a button transforms into the
+  field (collapse on Escape, commit on blur). Do not ship a permanently visible
+  search input inside a toolbar/dropdown when the morph trigger fits. Inline
+  search inside a value picker is a fallback, not the default.
+- **Accordion categories.** Use `SearchMenu`/`PickerField` accordion browsing
+  (`browse="accordion"`, `expandableGroups`, grouped headers) for grouped
+  catalogues instead of one flat list or always-open groups. Keyboard ←/→ and
+  touch must work; a picker with a value opens on it.
+- **Audit the new surfaces:** Budget toolbar (342 filter must use
+  `GlideFilter`), BudgetGrid unit/currency/fringe/group pickers,
+  `ExpenseModal` account/line/PO pickers, ExpensesView filters +
+  account/day menus, Day Manager Expenses (336), and currency/rate (341).
+  Record adopt/keep-and-why per call site in `docs/DESIGN-LANGUAGE.md`
+  §Control faces + `docs/UI-PRIMITIVES.md` (the audit is the deliverable).
+- Adopt per surface in small commits; no data/behavior change beyond the
+  control face; preserve keyboard/touch/read-only and existing test hooks.
+
+**Verify:** existing morph/search + picker e2e where the surface is already
+covered; manual pass per changed surface; no new spec needed (fold into the
+owning spec within the caps). **Relations:** `relates to` **334**, **342**,
+**343**; follows the retired **324** control-face audit and **322** picker
+architecture.
