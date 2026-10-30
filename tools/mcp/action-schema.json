@@ -400,6 +400,106 @@
     {
       "type": "REMOVE_SCRIPT_ANNOTATION",
       "payload": "string"
+    },
+    {
+      "type": "ADD_BUDGET_CATEGORY",
+      "payload": "BudgetCategory"
+    },
+    {
+      "type": "UPDATE_BUDGET_CATEGORY",
+      "payload": "{ id: string; updates: Partial<BudgetCategory> }"
+    },
+    {
+      "type": "DELETE_BUDGET_CATEGORY",
+      "payload": "string"
+    },
+    {
+      "type": "ADD_BUDGET_ACCOUNT",
+      "payload": "BudgetAccount"
+    },
+    {
+      "type": "UPDATE_BUDGET_ACCOUNT",
+      "payload": "{ id: string; updates: Partial<BudgetAccount> }"
+    },
+    {
+      "type": "DELETE_BUDGET_ACCOUNT",
+      "payload": "{ id: string; reassignToId?: string }"
+    },
+    {
+      "type": "ADD_BUDGET_LINE",
+      "payload": "BudgetLine"
+    },
+    {
+      "type": "UPDATE_BUDGET_LINE",
+      "payload": "{ id: string; updates: Partial<BudgetLine> }"
+    },
+    {
+      "type": "DELETE_BUDGET_LINE",
+      "payload": "string"
+    },
+    {
+      "type": "BULK_UPDATE_BUDGET_LINES",
+      "payload": "{ updates: { id: string; updates: Partial<BudgetLine> }[] }"
+    },
+    {
+      "type": "LINK_BUDGET_LINE",
+      "payload": "{ lineId: string; source: BudgetLineSource }"
+    },
+    {
+      "type": "UNLINK_BUDGET_LINE",
+      "payload": "{ lineId: string; keepQty?: number }"
+    },
+    {
+      "type": "PIN_BUDGET_LINE",
+      "payload": "{ lineId: string; qty?: number }"
+    },
+    {
+      "type": "UNPIN_BUDGET_LINE",
+      "payload": "string"
+    },
+    {
+      "type": "SET_BUDGET_LIBRARY",
+      "payload": "BudgetLibraryPayload"
+    },
+    {
+      "type": "UPDATE_BUDGET_SETTINGS",
+      "payload": "Partial<BudgetSettings>"
+    },
+    {
+      "type": "APPLY_BUDGET_TEMPLATE",
+      "payload": "{ key: 'blank' | 'feature'; id?: string }"
+    },
+    {
+      "type": "IMPORT_BUDGET",
+      "payload": "{ budget: Budget }"
+    },
+    {
+      "type": "NEW_BUDGET_VERSION",
+      "payload": "{ name: string; cloneFromId?: string | null; id?: string }"
+    },
+    {
+      "type": "RENAME_BUDGET_VERSION",
+      "payload": "{ id: string; name: string }"
+    },
+    {
+      "type": "DELETE_BUDGET_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_BUDGET_VERSION_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "SET_ACTIVE_BUDGET_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "LOCK_BUDGET_VERSION",
+      "payload": "{ id: string; pinned?: Record<string, number> }"
+    },
+    {
+      "type": "UNLOCK_BUDGET_VERSION",
+      "payload": "string"
     }
   ],
   "entities": {
@@ -1269,7 +1369,7 @@
         {
           "name": "type",
           "optional": false,
-          "type": "'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls'"
+          "type": "'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls' | 'budgetTable'"
         },
         {
           "name": "text",
@@ -1475,6 +1575,56 @@
           "name": "showReportTo",
           "optional": true,
           "type": "boolean"
+        },
+        {
+          "name": "budgetMode",
+          "optional": true,
+          "type": "'topsheet' | 'accounts' | 'lines' | 'costReport' | 'hotCost' | 'cashflow' | 'comparison'"
+        },
+        {
+          "name": "budgetCategories",
+          "optional": true,
+          "type": "string[]"
+        },
+        {
+          "name": "budgetAccounts",
+          "optional": true,
+          "type": "string[]"
+        },
+        {
+          "name": "budgetColumns",
+          "optional": true,
+          "type": "string[]"
+        },
+        {
+          "name": "showZero",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "showFringes",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "showNotes",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "showPercent",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "costAsOf",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "costPeriod",
+          "optional": true,
+          "type": "{ from: string; to: string }"
         },
         {
           "name": "axis",
@@ -1800,8 +1950,8 @@
     }
   },
   "consistency": {
-    "unionCount": 100,
-    "mirrorCount": 100,
+    "unionCount": 125,
+    "mirrorCount": 125,
     "missingInMirror": [],
     "extraInMirror": []
   }

@@ -710,7 +710,9 @@ export interface ProductionInfo {
 export type ReportCollection =
   | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew' | 'departments' | 'violationTypes' | 'locations' | 'locationTypes'
   | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene' | 'locationsOfType'
-  | 'dayTypes' | 'dayTypesOfElement' | 'crewOfDay' | 'elementCallsOfDay' | 'departmentCallsOfDay' | 'locationsOfDay';
+  | 'dayTypes' | 'dayTypesOfElement' | 'crewOfDay' | 'elementCallsOfDay' | 'departmentCallsOfDay' | 'locationsOfDay'
+  // Budgeting (roadmap 334 phase 1)
+  | 'budgetCategories' | 'budgetAccounts' | 'budgetLines' | 'budgetLinesOfAccount';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RepeatAxis = 'rows' | 'columns';
@@ -773,7 +775,7 @@ export interface ReportColumn {
 
 export interface ReportBlock {
   id: string;
-  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls';
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls' | 'budgetTable';
   // text / field
   text?: string;                 // static text; may contain {{key}} tokens
   url?: string;                  // link block: href (may contain {{key}} tokens)
@@ -843,6 +845,17 @@ export interface ReportBlock {
   /** Crew table (item 156): print the optional "Report To" column. Off unless
    *  explicitly on — existing crew tables keep their five fixed columns. */
   showReportTo?: boolean;
+  // budgetTable (roadmap 334) — budget/cost report print table
+  budgetMode?: 'topsheet' | 'accounts' | 'lines' | 'costReport' | 'hotCost' | 'cashflow' | 'comparison';
+  budgetCategories?: string[];   // selected category ids; unset = all
+  budgetAccounts?: string[];     // selected account ids; unset = all
+  budgetColumns?: string[];      // subset of the mode's columns
+  showZero?: boolean;
+  showFringes?: boolean;
+  showNotes?: boolean;
+  showPercent?: boolean;
+  costAsOf?: string;             // ISO; unset = print date
+  costPeriod?: { from: string; to: string };
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)

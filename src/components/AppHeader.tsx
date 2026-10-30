@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, CalendarDays, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, CalendarDays, Palette, Scale, Clapperboard, Wallet, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
 import { useProject, useProjectTheme } from '../store';
 import { MorphActionField, useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
@@ -31,6 +31,7 @@ const TAB_ICONS: Record<AppTabId, React.ReactNode> = {
   design: <Palette className="w-3.5 h-3.5" />,
   rules: <Scale className="w-3.5 h-3.5" />,
   production: <Clapperboard className="w-3.5 h-3.5" />,
+  budget: <Wallet className="w-3.5 h-3.5" />,
   reports: <FileChartColumn className="w-3.5 h-3.5" />,
 };
 

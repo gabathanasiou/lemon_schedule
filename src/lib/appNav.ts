@@ -12,7 +12,7 @@
 
 import { isDayManagerTab, type DayManagerTab } from './dayTabs';
 
-export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
+export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'budget' | 'reports';
 
 export interface AppPlace {
   tab: AppTabId;
@@ -44,11 +44,12 @@ export const TAB_LABELS: Record<AppTabId, string> = {
   design: 'Design',
   rules: 'Rules',
   production: 'Production',
+  budget: 'Budget',
   reports: 'Reports',
 };
 
-/** Header tab order — the AppHeader tab row and the ⌘/Ctrl+1..7 shortcuts. */
-export const TAB_ORDER: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
+/** Header tab order — the AppHeader tab row and the ⌘/Ctrl+1..8 shortcuts. */
+export const TAB_ORDER: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'budget', 'reports'];
 
 /** Sub-tab id → label, per tab. Also the parse allow-list. */
 export const SUB_TAB_LABELS: Partial<Record<AppTabId, Record<string, string>>> = {
@@ -57,6 +58,7 @@ export const SUB_TAB_LABELS: Partial<Record<AppTabId, Record<string, string>>> =
   design: { ribbons: 'Ribbon Designer', colors: 'Colors', designer: 'Reports Designer' },
   reports: { doods: 'Day Out of Days', elementBreakdown: 'Element Breakdown' },
   production: { days: 'Day Manager', crew: 'Crew', locations: 'Locations' },
+  budget: { budget: 'Budget', cost: 'Cost Report', expenses: 'Expenses', library: 'Library' },
 };
 
 /** Sub-sub modes per `tab/sub` — the first entry is the default. */

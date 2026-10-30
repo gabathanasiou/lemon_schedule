@@ -1,5 +1,5 @@
 import type {
-  BudgetAccount, BudgetCategory, BudgetGroupKind, BudgetLine, BudgetMarkup,
+  Budget, BudgetAccount, BudgetCategory, BudgetGroupKind, BudgetLine, BudgetMarkup,
   BudgetSettings, BudgetVersion, MoneyCents, Project,
 } from '../../types';
 import {
@@ -87,7 +87,7 @@ export interface ComputedBudgetMarkup {
 }
 
 export interface BudgetModel {
-  budget: Project['budget'] & object;
+  budget: Budget;
   version: BudgetVersion;
   settings: BudgetSettings;
   categories: ComputedBudgetCategory[];

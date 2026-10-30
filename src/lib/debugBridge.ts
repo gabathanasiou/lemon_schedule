@@ -279,6 +279,11 @@ export interface LemonAgentBridge {
     lines: number;
     linkedLines: number;
     pinnedLines: number;
+    lineItems: {
+      id: string; description: string; qty: number; rateCents: number;
+      multiplier: number; totalCents: number; currency: string;
+      linked: boolean; pinned: boolean;
+    }[];
     totals: { baseCents: number; fringeCents: number; markupCents: number; grandTotalCents: number };
     errors: string[];
   } | null;
@@ -757,6 +762,17 @@ function buildBridge(): LemonAgentBridge {
         lines: model.lineCount,
         linkedLines: model.linkedLineCount,
         pinnedLines: model.pinnedLineCount,
+        lineItems: model.categories.flatMap(c => c.accounts).flatMap(a => a.lines).map(l => ({
+          id: l.line.id,
+          description: l.line.description,
+          qty: l.qty,
+          rateCents: l.rateCents,
+          multiplier: l.multiplier,
+          totalCents: l.totalCents,
+          currency: l.currency,
+          linked: l.linked,
+          pinned: l.pinned,
+        })),
         totals: {
           baseCents: model.totals.baseCents,
           fringeCents: model.totals.fringeCents,

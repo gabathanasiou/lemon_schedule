@@ -133,6 +133,39 @@ export function makeBudgetFringe(partial: Partial<BudgetFringe> = {}): BudgetFri
   };
 }
 
+export function makeBudgetGroup(partial: Partial<BudgetGroup> = {}): BudgetGroup {
+  return {
+    id: partial.id || generateUUID(),
+    name: partial.name ?? 'New Group',
+    color: partial.color,
+    inBudget: partial.inBudget,
+    notes: partial.notes,
+  };
+}
+
+export function makeBudgetGlobal(partial: Partial<BudgetGlobal> = {}): BudgetGlobal {
+  return {
+    id: partial.id || generateUUID(),
+    symbol: (partial.symbol || 'NUMBER').toUpperCase(),
+    description: partial.description,
+    unit: partial.unit,
+    value: partial.value ?? 0,
+    formula: partial.formula,
+    system: partial.system,
+  };
+}
+
+export function makeBudgetUnit(partial: Partial<BudgetUnit> = {}): BudgetUnit {
+  return {
+    id: partial.id || generateUUID(),
+    name: partial.name ?? 'New Unit',
+    plural: partial.plural ?? 'New Units',
+    type: partial.type ?? 'quantity',
+    hours: partial.hours,
+    color: partial.color,
+  };
+}
+
 export function makeBudgetMarkup(partial: Partial<BudgetMarkup> & { sort: number }): BudgetMarkup {
   return {
     id: partial.id || generateUUID(),
@@ -247,7 +280,7 @@ export function pruneBudgetVersionTrash(items: BudgetVersionTrashItem[] | undefi
  * Idempotent read normalization (mirrors `migrateProjectLinks`). Runs on every
  * load path through the reducer's LOAD case. Never creates a budget.
  */
-export function migrateBudget(project: Project): boolean {
+export function migrateBudget(project: { budget?: Budget }): boolean {
   const b = project.budget;
   if (!b) return false;
   let changed = false;
