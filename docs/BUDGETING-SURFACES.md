@@ -59,12 +59,11 @@ the budget/cost report fields/collections or the print templates.
   **+ New category**; right-click blank rail space → New category (roadmap
   339, kit `ContextMenu`). A trailing **+ New category** row keeps the action
   discoverable; read-only shows no rail menu.
-- **One sheet, always expanded.** Category and account rows are inline bands:
-  category row = `#e8e8ea` with strong text, account row = `#f6f6f7`; both
-  show number+name, fringe and total columns (qty/unit/rate/X/currency blank).
-  Markup rows sit at the bottom with signed totals. No collapse/disclosure,
-  no drag reorder and no column resize in phase 1; range selection, copy/paste
-  and fill use the shared `InlineGlideTable` plumbing and commit as one batch.
+- **One sheet.** Category and account rows are inline bands (category
+  `#e8e8ea`, account `#f6f6f7`), both showing number+name/fringe/total; markup
+  rows sit at the bottom with signed totals. No drag reorder or column resize;
+  range selection/copy/paste/fill ride the shared `InlineGlideTable` plumbing
+  and commit as one batch.
 
 ### Grid columns & editability
 
@@ -115,10 +114,12 @@ the budget/cost report fields/collections or the print templates.
   (`rowMenuItems`) lists the same actions above the generic copy/paste items.
   Markup rows have trash only.
 - **Collapse/expand (roadmap 340):** a leading canvas disclosure glyph
-  (`disclosureGlyphCell`) collapses a category's accounts+lines or an
-  account's lines; totals stay on the band. Left/Right on the focused band
-  cell toggles it (view-only module state, survives tab switches, works in
-  read-only — never project/undo/presence state). Copy/cut skip the glyph.
+  (`disclosureGlyphCell`) collapses a category's accounts+lines or an account's
+  lines; totals stay on the band. It is drawn ONLY when the band actually has
+  child rows (childless bands keep a blank lane and Left/Right keeps
+  navigating); Left/Right on a band toggles it — view-only state that survives
+  tab switches and works read-only. **Picking a category in the rail (or All /
+  adding one) unfolds every band.** Copy/cut skip the glyph.
 - **Bands & header (roadmap 343):** `rowThemeOverride` paints EVERY cell of a
   category/account band — data and the trailing info/actions lanes — with the
   band colour; hover never punches a grey hole. The sheet runs

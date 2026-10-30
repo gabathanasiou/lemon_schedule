@@ -15,7 +15,7 @@ import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import { budgetReportDesigns } from '../../lib/budget/reportTemplates';
 import { SectionTile } from './SectionTile';
-import { BudgetGrid, type BudgetGridCommit } from './BudgetGrid';
+import { BudgetGrid, clearBudgetCollapse, type BudgetGridCommit } from './BudgetGrid';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../ContextMenu';
@@ -31,6 +31,13 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
   const [railMenu, setRailMenu] = React.useState<{ x: number; y: number; categoryId?: string } | null>(null);
   const [rowFilter, setRowFilter] = React.useState('');
   const [filterCounts, setFilterCounts] = React.useState({ shown: 0, total: 0 });
+  // Rail picks unfold every band; the epoch forces a grid re-render even when
+  // the focused category id does not change (e.g. "All categories" again).
+  const [railEpoch, setRailEpoch] = React.useState(0);
+  const unfoldAll = React.useCallback(() => {
+    clearBudgetCollapse();
+    setRailEpoch(e => e + 1);
+  }, []);
   const [exportOpen, setExportOpen] = React.useState(false);
   const [printOpen, setPrintOpen] = React.useState(false);
   const printDesigns = React.useMemo(() => budgetReportDesigns(), []);
@@ -50,8 +57,9 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
   const addCategory = React.useCallback(() => {
     const category = makeBudgetCategory({ name: 'New Category', sort: budget.categories.length });
     dispatch({ type: 'ADD_BUDGET_CATEGORY', payload: category });
+    unfoldAll();
     setFocusCategoryId(category.id);
-  }, [dispatch, budget.categories.length]);
+  }, [dispatch, budget.categories.length, unfoldAll]);
 
   const addAccount = React.useCallback((categoryId: string) => {
     const category = budget.categories.find(c => c.id === categoryId);
@@ -425,7 +433,7 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
         >
           <button
             type="button"
-            onClick={() => setFocusCategoryId(null)}
+            onClick={() => { unfoldAll(); setFocusCategoryId(null); }}
             className={`w-full text-left px-3 py-2 text-xs border-b border-l-2 border-[color:var(--ui-border)] ${focusCategoryId === null ? 'border-l-[color:var(--ui-accent-header-fill)] bg-[var(--ui-item-hover-bg)] font-semibold text-[color:var(--ui-text-strong)]' : 'border-l-transparent text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]'}`}
           >
             All categories
@@ -434,7 +442,7 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
             <button
               key={cat.category.id}
               type="button"
-              onClick={() => setFocusCategoryId(focusCategoryId === cat.category.id ? null : cat.category.id)}
+              onClick={() => { unfoldAll(); setFocusCategoryId(focusCategoryId === cat.category.id ? null : cat.category.id); }}
               onContextMenu={(e) => {
                 if (readOnly) return;
                 e.preventDefault();
@@ -468,6 +476,7 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
             readOnly={readOnly}
             focusCategoryId={focusCategoryId}
             filter={rowFilter}
+            viewEpoch={railEpoch}
             onFilterCounts={(shown, total) => setFilterCounts(prev => (prev.shown === shown && prev.total === total ? prev : { shown, total }))}
             onCommit={commitEdits}
             onOpenLine={(line) => setEditingLineId(line.id)}

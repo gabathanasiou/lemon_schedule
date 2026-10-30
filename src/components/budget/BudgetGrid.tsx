@@ -42,6 +42,15 @@ const ACCOUNT_TEXT = '#3f3f46';
 const COLLAPSED_CATEGORIES = new Set<string>();
 const COLLAPSED_ACCOUNTS = new Set<string>();
 
+/** Selecting a category in the rail (or adding one) unfolds every band —
+ *  the user is navigating, not preserving a collapsed view. The caller bumps
+ *  `viewEpoch` so the grid recomputes even when the focus id itself is
+ *  unchanged ("All categories" while already showing all). */
+export function clearBudgetCollapse(): void {
+  COLLAPSED_CATEGORIES.clear();
+  COLLAPSED_ACCOUNTS.clear();
+}
+
 /**
  * The editable budget detail sheet — the shared `InlineGlideTable` recipe with
  * category/account headers expanded in place (`docs/BUDGETING-SURFACES.md` §2).
@@ -49,7 +58,7 @@ const COLLAPSED_ACCOUNTS = new Set<string>();
  * fringes, groups); there is no second grid engine.
  */
 export function BudgetGrid({
-  model, readOnly, focusCategoryId, filter, onFilterCounts,
+  model, readOnly, focusCategoryId, filter, onFilterCounts, viewEpoch = 0,
   onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine,
   onBulkAddLines, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
@@ -61,6 +70,9 @@ export function BudgetGrid({
   filter: string;
   /** Reports visible (filtered) vs all sheet rows for the toolbar count. */
   onFilterCounts?: (shown: number, total: number) => void;
+  /** Bumped by the rail on every category pick (unfold-all re-render even when
+   *  the focused category is unchanged). */
+  viewEpoch?: number;
   onCommit: (commits: BudgetGridCommit[]) => void;
   onOpenLine: (line: BudgetLine) => void;
   onOpenNode: (kind: 'category' | 'account', id: string) => void;
@@ -107,8 +119,9 @@ export function BudgetGrid({
   const filteredRows = React.useMemo(() => filterBudgetRows(allRows, filter), [allRows, filter]);
   const rows = React.useMemo(
     () => collapseBudgetRows(filteredRows, COLLAPSED_CATEGORIES, COLLAPSED_ACCOUNTS),
-    // viewRev is the mutation signal for the module-level collapse sets.
-    [filteredRows, viewRev],
+    // viewRev/viewEpoch are the mutation signals for the module-level collapse
+    // sets (local toggle vs rail-driven unfold-all).
+    [filteredRows, viewRev, viewEpoch],
   );
   const onFilterCountsRef = React.useRef(onFilterCounts);
   onFilterCountsRef.current = onFilterCounts;
@@ -259,7 +272,7 @@ export function BudgetGrid({
     if (key !== 'ArrowLeft' && key !== 'ArrowRight') return false;
     if (colKey !== 'disclosure' && colKey !== 'item') return false;
     const row = rowMeta.get(rowIndex);
-    if (!row) return false;
+    if (!row || row.hasChildren !== '1') return false;
     if (row.kind === 'category') {
       const collapsed = COLLAPSED_CATEGORIES.has(row.id);
       if (key === 'ArrowRight' && collapsed) toggleCategory(row.id);
@@ -323,6 +336,8 @@ export function BudgetGrid({
     const editable = !readOnly && kind === 'line' && EDITABLE.has(col.key);
     switch (col.key) {
       case 'disclosure':
+        // No children → no chevron (a plain blank lane, not a dead control).
+        if (row.hasChildren !== '1') return textCell('', { readonly: true, allowOverlay: false });
         if (kind === 'category') {
           return disclosureGlyphCell({
             expanded: !COLLAPSED_CATEGORIES.has(row.id),

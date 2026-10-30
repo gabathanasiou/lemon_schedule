@@ -58,6 +58,19 @@ describe('budget grid rows (roadmap 342/340)', () => {
     expect(filterBudgetRows(rows, '').length).toBe(rows.length);
   });
 
+  it('marks bands with children so the disclosure glyph only appears there', () => {
+    const { model } = sampleModel();
+    const rows = buildBudgetRows(model, null, model.settings);
+    const firstCat = rows[0];
+    const firstAcc = rows.find(r => r.kind === 'account')!;
+    expect(firstCat.hasChildren).toBe('1');
+    expect(firstAcc.hasChildren).toBe('1');
+    expect(rows.find(r => r.kind === 'line')!.hasChildren).toBe('');
+    // An account with no lines carries no disclosure.
+    const emptyAcc = buildBudgetRows(model, null, model.settings).find(r => r.kind === 'account' && !r.hasChildren);
+    expect(emptyAcc?.hasChildren ?? '').toBe('');
+  });
+
   it('collapses children of a collapsed band', () => {
     const { model } = sampleModel();
     const rows = buildBudgetRows(model, null, model.settings);

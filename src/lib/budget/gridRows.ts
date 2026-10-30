@@ -17,6 +17,9 @@ export interface BudgetGridRow extends Record<string, string> {
   /** Ancestor ids (bands) — the filter keeps a band when a child matches. */
   catId: string;
   accId: string;
+  /** `'1'` when the band actually has child rows (the disclosure chevron is
+   *  only shown then — roadmap 340 follow-up). Always `''` for lines/markups. */
+  hasChildren: string;
   /** Everything a filter tag may match (never the raw money strings). */
   searchText: string;
   item: string;
@@ -62,6 +65,7 @@ export function buildBudgetRows(
     out.push({
       key: `cat:${cat.category.id}`, kind: 'category', id: cat.category.id,
       catId: cat.category.id, accId: '',
+      hasChildren: cat.accounts.length > 0 ? '1' : '',
       searchText: catText,
       item: itemLabel(cat.category.number, cat.category.name),
       qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
@@ -74,6 +78,7 @@ export function buildBudgetRows(
       out.push({
         key: `acc:${acc.account.id}`, kind: 'account', id: acc.account.id,
         catId: cat.category.id, accId: acc.account.id,
+        hasChildren: acc.lines.length > 0 ? '1' : '',
         searchText: accText,
         item: itemLabel(acc.account.number, acc.account.name),
         qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
@@ -88,6 +93,7 @@ export function buildBudgetRows(
         out.push({
           key: `line:${line.line.id}`, kind: 'line', id: line.line.id,
           catId: cat.category.id, accId: acc.account.id,
+          hasChildren: '',
           searchText: norm([
             catText, accText, line.line.description, line.line.notes, unit,
             line.currency, fringeNames, groupNames,
@@ -112,6 +118,7 @@ export function buildBudgetRows(
     out.push({
       key: `markup:${markup.markup.id}`, kind: 'markup', id: markup.markup.id,
       catId: '', accId: '',
+      hasChildren: '',
       searchText: norm([markup.markup.name, item]),
       item,
       qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '', fringes: '', groups: '',
