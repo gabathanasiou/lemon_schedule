@@ -712,7 +712,9 @@ export type ReportCollection =
   | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene' | 'locationsOfType'
   | 'dayTypes' | 'dayTypesOfElement' | 'crewOfDay' | 'elementCallsOfDay' | 'departmentCallsOfDay' | 'locationsOfDay'
   // Budgeting (roadmap 334 phase 1)
-  | 'budgetCategories' | 'budgetAccounts' | 'budgetLines' | 'budgetLinesOfAccount';
+  | 'budgetCategories' | 'budgetAccounts' | 'budgetLines' | 'budgetLinesOfAccount'
+  // Cost tracking (roadmap 334 phase 2)
+  | 'costReport' | 'expenses' | 'expensesOfDay' | 'purchaseOrders';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RepeatAxis = 'rows' | 'columns';
@@ -1111,6 +1113,64 @@ export interface BudgetSettings {
   notes?: string;
 }
 
+// ---- Cost tracking (roadmap 334 phase 2) ------------------------------------
+// Expenses and purchase orders are PROJECT state (`Project.expenses` /
+// `Project.purchaseOrders`), never a per-day ledger: the Day Manager filters by
+// `dayDate`/`dayNumber`. Money is integer cents. Canonical plan:
+// `docs/BUDGETING.md` §3, surfaces: `docs/BUDGETING-SURFACES.md` §7.
+//
+//   planned   — expected, not yet committed
+//   committed — a PO/invoice is out; counts as Committed spend
+//   actual    — invoiced/received; counts as Actual spend
+//   paid      — money left the account; still Actual
+//   void      — cancelled; never counts
+
+export type ExpenseStatus = 'planned' | 'committed' | 'actual' | 'paid' | 'void';
+export type ExpenseMethod = 'card' | 'cash' | 'cheque' | 'transfer' | 'payroll' | 'pettyCash' | 'other';
+export type PurchaseOrderStatus = 'open' | 'partial' | 'received' | 'cancelled';
+
+export interface Expense {
+  id: string;
+  /** ISO `YYYY-MM-DD` — the invoice/posting date (drives as-of + period). */
+  date: string;
+  description: string;
+  /** Budget account; unset = project-level "Unallocated". */
+  accountId?: string;
+  /** Optional budget line within the account; unset at account level =
+   *  the account's "Unallocated" child in the cost report. */
+  lineId?: string;
+  vendor?: string;
+  amountCents: MoneyCents;
+  currency?: string;
+  method: ExpenseMethod;
+  status: ExpenseStatus;
+  poId?: string;
+  /** Linked receipt — a URL only; never store an image/blob in state. */
+  receiptUrl?: string;
+  notes?: string;
+  /** Production-day attribution (either key; the Day Manager matches both). */
+  dayDate?: string;
+  dayNumber?: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  /** Human PO number ("PO-1042"); a label, never a reference. */
+  number: string;
+  vendor?: string;
+  description?: string;
+  issuedDate?: string;
+  accountId?: string;
+  lineId?: string;
+  amountCents: MoneyCents;
+  status: PurchaseOrderStatus;
+  notes?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface Budget {
   /** Shared across every version — the non-duplication boundary. */
   categories: BudgetCategory[];
@@ -1209,4 +1269,7 @@ export interface Project {
   headingAliases?: HeadingAliases;
   /** Budgeting & cost tracking (roadmap 334) — undefined until created. */
   budget?: Budget;
+  /** Cost tracking (roadmap 334 phase 2) — project-level expenses/POs. */
+  expenses?: Expense[];
+  purchaseOrders?: PurchaseOrder[];
 }

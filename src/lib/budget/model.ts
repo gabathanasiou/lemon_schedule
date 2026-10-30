@@ -1,7 +1,8 @@
 import type {
   Budget, BudgetAccount, BudgetCategory, BudgetFringe, BudgetGlobal,
   BudgetGroup, BudgetLine, BudgetMarkup, BudgetSettings, BudgetUnit,
-  BudgetVersion, BudgetVersionTrashItem, Project,
+  BudgetVersion, BudgetVersionTrashItem, Expense, ExpenseMethod, ExpenseStatus,
+  Project, PurchaseOrder, PurchaseOrderStatus,
 } from '../../types';
 import { generateUUID } from '../utils';
 
@@ -321,5 +322,104 @@ export function migrateBudget(project: { budget?: Budget }): boolean {
   // Trash is bounded on every read path.
   const pruned = pruneBudgetVersionTrash(b.versionTrash);
   if (pruned.length !== (b.versionTrash || []).length) { b.versionTrash = pruned; changed = true; }
+  return changed;
+}
+
+// ---- cost tracking (roadmap 334 phase 2) ------------------------------------
+
+export const EXPENSE_STATUSES: ExpenseStatus[] = ['planned', 'committed', 'actual', 'paid', 'void'];
+export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
+  planned: 'Planned',
+  committed: 'Committed',
+  actual: 'Actual',
+  paid: 'Paid',
+  void: 'Void',
+};
+
+export const EXPENSE_METHODS: ExpenseMethod[] = ['card', 'cash', 'cheque', 'transfer', 'payroll', 'pettyCash', 'other'];
+export const EXPENSE_METHOD_LABELS: Record<ExpenseMethod, string> = {
+  card: 'Card',
+  cash: 'Cash',
+  cheque: 'Cheque',
+  transfer: 'Transfer',
+  payroll: 'Payroll',
+  pettyCash: 'Petty cash',
+  other: 'Other',
+};
+
+export const PURCHASE_ORDER_STATUSES: PurchaseOrderStatus[] = ['open', 'partial', 'received', 'cancelled'];
+export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  open: 'Open',
+  partial: 'Partially invoiced',
+  received: 'Received',
+  cancelled: 'Cancelled',
+};
+
+/** ISO `YYYY-MM-DD` for today (local, never UTC-shifted). */
+export function isoToday(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+export function makeExpense(partial: Partial<Expense> = {}): Expense {
+  const now = Date.now();
+  return {
+    id: partial.id || generateUUID(),
+    date: partial.date || isoToday(),
+    description: partial.description ?? 'New expense',
+    accountId: partial.accountId,
+    lineId: partial.lineId,
+    vendor: partial.vendor,
+    amountCents: partial.amountCents ?? 0,
+    currency: partial.currency,
+    method: partial.method ?? 'card',
+    status: partial.status ?? 'actual',
+    poId: partial.poId,
+    receiptUrl: partial.receiptUrl,
+    notes: partial.notes,
+    dayDate: partial.dayDate,
+    dayNumber: partial.dayNumber,
+    createdAt: partial.createdAt ?? now,
+    updatedAt: partial.updatedAt ?? now,
+  };
+}
+
+/** `PO-1001`, `PO-1002`, … after the highest existing suffix. */
+export function nextPurchaseOrderNumber(existing: string[]): string {
+  let max = 1000;
+  for (const n of existing) {
+    const hit = /(\d+)\s*$/.exec(String(n || ''));
+    const value = hit ? parseInt(hit[1], 10) : NaN;
+    if (Number.isFinite(value) && value > max) max = value;
+  }
+  return `PO-${max + 1}`;
+}
+
+export function makePurchaseOrder(partial: Partial<PurchaseOrder> & { number?: string } = {}): PurchaseOrder {
+  const now = Date.now();
+  return {
+    id: partial.id || generateUUID(),
+    number: partial.number || '',
+    vendor: partial.vendor,
+    description: partial.description,
+    issuedDate: partial.issuedDate,
+    accountId: partial.accountId,
+    lineId: partial.lineId,
+    amountCents: partial.amountCents ?? 0,
+    status: partial.status ?? 'open',
+    notes: partial.notes,
+    createdAt: partial.createdAt ?? now,
+    updatedAt: partial.updatedAt ?? now,
+  };
+}
+
+/**
+ * Idempotent read normalization for cost tracking. Runs on every load path
+ * (local/Drive/online/room) beside `migrateBudget`. ARRAYS ONLY — a project
+ * without expenses/POs gets empty arrays, never derived data.
+ */
+export function migrateCostTracking(project: { expenses?: Expense[]; purchaseOrders?: PurchaseOrder[] }): boolean {
+  let changed = false;
+  if (!Array.isArray(project.expenses)) { project.expenses = []; changed = true; }
+  if (!Array.isArray(project.purchaseOrders)) { project.purchaseOrders = []; changed = true; }
   return changed;
 }

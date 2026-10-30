@@ -21,8 +21,9 @@ import {
   type SortRowsOptions,
 } from './scheduleOps';
 import { createBlankScene } from './sceneFactory';
-import { makeBlankBudget, makeBudgetLine, makeBudgetVersion } from './budget/model';
+import { makeBlankBudget, makeBudgetLine, makeBudgetVersion, makeExpense, makePurchaseOrder } from './budget/model';
 import { computeBudget } from './budget/calc';
+import { computeCostReport, flatCostRows } from './budget/costReport';
 import { deserializeProject } from './projectCodec';
 import type { PresenceDiagnostics } from './supabase/presenceChannel';
 import type { PresenceAnchor } from './supabase/presence';
@@ -44,7 +45,7 @@ import { buildDayViews, type DayView } from './dayView';
 import { computeViolationIndex } from './violations';
 import { computeElementDayStats } from './elementDayStats';
 import { generateUUID } from './utils';
-import type { Project, Scene, CalendarVersion, CustomCategoryDef, ScriptBlock, ScheduleRow, ReportBlock, ReportDesign, Budget, BudgetLine, BudgetVersion } from '../types';
+import type { Project, Scene, CalendarVersion, CustomCategoryDef, ScriptBlock, ScheduleRow, ReportBlock, ReportDesign, Budget, BudgetLine, BudgetVersion, Expense, PurchaseOrder } from '../types';
 import type { ProjectMeta } from '../store/storage';
 
 /**
@@ -228,6 +229,46 @@ export interface AgentBridgeElementStats {
   statusCounts: Record<string, number>;
 }
 
+/** Cost-tracking read seam (roadmap 334 phase 2): totals + one row per
+ *  category/account/line, exactly as `computeCostReport` derives them. */
+export interface AgentBridgeCostSummary {
+  asOf: string;
+  from?: string;
+  to?: string;
+  periodApplied: boolean;
+  versionId: string;
+  expenseCount: number;
+  purchaseOrderCount: number;
+  totals: {
+    budgetCents: number;
+    approvedOverageCents: number;
+    actualCents: number;
+    actualAsOfCents: number;
+    committedCents: number;
+    etcCents: number;
+    efcCents: number;
+    varianceCents: number;
+    percentUsed: number;
+  };
+  rows: {
+    key: string;
+    kind: string;
+    depth: number;
+    number: string;
+    name: string;
+    budgetCents: number;
+    actualCents: number;
+    actualAsOfCents: number;
+    committedCents: number;
+    etcCents: number;
+    efcCents: number;
+    varianceCents: number;
+    percentUsed: number;
+    etcReason?: string;
+    inBudget: boolean;
+  }[];
+}
+
 export interface LemonAgentBridge {
   version: string;
   help: () => string[];
@@ -268,6 +309,10 @@ export interface LemonAgentBridge {
   makeBlankBudget: (name?: string) => Budget;
   makeBudgetVersion: (partial: Partial<BudgetVersion> & { name: string }) => BudgetVersion;
   makeBudgetLine: (partial: Partial<BudgetLine> & { accountId: string }) => BudgetLine;
+  makeExpense: (partial?: Partial<Expense>) => Expense;
+  makePurchaseOrder: (partial?: Partial<PurchaseOrder> & { number?: string }) => PurchaseOrder;
+  /** Cost-tracking read seam (roadmap 334 phase 2) — as-of/period totals. */
+  costReportSummary: (options?: { asOf?: string; from?: string; to?: string }) => AgentBridgeCostSummary | null;
   /** Active-version totals + counts — the agent read seam for budgeting. */
   budgetSummary: () => {
     versionId: string;
@@ -432,7 +477,10 @@ function buildBridge(): LemonAgentBridge {
     '  makeBlankBudget(name?)       → empty Budget (one version + default library)',
     '  makeBudgetVersion({name})    → BudgetVersion with a fresh id',
     '  makeBudgetLine({accountId})  → BudgetLine with a fresh id',
+    '  makeExpense(partial?)        → Expense with a fresh id (money in cents)',
+    '  makePurchaseOrder(partial?)  → PurchaseOrder with a fresh id',
     '  budgetSummary()              → active-version totals/link counts/errors (null = no budget)',
+    '  costReportSummary({asOf,from,to}) → budget vs actual/committed/ETC/EFC/variance rows (null = no budget)',
     '  makeReportBlock({type,...})  → valid ReportBlock (block types via getReportRegistry)',
     '  newId()                      → fresh uuid',
     '',
@@ -780,6 +828,49 @@ function buildBridge(): LemonAgentBridge {
           grandTotalCents: model.totals.grandTotalCents,
         },
         errors: model.errors.map(e => e.message),
+      });
+    },
+    makeExpense: (partial?: Partial<Expense>) => deepClone(makeExpense(partial ?? {})),
+    makePurchaseOrder: (partial?: Partial<PurchaseOrder> & { number?: string }) => deepClone(makePurchaseOrder(partial ?? {})),
+    costReportSummary: (options?: { asOf?: string; from?: string; to?: string }) => {
+      const model = computeCostReport(api().getProject(), options ?? {});
+      if (!model) return null;
+      return deepClone<AgentBridgeCostSummary>({
+        asOf: model.asOf,
+        ...(model.from ? { from: model.from } : {}),
+        ...(model.to ? { to: model.to } : {}),
+        periodApplied: model.periodApplied,
+        versionId: model.versionId,
+        expenseCount: model.expenseCount,
+        purchaseOrderCount: model.purchaseOrderCount,
+        totals: {
+          budgetCents: model.totals.budgetCents,
+          approvedOverageCents: model.totals.approvedOverageCents,
+          actualCents: model.totals.actualCents,
+          actualAsOfCents: model.totals.actualAsOfCents,
+          committedCents: model.totals.committedCents,
+          etcCents: model.totals.etcCents,
+          efcCents: model.totals.efcCents,
+          varianceCents: model.totals.varianceCents,
+          percentUsed: model.totals.percentUsed,
+        },
+        rows: flatCostRows(model).map(row => ({
+          key: row.key,
+          kind: row.kind,
+          depth: row.depth,
+          number: row.number,
+          name: row.name,
+          budgetCents: row.budgetCents,
+          actualCents: row.actualCents,
+          actualAsOfCents: row.actualAsOfCents,
+          committedCents: row.committedCents,
+          etcCents: row.etcCents,
+          efcCents: row.efcCents,
+          varianceCents: row.varianceCents,
+          percentUsed: row.percentUsed,
+          ...(row.etcReason ? { etcReason: row.etcReason } : {}),
+          inBudget: row.inBudget,
+        })),
       });
     },
     getReportRegistry: () => {

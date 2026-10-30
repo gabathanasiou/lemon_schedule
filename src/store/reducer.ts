@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation, Budget, BudgetCategory, BudgetAccount, BudgetLine, BudgetSettings, BudgetLineSource } from '../types';
+import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation, Budget, BudgetCategory, BudgetAccount, BudgetLine, BudgetSettings, BudgetLineSource, Expense, PurchaseOrder } from '../types';
 import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
@@ -57,7 +57,11 @@ import {
   caseLockBudgetVersion, caseUnlockBudgetVersion,
 } from './actions/budget';
 import type { BudgetLibraryPayload } from './actions/budget';
-import { migrateBudget } from '../lib/budget/model';
+import {
+  caseAddExpense, caseUpdateExpense, caseDeleteExpense, caseBulkAddExpenses,
+  caseAddPurchaseOrder, caseUpdatePurchaseOrder, caseDeletePurchaseOrder,
+} from './actions/cost';
+import { migrateBudget, migrateCostTracking } from '../lib/budget/model';
 import { snapshotSceneFields } from '../lib/script';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -292,6 +296,14 @@ export type Action =
   | { type: 'SET_ACTIVE_BUDGET_VERSION'; payload: string }
   | { type: 'LOCK_BUDGET_VERSION'; payload: { id: string; pinned?: Record<string, number> } }
   | { type: 'UNLOCK_BUDGET_VERSION'; payload: string }
+  // Cost tracking (roadmap 334 phase 2)
+  | { type: 'ADD_EXPENSE'; payload: Partial<Expense> }
+  | { type: 'UPDATE_EXPENSE'; payload: { id: string; updates: Partial<Expense> } }
+  | { type: 'DELETE_EXPENSE'; payload: string }
+  | { type: 'BULK_ADD_EXPENSES'; payload: Partial<Expense>[] }
+  | { type: 'ADD_PURCHASE_ORDER'; payload: Partial<PurchaseOrder> }
+  | { type: 'UPDATE_PURCHASE_ORDER'; payload: { id: string; updates: Partial<PurchaseOrder> } }
+  | { type: 'DELETE_PURCHASE_ORDER'; payload: string }
 
 /**
  * Runtime mirror of the `Action` union above — consumed by the agentic debug
@@ -342,6 +354,9 @@ export const ACTION_TYPES = new Set<string>([
   'NEW_BUDGET_VERSION', 'RENAME_BUDGET_VERSION', 'DELETE_BUDGET_VERSION',
   'RESTORE_BUDGET_VERSION_FROM_TRASH', 'SET_ACTIVE_BUDGET_VERSION',
   'LOCK_BUDGET_VERSION', 'UNLOCK_BUDGET_VERSION',
+  // Cost tracking (roadmap 334 phase 2) — KEEP IN SYNC with the union above.
+  'ADD_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE', 'BULK_ADD_EXPENSES',
+  'ADD_PURCHASE_ORDER', 'UPDATE_PURCHASE_ORDER', 'DELETE_PURCHASE_ORDER',
 ]);
 
 export interface State {
@@ -481,6 +496,9 @@ export function reducer(state: State, action: Action): State {
     // Budgeting (roadmap 334): idempotent read normalization on every load path
     // (local/Drive/online/room). NEVER auto-creates a budget.
     migrateBudget(p);
+    // Cost tracking (roadmap 334 phase 2): arrays only — expenses/POs are
+    // project state; nothing is derived or auto-created on load.
+    migrateCostTracking(p);
 
     return {
       past: [],
@@ -673,6 +691,13 @@ export function reducer(state: State, action: Action): State {
     case 'SET_ACTIVE_BUDGET_VERSION': return caseSetActiveBudgetVersion(state, action, applyChange);
     case 'LOCK_BUDGET_VERSION': return caseLockBudgetVersion(state, action, applyChange);
     case 'UNLOCK_BUDGET_VERSION': return caseUnlockBudgetVersion(state, action, applyChange);
+    case 'ADD_EXPENSE': return caseAddExpense(state, action, applyChange);
+    case 'UPDATE_EXPENSE': return caseUpdateExpense(state, action, applyChange);
+    case 'DELETE_EXPENSE': return caseDeleteExpense(state, action, applyChange);
+    case 'BULK_ADD_EXPENSES': return caseBulkAddExpenses(state, action, applyChange);
+    case 'ADD_PURCHASE_ORDER': return caseAddPurchaseOrder(state, action, applyChange);
+    case 'UPDATE_PURCHASE_ORDER': return caseUpdatePurchaseOrder(state, action, applyChange);
+    case 'DELETE_PURCHASE_ORDER': return caseDeletePurchaseOrder(state, action, applyChange);
     default:
       return state;
   }
