@@ -51,6 +51,11 @@ ${BASE_PRINT_RESET}
 .report-root {
   font-family: Helvetica, sans-serif;
   color: #000;
+  /* The measured print surface is PAPER: always a white page, even when the
+     app chrome is dark (otherwise the cover/title text is dark-on-dark on
+     screen before the print dialog opens). */
+  background: #fff;
+  min-height: 100vh;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
