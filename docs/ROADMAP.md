@@ -1541,3 +1541,29 @@ the one on the Glide Breakdown pages.
 `e2e/budget.spec.ts` (typing hides rows, clear restores, totals unchanged) plus
 a manual visual pass. **Relations:** `relates to` **334**, **172** (the shared
 Glide filter recipe).
+
+## 343. Budget Glide — full-row category bands + sticky header (`[ ]`)
+
+**Asked 2026-10-30 (user):** category headers (e.g. 3000) should have their
+whole line coloured like their title, and the first (header) row in the Glide
+should be sticky.
+
+**Work:**
+- **Full-row bands.** Paint every cell of a category/account band — number,
+  name, qty/unit/rate/X/cur/fringes/groups/total, and the trailing info/actions
+  lanes — with the SAME band colour as the title cell (one shared `bandStyle`,
+  no per-cell literals). If the category title carries its group/category
+  colour, extend that exact colour across the row. Hover/selection must stay
+  legible and the read-only grey disabled surface must not punch holes in the
+  band.
+- **Sticky header.** Keep the Glide column-header row pinned at the top of the
+  sheet while rows scroll vertically (and horizontally), in `InlineGlideTable`
+  for the Budget sheet — no detach on filter/expand/collapse, no layout shift,
+  and the sticky band must not cover the first data row or selection. Verify
+  with a tall budget and with the category filter active.
+- View-only styling; no project/undo state. Read-only and print unchanged.
+
+**Verify:** manual pass (long budget: header stays; bands cover every column
+and both band kinds; selected/disabled cells still read). No e2e for pure
+visuals per `docs/TESTING.md`; geometry only if it silently breaks hit
+targets. **Relations:** `relates to` **334**, **326**, **340**, **342**.
