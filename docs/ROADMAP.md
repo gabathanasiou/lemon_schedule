@@ -1609,3 +1609,27 @@ covered; manual pass per changed surface; no new spec needed (fold into the
 owning spec within the caps). **Relations:** `relates to` **334**, **342**,
 **343**; follows the retired **324** control-face audit and **322** picker
 architecture.
+
+## 345. Glide status cells — appropriate coloured backgrounds (`[ ]`)
+
+**Asked 2026-10-30 (user):** status cells in the Glides should have their cell
+backgrounds coloured appropriately.
+
+**Work:**
+- Add ONE shared status-tone map (start with expenses: planned / committed /
+  actual / paid / void; include PO statuses if they become a cell) and paint it
+  through each cell’s `themeOverride.bgCell` + matching text colour. Keep the
+  text label (and state cue) so colour is never the only signal.
+- Apply consistently to every Glide status column: Budget → Expenses first,
+  then Day Manager Expenses (336) and any future status grid. No per-grid
+  palettes; tokenised colours with readable contrast on the light grid.
+- Editable status cells are the deliberate exception to the white-editable
+  rule: tinted at rest, while the picker chevron, hover, focus and selection
+  states stay legible. Read-only keeps the same status colour; `void` reads as
+  muted/cancelled without losing the label.
+- No data/behavior change; reports/print unaffected.
+
+**Verify:** manual contrast pass across every status (light surface, selected
+and read-only) + existing grid specs unchanged; a tiny unit test for the
+status→tone mapping if the palette grows beyond a lookup table.
+**Relations:** `relates to` **334**, **336**, **343**.

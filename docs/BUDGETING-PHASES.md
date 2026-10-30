@@ -296,7 +296,7 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Open phase-2 follow-ups (roadmap 335-344)
+### Open phase-2 follow-ups (roadmap 335-345)
 Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid).
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
   (category/account → node modal, line → line modal), not context-menu-first.
@@ -311,6 +311,7 @@ Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid
   display-only AND tags over category/account/line text; totals stay whole.
 - **343** Budget Glide visuals: band colour across every cell of a category/account row; sticky column header in `InlineGlideTable`.
 - **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; reuse `CardSection`/`DaySectionCard`, `DayPicker`, `SearchMenu` — no bespoke rewrites.
+- **345** Glide status cells: one shared status→tone map painting `bgCell` + text (expenses first), label always visible; editable tint is the explicit white-cell exception.
 Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
