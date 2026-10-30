@@ -1108,6 +1108,8 @@ export interface BudgetSettings {
   decimals: 0 | 2;
   negativeStyle?: 'minus' | 'parentheses';
   fringePosting?: 'topsheet' | 'category' | 'account';
+  /** Last successful manual "Sync rates" fetch (ISO timestamp, roadmap 341). */
+  ratesSyncedAt?: string;
   templateKey?: string;
   locked?: boolean;
   notes?: string;

@@ -6,6 +6,7 @@ import {
 } from '../InlineGlideTable';
 import { textCell } from '../../lib/glideCells';
 import { EXPENSE_METHOD_LABELS, EXPENSE_METHODS, EXPENSE_STATUS_LABELS, EXPENSE_STATUSES } from '../../lib/budget/model';
+import { expenseStatusTone } from '../../lib/budget/statusTones';
 import { formatMoney, parseMoney } from '../../lib/budget/format';
 import { expenseAccountLabel } from '../../lib/budget/costReport';
 
@@ -51,6 +52,7 @@ const NO_PO = 'No PO';
  */
 export function ExpensesGrid({
   project, expenses, readOnly, onOpenExpense, onDeleteExpense, onDuplicateExpense, onCommit,
+  presenceScope = 'budget:expenses', emptyLabel = 'No expenses yet — add one or import a CSV.', fill = true,
 }: {
   project: Project;
   expenses: Expense[];
@@ -59,6 +61,12 @@ export function ExpensesGrid({
   onDeleteExpense: (expense: Expense) => void;
   onDuplicateExpense: (expense: Expense) => void;
   onCommit: (commits: ExpenseGridCommit[]) => void;
+  /** Presence identity — a day-scoped ledger must not share the Budget pool. */
+  presenceScope?: string;
+  emptyLabel?: string;
+  /** `true` (Budget ledger) fills its flex column; `false` (Day card) sits at
+   *  content height inside the card. */
+  fill?: boolean;
 }) {
   const accounts = project.budget?.accounts || [];
   const categories = project.budget?.categories || [];
@@ -81,6 +89,7 @@ export function ExpensesGrid({
       vendor: expense.vendor || '',
       method: EXPENSE_METHOD_LABELS[expense.method] || expense.method,
       status: EXPENSE_STATUS_LABELS[expense.status] || expense.status,
+      statusKey: expense.status,
       amount: (expense.amountCents / 100).toFixed(2),
       po: po?.number || '',
       currencySymbol: settings?.currencySymbol || '$',
@@ -213,14 +222,20 @@ export function ExpensesGrid({
       case 'status':
       case 'po':
       case 'account':
-        return textCell(row[col.key], { readonly: !editable, align: col.key === 'account' ? 'left' : 'center' });
+        return textCell(row[col.key], {
+          readonly: !editable,
+          align: col.key === 'account' ? 'left' : 'center',
+          // Status colour is the ONE shared tone map (roadmap 345); the label
+          // always stays painted so colour is never the only signal.
+          themeOverride: col.key === 'status' ? expenseStatusTone(row.statusKey as any) : undefined,
+        });
       default:
         return textCell(row[col.key] ?? '', { readonly: true });
     }
   }, [readOnly, settings]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-hidden" data-expenses-grid>
+    <div className={fill ? 'flex-1 min-h-0 overflow-hidden' : ''} data-expenses-grid>
       <InlineGlideTable
         columns={COLUMNS}
         rows={rows}
@@ -232,10 +247,10 @@ export function ExpensesGrid({
         rowInfo={rowInfo}
         rowMenuItems={rowMenuItems}
         editors={editors}
-        emptyLabel="No expenses yet — add one or import a CSV."
+        emptyLabel={emptyLabel}
         baseRowHeight={26}
         baseHeaderHeight={30}
-        presenceScope="budget:expenses"
+        presenceScope={presenceScope}
         presenceRowKey={row => row.key}
       />
     </div>

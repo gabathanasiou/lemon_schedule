@@ -51,6 +51,11 @@ export interface GlideColumnDef {
   width: number;
 }
 
+/** Synthetic lanes that are never clipboard data (row actions, the trailing
+ *  (i), the budget band disclosure). Copy/cut skip them so a pasted block
+ *  never carries an empty leading/trailing tab. */
+const SYNTHETIC_COLUMN_KEYS = new Set(['actions', 'info', 'disclosure']);
+
 /** Serializes the selection range into tab-separated clipboard text. Rows are flat objects read by column key. */
 export function buildCopyText(rows: any[], columns: GlideColumnDef[], range: { x: number; y: number; width: number; height: number }): string {
   const { x, y, width, height } = range;
@@ -60,7 +65,7 @@ export function buildCopyText(rows: any[], columns: GlideColumnDef[], range: { x
     const cols: string[] = [];
     for (let c = x; c < x + width; c++) {
       const key = columns[c]?.key;
-      if (key === 'actions' || key === 'info') continue;
+      if (!key || SYNTHETIC_COLUMN_KEYS.has(key)) continue;
       cols.push(String((rows[r] as any)[key] ?? ''));
     }
     lines.push(cols.join('\t'));
@@ -83,7 +88,7 @@ export function buildCutPlan(rows: any[], columns: GlideColumnDef[], range: { x:
     const cols: string[] = [];
     for (let c = x; c < x + width; c++) {
       const key = columns[c]?.key;
-      if (!key || key === 'actions') continue;
+      if (!key || SYNTHETIC_COLUMN_KEYS.has(key)) continue;
       cols.push(String((rows[r] as any)[key] ?? ''));
       committers.push({ row: r, colKey: key });
     }
@@ -149,6 +154,72 @@ export const infoGlyphRenderer: CustomRenderer<InfoGlyphCell> = {
     ctx.restore();
     args.overrideCursor?.('pointer');
     void cell;
+  },
+  onClick: ({ cell, preventDefault }) => {
+    cell.data.onActivate?.();
+    preventDefault();
+    return undefined;
+  },
+};
+
+
+// ---- app glyph: a disclosure chevron --------------------------------------
+// Category/account bands collapse their children in place (roadmap 340). A
+// canvas-native chevron points RIGHT when collapsed and DOWN when expanded —
+// the kit's glyph cells have no expanded state, so this is the ONE shared app
+// glyph for a disclosure toggle (never DOM inside a cell).
+
+export interface DisclosureCellData {
+  kind: 'lemon-disclosure';
+  expanded: boolean;
+  label: string;
+  onActivate?: () => void;
+}
+
+export type DisclosureCell = CustomCell<DisclosureCellData>;
+
+export function disclosureGlyphCell(data: Omit<DisclosureCellData, 'kind'>): DisclosureCell {
+  return {
+    kind: GridCellKind.Custom,
+    data: { kind: 'lemon-disclosure', ...data },
+    copyData: '',
+    allowOverlay: false,
+    readonly: true,
+  } as DisclosureCell;
+}
+
+export const disclosureGlyphRenderer: CustomRenderer<DisclosureCell> = {
+  kind: GridCellKind.Custom,
+  isMatch: (cell): cell is DisclosureCell => (cell.data as { kind?: string } | undefined)?.kind === 'lemon-disclosure',
+  needsHover: true,
+  draw: (args, cell) => {
+    const { ctx, rect, theme, hoverAmount } = args;
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    if (hoverAmount > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.12 * hoverAmount;
+      ctx.fillStyle = theme.accentColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(8, rect.height / 2 - 3), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    const size = Math.max(7, Math.min(11, rect.height - 12));
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (cell.data.expanded) ctx.rotate(Math.PI / 2);
+    ctx.strokeStyle = theme.textMedium;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.22, -size * 0.5);
+    ctx.lineTo(size * 0.28, 0);
+    ctx.lineTo(-size * 0.22, size * 0.5);
+    ctx.stroke();
+    ctx.restore();
+    args.overrideCursor?.('pointer');
   },
   onClick: ({ cell, preventDefault }) => {
     cell.data.onActivate?.();

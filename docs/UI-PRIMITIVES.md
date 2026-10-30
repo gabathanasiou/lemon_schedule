@@ -349,6 +349,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   clears, click-away collapses. Pass `triggerLabel` / `triggerIcon` to name the active term
   and swap the icon (Glide uses the query + a funnel, with no accent tint). Used by every
   Glide page toolbar (`GlideFilter`, roadmap 172); a record picker still uses SearchMenu.
+- **FormulaField** (app, roadmap 346): `components/budget/FormulaField.tsx` — plain-text
+  formula input + caret autocomplete (`useDropdownPosition` + overlay morph) and a
+  searchable book; ONE registry (`lib/budget/formulaBook.ts`) feeds both. Commits on
+  blur/Enter; never the rich-text editor. Used by the line/global modals.
+- **Control-face audit (roadmap 344)**: the budget adopt/keep decisions live in
+  `docs/DESIGN-LANGUAGE.md` §Control faces — update that table when a face changes.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values
@@ -388,8 +394,7 @@ Engine mechanics (canvas, `provideEditor`, pagination, fill/paste) live in **`do
   attached — either gate kills the native behavior on touch. Every hover is still a Tailwind `hover:`
   variant or `.group:hover`/`.group:focus-within`.
 - `.hover-reveal`: hidden until hover/tap (`opacity: 0`), revealed by `.group:hover` +
-  `.group:focus-within` — on iOS the first tap on the row reveals it, the second tap activates.
-- iOS sticky hover (tap → `:hover` sticks until the next tap) IS the tap feedback — no JS
-  flash/pulse workarounds; they double with it and read as delays.
+  `.group:focus-within`. iOS sticky hover (tap → `:hover` sticks) IS the tap feedback — no
+  JS flash/pulse workarounds; they double with it and read as delays.
 - Pen = finger = touch: Apple Pencil is `pointerType 'pen'` (`isTouchLike()` in device.ts). Safari
   doesn't synthesize clicks for pen in overlays (device.ts shim) and never fires `:active` for pen.

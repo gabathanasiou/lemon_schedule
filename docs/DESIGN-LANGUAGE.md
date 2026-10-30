@@ -290,6 +290,23 @@ Every chrome control DECIDES what it really is, then uses the shared face — ne
 - **`keepLabelOnActive` is opt-in** (kit 0.1.166): toggles collapse back to the icon by default; tabs always keep the selected label. Use it only for a mode whose ON label must stay readable.
 - One shared face per pattern: every View menu, both Glide Info menus and the Calendar Filter use `revealMenuTrigger`; both Boneyard entry points use `BoneyardToggle`; the Script search and Glide filter share `MorphSearchField`. Never a per-call-site copy.
 
+#### Control-face audit — budget surfaces (roadmap 344)
+
+| Surface | Decision | Why |
+|---|---|---|
+| Budget toolbar row filter | **Adopt** `GlideFilter` + kit `MorphSearchField` | Button → field, term survives, `shown/total`; no inline search in the toolbar. |
+| Expenses → account filter | **Adopt** kit `SearchMenu` (`expandable`, `expandableGroups`, `groupExpandMode="single"`, `leadingActions` for All/Unallocated) | A grouped catalogue: accordion categories + morph trigger, replacing an always-inline searchable `DropdownMenu`. |
+| Expenses → day filter | **Adopt** `DayPickerList` inside a light `DropdownMenu` (`allLabel`) | The shared day list (week groups) — no second day selector. |
+| BudgetGrid unit/currency/fringe/group | **Keep** in-cell `EntityDropdown` through the shared Glide editor | Cell editors are `EntityDropdown`/`PickerField` by contract, never `SearchMenu`; the fringe editor is a per-row config. |
+| Budget category rail | **Keep** bespoke navigator + kit `ContextMenu` | It is a category navigator, not a record picker (same call as the Reports sidebar); right-click menu + trailing New category. |
+| ExpenseModal account/line/PO + method/status | **Keep** the shared `DropdownMenu` faces (entity pickers via `EntityDropdown`) | Short in-modal value fields; `SearchMenu` is a catalogue picker, not a modal field. |
+| ExpenseModal sections | **Keep** labelled field groups | They are not collapsible; adopting `CardSection` would add chrome with nothing to fold. New collapsible sections MUST use `CardSection`/`DaySectionCard`. |
+| Formula inputs | **New shared** `FormulaField` (app) | A caret editor with autocomplete cannot be a morph action field; the book is a kit `Modal`; ONE registry (`lib/budget/formulaBook.ts`) feeds both. |
+| Library “Sync rates” | **Keep** a kit `Button` | An action, not a control face. |
+
+No new primitive is duplicated: the two new app-level pieces are the canvas
+`disclosureGlyphCell` (registered by `InlineGlideTable`) and `FormulaField`.
+
 ### Action icon canon (same action → same glyph)
 
 Add to the rail; keep `npm run icons:audit` open when swapping any of these. NEVER use two glyphs for the same action.

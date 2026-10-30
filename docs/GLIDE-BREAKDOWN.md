@@ -167,6 +167,20 @@ auto-repaint.
   `onEscape` into EntityDropdown/AutocompleteDropdown (`createGlideCellEditor`): one Esc closes the
   dropdown AND cancels the whole cell-edit overlay (`onFinishedEditing(undefined, [0,0])` — no
   commit), so the edit popout never lingers.
+- **One overlay geometry for every grid (roadmap 347).** `createGlideCellEditor` returns picker
+  editors in Glide's NORMAL padded cell box (no `disablePadding`), so the popout trigger/text sits at
+  the same margins/size/alignment as the canvas cell — the Budget sheet, Library, Expenses, Day
+  Times, Crew and Breakdown all share it. A picker cell that needs alignment passes the column's
+  `align` through as `textAlign`; never a per-grid overlay style.
+- **Sheet layout props (roadmaps 337/340/343).** `heightMode="fill"` measures its container and lets
+  Glide scroll rows INSIDE the grid, keeping the column header pinned (the Budget sheet); the default
+  `content` keeps the old content-height card. `rowThemeOverride(row)` paints a band across every
+  cell including the trailing info/actions lanes. `onAddRow(rowIndex)` backs Shift+Enter quick-add
+  (shift+enter is captured before Glide's activate-cell handler; the host returns the new row's key
+  and the grid moves the selection there). `onCellKeyDown(row, colKey, key)` lets a host consume a key
+  on the current cell (Left/Right toggles a band disclosure). Canvas app glyphs:
+  `infoGlyphCell` (inspect/edit), `disclosureGlyphCell` (expanded/collapsed chevron), both registered
+  by `InlineGlideTable` — no DOM inside cells.
 
 ## Row filter (roadmap 172)
 

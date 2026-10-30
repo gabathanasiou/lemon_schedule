@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import { Seg, type PickerItem } from '@gabriel/ui-kit';
 import { ChevronDown } from 'lucide-react';
@@ -8,12 +8,13 @@ import type {
   BudgetUnit, Project,
 } from '../../types';
 import type { BudgetModel } from '../../lib/budget/calc';
-import { activeBudgetVersion } from '../../lib/budget/model';
+import { activeBudgetVersion, currencySymbolFor } from '../../lib/budget/model';
 import {
   makeBudgetFringe, makeBudgetGlobal, makeBudgetGroup, makeBudgetMarkup,
   makeBudgetUnit,
 } from '../../lib/budget/model';
 import { formatMoney, parseMoney } from '../../lib/budget/format';
+import { applyRatesToCurrencies, fetchDailyRates, formatRatesSyncedAt } from '../../lib/budget/rates';
 import { SYSTEM_GLOBAL_KEYS } from '../../lib/budget/scheduleSync';
 import { useProject } from '../../store';
 import { useDialog } from '../Dialog';
@@ -21,11 +22,11 @@ import { ContextMenuItem } from '../ContextMenu';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { BudgetGroupModal } from './BudgetGroupModal';
+import { BudgetGlobalModal } from './BudgetGlobalModal';
 import Button from '../Button';
 import { InlineGlideTable, type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../InlineGlideTable';
 import { textCell, colorSwatchCell } from '../../lib/glideCells';
 import type { GlideColumnEditor } from '../../lib/glideEditor';
-import { BudgetInput } from './fields';
 
 type LibraryKey = 'fringes' | 'groups' | 'globals' | 'units' | 'currencies' | 'markups';
 
@@ -35,7 +36,7 @@ interface LibraryRow extends Record<string, string> {
 }
 
 function LibraryTable({
-  title, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit,
+  title, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit, headerActions, footerNote,
 }: {
   title: string;
   hint?: string;
@@ -48,6 +49,10 @@ function LibraryTable({
   addLabel: string;
   editors?: Record<string, GlideColumnEditor>;
   onEdit?: (id: string) => void;
+  /** Extra header actions before the shared Add button (e.g. Sync rates). */
+  headerActions?: React.ReactNode;
+  /** Inline status line under the header (the rate-sync error/stamp). */
+  footerNote?: React.ReactNode;
 }) {
   const editable = React.useMemo(() => new Set(columns.filter(c => c.editable).map(c => c.key)), [columns]);
   const getCellContent = React.useCallback((col: InlineGlideColumn & { swatch?: boolean }, row: LibraryRow): GridCell => {
@@ -84,10 +89,14 @@ function LibraryTable({
           <h2 className="text-xs font-semibold text-[color:var(--ui-text-strong)]">{title}</h2>
           {hint && <p className="text-[10px] text-[color:var(--ui-text-faint)]">{hint}</p>}
         </div>
-        <Button theme="light" className="ml-auto" onClick={onAdd} disabled={readOnly}>
-          <Plus className="w-3.5 h-3.5" /> {addLabel}
-        </Button>
+        <div className="ml-auto flex items-center gap-1.5">
+          {headerActions}
+          <Button theme="light" onClick={onAdd} disabled={readOnly}>
+            <Plus className="w-3.5 h-3.5" /> {addLabel}
+          </Button>
+        </div>
       </header>
+      {footerNote && <div className="px-3 py-1.5 border-b border-[color:var(--ui-border)]">{footerNote}</div>}
       <InlineGlideTable
         columns={columns}
         rows={rows}
@@ -156,8 +165,12 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
   const version = activeBudgetVersion(budget);
   const lines = version?.lines || [];
   const [editingGroupId, setEditingGroupId] = React.useState<string | null>(null);
+  const [editingGlobalId, setEditingGlobalId] = React.useState<string | null>(null);
   const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
+  const [rateSyncing, setRateSyncing] = React.useState(false);
+  const [rateError, setRateError] = React.useState<string | null>(null);
   const editingGroup = editingGroupId ? (budget.groups || []).find(g => g.id === editingGroupId) : undefined;
+  const editingGlobal = editingGlobalId ? (budget.globals || []).find(g => g.id === editingGlobalId) : undefined;
 
   const setLibrary = React.useCallback((key: LibraryKey, value: BudgetFringe[] | BudgetGroup[] | BudgetGlobal[] | BudgetUnit[] | BudgetCurrency[] | BudgetMarkup[]) => {
     switch (key) {
@@ -172,6 +185,29 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
   // ---- settings ------------------------------------------------------------
   const currencyItems: PickerItem[] = (budget.currencies || []).map(c => ({ id: c.code, label: c.symbol ? `${c.symbol} ${c.code}` : c.code }));
+
+  /** Manual FX sync (roadmap 341): one batch = one undo entry; a failure leaves
+   *  every rate untouched and surfaces inline. */
+  const syncRates = React.useCallback(async () => {
+    if (readOnly || rateSyncing) return;
+    setRateSyncing(true);
+    setRateError(null);
+    try {
+      const result = await fetchDailyRates(settings.currency);
+      const next = applyRatesToCurrencies(budget.currencies || [], settings.currency, result.rates);
+      dispatch({ type: 'BATCH_START' });
+      try {
+        dispatch({ type: 'SET_BUDGET_LIBRARY', payload: { key: 'currencies', value: next } });
+        dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { ratesSyncedAt: new Date().toISOString() } });
+      } finally {
+        dispatch({ type: 'BATCH_COMMIT' });
+      }
+    } catch (err) {
+      setRateError(err instanceof Error ? err.message : 'Rates could not be synced.');
+    } finally {
+      setRateSyncing(false);
+    }
+  }, [budget.currencies, dispatch, rateSyncing, readOnly, settings.currency]);
 
   // ---- fringes -------------------------------------------------------------
   const fringeRows: LibraryRow[] = (budget.fringes || []).map(f => ({
@@ -376,7 +412,14 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
                 {currencyItems.map(item => (
                   <DropdownItem
                     key={item.id}
-                    onClick={() => { setCurrencyMenuOpen(false); dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { currency: item.id } }); }}
+                    onClick={() => {
+                      setCurrencyMenuOpen(false);
+                      // Base currency + derived symbol in ONE write (roadmap 341).
+                      dispatch({
+                        type: 'UPDATE_BUDGET_SETTINGS',
+                        payload: { currency: item.id, currencySymbol: currencySymbolFor(item.id, budget.currencies) },
+                      });
+                    }}
                     icon={item.id === settings.currency ? <span className="text-[10px]">✓</span> : undefined}
                   >
                     {item.label}
@@ -384,10 +427,18 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
                 ))}
               </DropdownMenu>
             </label>
-            <label className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Symbol</span>
-              <BudgetInput value={settings.currencySymbol || '$'} onCommit={v => dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { currencySymbol: v || '$' } })} readOnly={readOnly} />
-            </label>
+              {/* Derived from the currency table — never a second editable
+                  source (roadmap 341). Edit the symbol on the Currencies card. */}
+              <span
+                className="h-[30px] flex items-center rounded-md border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 text-xs text-[color:var(--ui-text-strong)]"
+                data-budget-currency-symbol
+                title="Derived from the selected currency — edit it in the Currencies table"
+              >
+                {settings.currencySymbol || currencySymbolFor(settings.currency, budget.currencies)}
+              </span>
+            </div>
             <div className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Decimals</span>
               <Seg
@@ -498,6 +549,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           rows={globalRows}
           readOnly={readOnly}
           onCommit={commitGlobals}
+          onEdit={(id) => setEditingGlobalId(id)}
           onAdd={() => setLibrary('globals', [...(budget.globals || []), makeBudgetGlobal({ symbol: `G${(budget.globals || []).length + 1}`, value: 0 })])}
           onDelete={section('globals')}
           columns={[
@@ -535,6 +587,20 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           onCommit={commitCurrencies}
           onAdd={() => setLibrary('currencies', [...(budget.currencies || []), { code: `CUR${(budget.currencies || []).length + 1}`, symbol: '', rateToBase: undefined }])}
           onDelete={section('currencies')}
+          headerActions={(
+            <Button theme="light" variant="outline" onClick={() => void syncRates()} disabled={readOnly || rateSyncing}>
+              <RefreshCw className={`w-3.5 h-3.5 ${rateSyncing ? 'animate-spin' : ''}`} /> Sync rates
+            </Button>
+          )}
+          footerNote={rateError ? (
+            <p role="alert" className="text-[10px] text-rose-600">{rateError}</p>
+          ) : settings.ratesSyncedAt ? (
+            <p className="text-[10px] text-[color:var(--ui-text-muted)]">
+              Rates synced {formatRatesSyncedAt(settings.ratesSyncedAt)} · base {settings.currency} = 1 · ECB daily rates
+            </p>
+          ) : (
+            <p className="text-[10px] text-[color:var(--ui-text-muted)]">Sync fills the rates the provider publishes; other currencies keep their hand-entered rate.</p>
+          )}
           columns={[
             { key: 'code', label: 'Code', width: 90 },
             { key: 'symbol', label: 'Symbol', width: 80, editable: true },
@@ -566,6 +632,19 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           ]}
         />
       </div>
+
+      {editingGlobal && (
+        <BudgetGlobalModal
+          open
+          global={editingGlobal}
+          globals={budget.globals || []}
+          systemValues={model.globals}
+          readOnly={readOnly}
+          onClose={() => setEditingGlobalId(null)}
+          onUpdate={(updates) => setLibrary('globals', (budget.globals || []).map(g => g.id === editingGlobal.id ? { ...g, ...updates } : g))}
+          onDelete={() => { void confirmDelete('globals', editingGlobal.id, editingGlobal.symbol); setEditingGlobalId(null); }}
+        />
+      )}
 
       {editingGroup && (
         <BudgetGroupModal

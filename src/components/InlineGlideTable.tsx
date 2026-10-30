@@ -26,7 +26,7 @@ import {
   pressControlCell,
 } from '@gabriel/ui-kit/glide-controls';
 import { useGlideFill } from '../lib/glideFill';
-import { textCell, buildCopyText, buildCutPlan, infoGlyphCell, infoGlyphRenderer, colorSwatchRenderer } from '../lib/glideCells';
+import { textCell, buildCopyText, buildCutPlan, infoGlyphCell, infoGlyphRenderer, colorSwatchRenderer, disclosureGlyphRenderer } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
@@ -128,6 +128,22 @@ export interface InlineGlideTableProps {
   /** Right-click menu items for a data row (rendered above the generic
    *  copy/paste items). Return `null` to fall back to the generic menu. */
   rowMenuItems?: (rowIndex: number, close: () => void) => React.ReactNode;
+  /** Shift+Enter quick-add (roadmap 337): creates a row in the focused row's
+   *  context (`null` = no focused row → the host appends) with no modal. Return
+   *  the NEW row's `key` so the grid can move the selection/caret onto it once
+   *  the host's rows update. Omit to leave Shift+Enter to Glide. */
+  onAddRow?: (rowIndex: number | null) => string | null | void;
+  /** Cell-scoped key shortcut (roadmap 340): return `true` to consume the key
+   *  (arrows on a tree/disclosure cell), `false` to let Glide navigate. */
+  onCellKeyDown?: (rowIndex: number, colKey: string, key: string) => boolean;
+  /** Optional per-row band theme (budget category/account rows, roadmap 343):
+   *  paints EVERY cell — data + the trailing info/actions lanes — and wins over
+   *  the read-only disabled tint. Hover keeps the band (no punched holes). */
+  rowThemeOverride?: (rowIndex: number) => { bgCell?: string; textDark?: string; textMedium?: string; textLight?: string } | undefined;
+  /** `content` (default) = the grid is exactly as tall as its rows; `fill` =
+   *  the grid fills its measured container and scrolls its rows INSIDE Glide,
+   *  keeping the column header pinned (the Budget sheet, roadmap 343). */
+  heightMode?: 'content' | 'fill';
   /** Presence scope (roadmap 234): the stable id of THIS logical table shared
    *  by every client (e.g. `day:3:times:cast`). Every mounted instance — main
    *  window, popped-out sheet, portalled canvas — publishes its own selection
@@ -175,12 +191,16 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   dataCategory,
   headerMenuItems,
   rowMenuItems,
+  onAddRow,
+  onCellKeyDown,
   rowTooltip,
   onRowHover,
   editors,
   getEditor,
   rowActions,
   rowInfo,
+  rowThemeOverride,
+  heightMode = 'content',
   presenceScope,
   presenceRowKey,
 }) => {
@@ -188,6 +208,15 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   rowsRef.current = rows;
   const readOnlyRef = useRef(!!readOnly);
   readOnlyRef.current = !!readOnly;
+  const onAddRowRef = useRef(onAddRow);
+  onAddRowRef.current = onAddRow;
+  const onCellKeyDownRef = useRef(onCellKeyDown);
+  onCellKeyDownRef.current = onCellKeyDown;
+  const rowThemeRef = useRef(rowThemeOverride);
+  rowThemeRef.current = rowThemeOverride;
+  /** The row key Shift+Enter just created — the selection moves there once the
+   *  host's rows include it (the dispatch lands on the next render). */
+  const pendingAddKeyRef = useRef<string | null>(null);
 
   // The grid fills the card: measure the wrapper and distribute the columns so
   // the table never scrolls sideways. The second column absorbs the rounding
@@ -197,6 +226,20 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const [fontSize] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const rowH = Math.round((baseRowHeight * fontSize) / SS_FONT_SIZE_DEFAULT);
   const headerH = Math.round((baseHeaderHeight * fontSize) / SS_FONT_SIZE_DEFAULT);
+
+  /** `heightMode="fill"` measures the container so Glide scrolls its own rows
+   *  (the pinned-header sheet). Content mode stays exactly as tall as rows. */
+  const [fillHeight, setFillHeight] = useState(0);
+  useEffect(() => {
+    if (heightMode !== 'fill') return;
+    const el = gridSizeRef.current;
+    if (!el) return;
+    const measure = () => setFillHeight(el.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [heightMode, gridSizeRef]);
 
   const COLUMNS = useMemo(() => {
     const total = columns.reduce((s, c) => s + c.width, 0);
@@ -228,6 +271,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   );
 
   const contentHeight = headerH + rows.length * rowH;
+  const gridHeight = heightMode === 'fill' ? Math.max(headerH + rowH, fillHeight) : contentHeight;
 
   // Glide caches cells on its canvas — a data/column change (add/remove rows,
   // resize) only repaints after an explicit full-grid damage pass. Without this
@@ -323,6 +367,25 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }, [selectionKey]);
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
+  // Shift+Enter quick-add (roadmap 337): move the selection onto the row the
+  // host just created, once its dispatch lands in `rows`. The first EDITABLE
+  // data column is the natural landing cell; typing then opens its editor
+  // (`editOnType`) with no modal.
+  useEffect(() => {
+    const key = pendingAddKeyRef.current;
+    if (!key) return;
+    const rowIndex = rows.findIndex(r => r.key === key);
+    if (rowIndex < 0) return;
+    pendingAddKeyRef.current = null;
+    const col = Math.max(0, COLUMNS.findIndex(c => editableKeys.has(c.key)));
+    const cell: Item = [col, rowIndex];
+    setGridSelection({
+      columns: CompactSelection.empty(),
+      rows: CompactSelection.empty(),
+      current: { cell, range: { x: col, y: rowIndex, width: 1, height: 1 }, rangeStack: [] },
+    });
+    gridRef.current?.scrollTo?.(col, rowIndex);
+  }, [rows, COLUMNS, editableKeys]);
   // Peer selections (roadmap 234) — see the props' docs. Inert without a scope.
   const presenceRowKeys = useMemo(
     () => (presenceScope ? rows.map((r, i) => presenceRowKey?.(r, i) ?? r.key ?? String(i)) : NO_KEYS),
@@ -442,33 +505,40 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const colDef = COLUMNS[col];
     const r = rowsRef.current[row];
     if (!colDef || !r) return textCell('', { readonly: true, allowOverlay: false });
+    // A row band (budget category/account) covers EVERY lane, including the
+    // trailing info/actions glyphs, so no disabled-grey hole appears
+    // (roadmap 343). A cell's own themeOverride still wins over the band.
+    const band = rowThemeRef.current?.(row);
+    const withBand = (cell: GridCell): GridCell => band
+      ? { ...cell, themeOverride: { ...band, ...((cell as any).themeOverride || {}) } }
+      : cell;
     if (colDef.key === 'info') {
       const info = rowInfo?.(row);
-      if (readOnlyRef.current || !info) return textCell('', { readonly: true, allowOverlay: false });
-      return infoGlyphCell({ label: info.title, onActivate: info.onClick });
+      if (readOnlyRef.current || !info) return withBand(textCell('', { readonly: true, allowOverlay: false }));
+      return withBand(infoGlyphCell({ label: info.title, onActivate: info.onClick }));
     }
     if (colDef.key === 'actions') {
       // Painted row actions — the kit's canvas-native control cells. A lone
       // (i) action is the shared app glyph (details/inspect, NOT a chevron,
       // which reads as collapse/expand).
       const actions = rowActions?.(row) ?? [];
-      if (readOnlyRef.current || actions.length === 0) return textCell('', { readonly: true, allowOverlay: false });
+      if (readOnlyRef.current || actions.length === 0) return withBand(textCell('', { readonly: true, allowOverlay: false }));
       if (actions.length === 1 && actions[0].icon === 'info') {
-        return infoGlyphCell({ label: actions[0].title, onActivate: actions[0].onClick });
+        return withBand(infoGlyphCell({ label: actions[0].title, onActivate: actions[0].onClick }));
       }
       const kitActions = actions.filter(action => action.icon !== 'info');
-      if (kitActions.length === 0) return textCell('', { readonly: true, allowOverlay: false });
+      if (kitActions.length === 0) return withBand(textCell('', { readonly: true, allowOverlay: false }));
       const buttons = kitActions.map(action => ({
         icon: action.icon as 'plus' | 'trash' | 'chevron',
         label: action.title,
         tone: action.icon === 'trash' ? ('danger' as const) : action.icon === 'chevron' || action.icon === 'info' ? ('neutral' as const) : ('accent' as const),
         onActivate: action.onClick,
       }));
-      return buttons.length > 1
+      return withBand(buttons.length > 1
         ? kitGlyphGroupCell({ lane: 'full', buttons })
-        : kitGlyphCell({ lane: 'full', ...buttons[0] });
+        : kitGlyphCell({ lane: 'full', ...buttons[0] }));
     }
-    const cell = getCellContent(colDef, r, row);
+    const cell = withBand(getCellContent(colDef, r, row));
     const hovered = row === hoveredRowRef.current;
     const isReadonly = readOnlyRef.current || !!(cell as any).readonly;
     if (!isReadonly) {
@@ -487,14 +557,18 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         : null;
       // Editable inputs stay white at rest (the grid's own bg — the "field"
       // surface); only a near-white hover repaint keeps the row responsive.
+      // A caller-tinted editable cell (the status cells, roadmap 345) is the
+      // explicit exception and keeps its tint at rest AND on hover.
       const editable = picker ?? cell;
+      if ((editable as any).themeOverride?.bgCell) return editable;
       if (!hovered) return editable;
       return { ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: EDITABLE_HOVER_BG, bgCellMedium: EDITABLE_HOVER_BG } };
     }
     // Read-only = disabled: neutral grey at rest, a touch deeper on hover,
-    // unless the caller supplied its own band colour.
+    // unless the caller supplied its own band colour (which never gets a hole
+    // punched by the hover tint).
     const own = (cell as any).themeOverride?.bgCell as string | undefined;
-    const bg = hovered ? READONLY_HOVER_BG : (own ?? READONLY_BG);
+    const bg = own ?? (hovered ? READONLY_HOVER_BG : READONLY_BG);
     return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
   }, [COLUMNS, getCellContent, getEditor, editors, rowActions, rowInfo, EDITABLE_HOVER_BG, READONLY_BG, READONLY_HOVER_BG]);
 
@@ -558,6 +632,11 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const onCellActivated = useCallback((cell: Item) => {
     const content = getCell(cell);
     const data = (content as any).data as { kind?: string; onActivate?: () => void; onOpen?: () => void } | undefined;
+    // View-only toggles (the budget band disclosure) stay live in read-only.
+    if (data?.kind === 'lemon-disclosure') {
+      data.onActivate?.();
+      return;
+    }
     if (!readOnlyRef.current && data) {
       if (data.kind === 'lemon-info') {
         data.onActivate?.();
@@ -755,10 +834,34 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   return (
     <div
       ref={wrapperRef}
-      className="inline-glide-table"
+      className={`inline-glide-table${heightMode === 'fill' ? ' flex-1 min-h-0 flex flex-col' : ''}`}
       {...(dataAttr ? { [dataAttr]: '' } : {})}
       {...(dataCategory ? { 'data-category': dataCategory } : {})}
       data-presence-grid={presenceScope}
+      onKeyDownCapture={(e) => {
+        // Shift+Enter = quick-add (roadmap 337). Captured BEFORE Glide's
+        // activate-cell handler so plain Enter keeps committing/activating and
+        // the modified chord never opens an editor first.
+        if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
+          const add = onAddRowRef.current;
+          if (!add || readOnlyRef.current) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const row = gridSelectionRef.current?.current?.cell?.[1] ?? -1;
+          const key = add(row >= 0 && row < rowsRef.current.length ? row : null);
+          if (typeof key === 'string' && key) pendingAddKeyRef.current = key;
+          return;
+        }
+        // Host key shortcuts on the CURRENT cell (band disclosure arrows).
+        const shortcut = onCellKeyDownRef.current;
+        const cell = gridSelectionRef.current?.current?.cell;
+        if (!shortcut || !cell || e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+        const colKey = COLUMNS[cell[0]]?.key;
+        if (colKey && shortcut(cell[1], colKey, e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       onPointerLeave={() => {
         // Moving onto a floating chrome (block editor / palette) that sits over
         // the grid must dismiss the tooltip — Glide's canvas never sees that
@@ -774,7 +877,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         }
       }}
     >
-      <div ref={gridSizeRef} style={{ touchAction: 'none' }}>
+      <div ref={gridSizeRef} className={heightMode === 'fill' ? 'flex-1 min-h-0' : undefined} style={{ touchAction: 'none' }}>
         {/* Auto-fit columns to the card is THIS module's job (COLUMNS above).
             Glide's defaults (min 50 / max 500 per column) would re-clamp our
             scaled widths — a dominant Name column over 500px gets capped and
@@ -792,7 +895,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
           <DataEditor
             ref={gridRef}
             width={gridWidth}
-            height={contentHeight}
+            height={gridHeight}
             columns={glideColumns}
             rows={rows.length}
             getCellContent={getCell}
@@ -801,7 +904,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             provideEditor={provideEditor}
             onFinishedEditing={escapeCancel.onFinishedEditing}
             onCellActivated={onCellActivated}
-            customRenderers={[...controlCellRenderers, infoGlyphRenderer, colorSwatchRenderer]}
+            customRenderers={[...controlCellRenderers, infoGlyphRenderer, colorSwatchRenderer, disclosureGlyphRenderer]}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={onGridSelectionChange}
@@ -826,7 +929,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             {...({ experimental: { eventTarget: currentDocument } } as any)}
           />
         ) : (
-          <div style={{ height: contentHeight }} />
+          <div style={{ height: gridHeight }} />
         )}
       </div>
 

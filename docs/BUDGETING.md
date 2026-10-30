@@ -32,17 +32,16 @@ overtime or budget-report code.
 - **Budget versions are a third independent axis** (schedule / calendar /
   budget): chart/library shared, only lines per version; Create/Duplicate clone
   copy-on-write.
-- **Schedule links are live, with no sync button.** `source` lines derive
-  quantity at read time; `qtyOverride` pins it (`rateOverride` is an
-  agent/data seam). A locked version pins linked quantities.
+- **Schedule links are live, no sync button.** `source` lines derive quantity
+  at read time; `qtyOverride` pins it (`rateOverride` is an agent/data seam); a
+  locked version pins linked quantities.
 - **Reports use the Reports Designer engine**: one `budgetTable` leaf + budget
   collections/fields; no second report engine. Modes are `topsheet` /
   `accounts` / `lines` / `costReport`; `hotCost` / `cashflow` / `comparison`
   fall back to `topsheet` until their engines land.
-- **Formula input is a small arithmetic evaluator**, not the rich-text token
-  editor. No `eval`, no cross-line `{{line.*}}` references in v1.
-- **The editable grid is the shared `InlineGlideTable` recipe**, not a
-  bespoke Glide fork. Report/print tables are the DOM report renderer.
+- **Formula input is a small arithmetic evaluator** with safe functions, not
+  the rich-text token editor (no `eval`, no cross-line refs). **The editable
+  grid is the shared `InlineGlideTable`**; report/print tables are DOM.
 - **`NumberInput` is the one numeric primitive**; `MoneyField`/`PercentField`
   are thin app-level adapters over it (`components/budget/fields.tsx`).
 - **Budget is project state** — undoable, synced, shared, in `.lemon`. A
@@ -107,7 +106,7 @@ BudgetMarkup { id; name; kind: 'markup'|'discount'|'charge'|'credit';
                appliesTo?; except?; marksUp?; compound?; capCents?; capType?;
                discountPercent?; sort }
 BudgetSettings { currency; currencySymbol?; decimals: 0|2; negativeStyle?;
-                 fringePosting?; templateKey?; locked?; notes? }
+                 fringePosting?; ratesSyncedAt?; templateKey?; locked?; notes? }
 
 // Cost tracking (phase 2) — project state, never a per-day ledger.
 Project.expenses?: Expense[];         // filters by dayDate/dayNumber in Day Manager
@@ -165,6 +164,10 @@ each other directly.
 | `export.ts` | CSV + lossless JSON export, JSON import/parse, filename, cost-report CSV |
 | `expenseCsv.ts` | Expense CSV export + tolerant import (aliases, unmatched → Unallocated) |
 | `costReport.ts` | **`computeCostReport(project, {asOf, from, to})`** — the ONE cost read model: Actual/Committed/ETC/EFC/Variance/% used rows + expense/day rollups |
+| `gridRows.ts` | Budget sheet rows (`buildBudgetRows`) + the display-only filter (`filterBudgetRows`) + collapse (`collapseBudgetRows`) — never a component-side matcher |
+| `rates.ts` | Manual FX sync: Frankfurter (keyless ECB) fetch, reciprocal `rateToBase`, `applyRatesToCurrencies`, stamp formatting |
+| `formulaBook.ts` | ONE registry for formula autocomplete + the book (system/project globals + safe functions, fragment/insert helpers) |
+| `statusTones.ts` | ONE status→tone map for Glide status cells (expense + PO lifecycles) |
 
 Not built yet: `overtime.ts` (phase 3), binary/MMB import.
 
@@ -221,8 +224,9 @@ totalCents = baseCents + fringeCents
 
 ### Globals / formulas
 
-- Grammar: numbers, `+ - * /`, parentheses, unary minus and global symbols.
-  No functions, no property access, no `{{line.*}}` cross-line references.
+- Grammar: numbers, `+ - * /`, parentheses, unary minus, global symbols and
+  the safe functions `ROUND/MIN/MAX/ABS/CLAMP` (arity-checked). No property
+  access, no `{{line.*}}` cross-line references, no `eval`.
 - Globals may reference other globals; evaluation is topological; cycles are
   `#CYCLE!`, unknown symbols `#REF!`, division by zero `#DIV/0!`, syntax
   `#VALUE!`. Errors are values + messages, never crashes.
@@ -325,20 +329,30 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
 ## 7. Surfaces (summary — manual: `docs/BUDGETING-SURFACES.md`)
 
 - Budget tab (⌘8) between Production and Reports; sub-tabs Budget / Cost Report / Expenses / Library — all live. Phone unsupported.
-- Budget view: KPI strip, category rail, one expanded sheet, toolbar (Category,
-  Markup, linked-line summary, Print, Export, Import), footer totals. Category
-  rows carry a **+** quick-add: a line lands in the category's first account
-  (General when empty) with no modal.
+- Budget view: KPI strip, the category rail (right-click manager menu + trailing
+  New category), one sheet, toolbar (Category, Markup, **GlideFilter**, linked
+  summary, Print/Export/Import), footer totals. Category rows carry a **+**
+  quick-add; Shift+Enter quick-adds in context; right-click **Add line…** asks
+  a count and batches N lines. Bands collapse via the disclosure glyph
+  (Left/Right, view-only) and paint their colour across every cell + both
+  trailing lanes; the sheet's column header is pinned (`heightMode="fill"`).
 - Cost Report view: as-of + period, KPI strip (Budget/Actual/Committed/EFC/
   Variance/%Used), expandable category → account → line rows, inline ETC +
   reason, variance colour + text/icon, Print and CSV.
-- Expenses view: date/status/account/day/method filters, Add expense, Import
-  CSV, the Glide ledger, footer totals and the shared ExpenseModal. The Day
-  Manager → Expenses tab filters the same project array by day.
-- Grid: shared `InlineGlideTable` with painted kit pickers; (i) opens the
-  node/line editor, the trash column deletes, right-click mirrors the actions.
+- Expenses view: date/status/account (SearchMenu accordion)/day (shared
+  DayPickerList)/method filters, Add expense, Import CSV, the Glide ledger
+  (status cells tinted by the shared tone map), footer totals and the shared
+  ExpenseModal. The Day Manager → Expenses card is the same `ExpensesGrid`
+  filtered by day, with modal-less quick-add and (i) → the modal.
+- Grid: shared `InlineGlideTable` with painted kit pickers (fringe rows show the
+  canonical computed contribution); (i) opens the node/line editor (never a
+  quick-add), the trash column deletes, right-click mirrors the actions. The
+  row filter is display-only; totals stay whole-budget with a Filtered cue.
 - Library and versions: settings/system values + editable definition tables;
-  `ItemManagerDropdown` with lock/unlock and trash restore.
+  the symbol is derived (read-only), ~30 seeded currencies, **Sync rates**
+  (Frankfurter, base=1, one batch, inline errors, last-synced stamp);
+  `ItemManagerDropdown` with lock/unlock and trash restore. Globals row (i)
+  opens the `FormulaField` editor (autocomplete + book).
 - Reports: `budgetTable` leaf (four modes incl. Cost Report), budget/cost
   collections/fields, four transient prints + "Save as design".
 
@@ -351,25 +365,17 @@ shared chart/library, versions + trash + lock, Budget tab, `InlineGlideTable`
 sheet, templates (Blank/Feature/From schedule), fringes/globals/groups/units/
 markups, per-line currency + fx/base totals, live schedule links, `budgetTable`
 + budget fields/collections, three prints, CSV/JSON export + JSON import.
-Divergences from the original plan (authoritative):
-- Formula grammar has no `{{line.*}}` cross-line references.
-- Fringes apply by named id or shared group; percent fringes sharing a
-  `fringeRangeId` apply once over the range sum (first line owns it).
-- Version **lock** pins live-linked quantities; **unlock does not unpin**.
-  **Create adds a blank version**; **Duplicate clones** the active version.
-- The grid is the shared `InlineGlideTable`, not a bespoke Glide fork.
-- Import is JSON only (CSV is export-only); no template wizard or "used by N"
-  jump. Fringe **group tagging** / **range id** and markup scope/cap fields are
-  model/engine/import-only (no Library UI); markups apply to every in-budget
-  category (base + fringes) unless compound is on.
+Divergences (authoritative): no `{{line.*}}` refs; fringes by named id/shared
+group (percent range fringes apply once over the range sum); lock pins linked
+quantities and unlock does not unpin; Create = blank, Duplicate = clone; the
+grid is the shared `InlineGlideTable`; JSON-only import; fringe group/range and
+markup scope/cap stay model-only.
 
-**2 — Cost tracking — LANDED (2026-10-30).** Expenses/POs, Cost Report view,
-Expenses ledger + shared ExpenseModal, Day Manager Expenses tab/card,
-Actual/Committed/ETC/EFC/variance, `costReport`/`expenses`/`expensesOfDay`/
-`purchaseOrders` collections + fields, `budgetTable` cost mode, Cost Report
-print + expense CSV. Divergences: PO **authoring** is action/bridge-only (no PO
-modal yet); the Expenses ledger uses the shared Glide recipe; there is no
-approval workflow.
+**2 — Cost tracking — LANDED (2026-10-30).** Expenses/POs, Cost Report,
+Expenses ledger + shared ExpenseModal, Day Manager Expenses card,
+Actual/Committed/ETC/EFC/variance, cost collections/fields, `budgetTable` cost
+mode, Cost Report print + expense CSV. Divergences: PO authoring is action/
+bridge-only; no approval workflow.
 
 **3 — Overtime.** Crew + cast rates/guarantees, project/day/dept/person
 overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost,
@@ -378,22 +384,17 @@ post-to-expenses, report fields, version-lock interaction.
 **4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty-cash, MMB import/export (no compare UI built).
 
 ## 9. Verification & docs
-- `npm run lint` (tsc + doc budget + roadmap hygiene + e2e lint) and
-  `npm run test:unit` for the pure maths (`src/lib/__tests__/budget.test.ts`,
-  `reportBudget.test.ts`, `costReport.test.ts`).
-- Full E2E for logic/data/store changes (rule 7); `e2e/budget.spec.ts` covers
-  template creation/persistence, linked/lock behaviour, expense → cost report
-  and the Day Manager expense card. Extend `scripts/smart-test.mjs` `RULES`
-  when adding specs.
-- Perf: 1,000 lines / 500 expenses; no per-row `useProject()`; `computeBudget`
-  and `computeCostReport` memoized once per surface; watch file size.
-- Security: viewer read-only, MCP refusal, no secrets/receipt blobs in state.
-- Docs: this file, `BUDGETING-SURFACES.md`, `BUDGETING-PHASES.md`,
-  `REPORTS-DESIGNER.md`, `API.md`, one-line `AGENTS.md` pointer. Version bump
-  at the work's wrap.
+- `npm run lint` + `npm run test:unit` (budget/reportBudget/costReport/
+  budgetSurfaces suites); full E2E for logic/data/store changes (rule 7) —
+  `e2e/budget.spec.ts` covers template/persistence, links/lock, expense → cost
+  report, the Day Manager card and the sheet's (i)/quick-add/filter invariants.
+- Perf: 1,000 lines / 500 expenses; no per-row `useProject()`; the two read
+  models memoized once per surface. Security: viewer read-only, MCP refusal, no
+  secrets/receipt blobs. Docs: this file, `BUDGETING-SURFACES.md`,
+  `BUDGETING-PHASES.md`, `REPORTS-DESIGNER.md`, `API.md`, `AGENTS.md` pointer;
+  version bump at the work's wrap.
 
 ## 10. Relations
-`depends on` **315** (Day Manager tabs), **146** (crew slots) + **99** (call
-times) for OT, **157** (cast rates), **66** (calendar counts), **97** (MCP).
+`depends on` **315**, **146**+**99** (OT), **157**, **66**, **97**;
 `relates to` **333**, **311/248**, **322**, **202**, **172**, **123**, **308**,
 **230**. No existing budget item; this is new.

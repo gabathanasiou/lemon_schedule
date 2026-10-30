@@ -18,6 +18,8 @@ import { SectionTile } from './SectionTile';
 import { BudgetGrid, type BudgetGridCommit } from './BudgetGrid';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
+import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../ContextMenu';
+import { GlideFilter } from '../GlideFilter';
 
 /** Budget authoring surface: KPI strip, category rail and the editable sheet. */
 export function BudgetView({ model, project, readOnly, onPrintDesign }: { model: BudgetModel; project: Project; readOnly: boolean; onPrintDesign?: (design: ReportDesign) => void }) {
@@ -26,6 +28,9 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
   const [focusCategoryId, setFocusCategoryId] = React.useState<string | null>(null);
   const [editingLineId, setEditingLineId] = React.useState<string | null>(null);
   const [editingNode, setEditingNode] = React.useState<{ kind: 'category' | 'account'; id: string } | null>(null);
+  const [railMenu, setRailMenu] = React.useState<{ x: number; y: number; categoryId?: string } | null>(null);
+  const [rowFilter, setRowFilter] = React.useState('');
+  const [filterCounts, setFilterCounts] = React.useState({ shown: 0, total: 0 });
   const [exportOpen, setExportOpen] = React.useState(false);
   const [printOpen, setPrintOpen] = React.useState(false);
   const printDesigns = React.useMemo(() => budgetReportDesigns(), []);
@@ -60,14 +65,16 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     setEditingLineId(line.id);
   }, [dispatch]);
 
-  /** Category "+" — create the line in the category's first account (or a
-   *  General account when the category has none) without opening the modal. */
-  const quickAddLine = React.useCallback((categoryId: string) => {
+  /** Category "+" (and Shift+Enter): create the line in the category's first
+   *  account (or a General account when the category has none) without opening
+   *  the modal. Returns the new line id so the grid can focus its row. */
+  const quickAddLine = React.useCallback((categoryId: string): string | null => {
     const category = budget.categories.find(c => c.id === categoryId);
-    if (!category) return;
+    if (!category) return null;
     const accounts = budget.accounts
       .filter(a => a.categoryId === categoryId)
       .sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number));
+    const line = makeBudgetLine({ accountId: '', description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' });
     dispatch({ type: 'BATCH_START' });
     try {
       let accountId = accounts[0]?.id;
@@ -76,22 +83,62 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
         dispatch({ type: 'ADD_BUDGET_ACCOUNT', payload: account });
         accountId = account.id;
       }
-      dispatch({
-        type: 'ADD_BUDGET_LINE',
-        payload: makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' }),
-      });
+      dispatch({ type: 'ADD_BUDGET_LINE', payload: { ...line, accountId } });
     } finally {
       dispatch({ type: 'BATCH_COMMIT' });
     }
+    return line.id;
   }, [dispatch, budget.categories, budget.accounts]);
 
   /** Account context "Add line" — same quick add, no modal. */
-  const quickAddAccountLine = React.useCallback((accountId: string) => {
-    dispatch({
-      type: 'ADD_BUDGET_LINE',
-      payload: makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' }),
-    });
+  const quickAddAccountLine = React.useCallback((accountId: string): string => {
+    const line = makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' });
+    dispatch({ type: 'ADD_BUDGET_LINE', payload: line });
+    return line.id;
   }, [dispatch]);
+
+  /** Nothing focused: append to the last category's first account. */
+  const quickAddLastLine = React.useCallback((): string | null => {
+    const last = budget.categories[budget.categories.length - 1];
+    return last ? quickAddLine(last.id) : null;
+  }, [budget.categories, quickAddLine]);
+
+  /** Context-menu bulk entry (roadmap 337): ask a count and create N blank
+   *  lines in the row's account (a category uses its first account / General)
+   *  as ONE undo entry. */
+  const promptAddLines = React.useCallback(async (kind: 'category' | 'account', id: string) => {
+    const raw = await dialog.prompt({
+      title: kind === 'category' ? 'Add lines to this category' : 'Add lines to this account',
+      message: 'How many blank lines? (1–100)',
+      defaultValue: '1',
+      placeholder: '1',
+    });
+    if (raw == null) return;
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n) || n < 1) return;
+    const count = Math.min(100, n);
+    const accounts = kind === 'category'
+      ? budget.accounts.filter(a => a.categoryId === id).sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number))
+      : budget.accounts.filter(a => a.id === id);
+    dispatch({ type: 'BATCH_START' });
+    try {
+      let accountId = accounts[0]?.id;
+      if (!accountId && kind === 'category') {
+        const account = makeBudgetAccount({ categoryId: id, name: 'General' });
+        dispatch({ type: 'ADD_BUDGET_ACCOUNT', payload: account });
+        accountId = account.id;
+      }
+      if (!accountId) return;
+      for (let i = 0; i < count; i++) {
+        dispatch({
+          type: 'ADD_BUDGET_LINE',
+          payload: makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' }),
+        });
+      }
+    } finally {
+      dispatch({ type: 'BATCH_COMMIT' });
+    }
+  }, [dispatch, dialog, budget.accounts]);
 
   const duplicateLine = React.useCallback((lineId: string) => {
     const source = linesById.get(lineId)?.line;
@@ -286,6 +333,13 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
         <Button theme="light" onClick={addMarkup} disabled={readOnly}>
           <Plus className="w-3.5 h-3.5" /> Markup
         </Button>
+        <GlideFilter
+          value={rowFilter}
+          onChange={setRowFilter}
+          total={filterCounts.total}
+          shown={filterCounts.shown}
+          placeholder="Filter the budget…"
+        />
         <span className="ml-1 flex items-center gap-1 text-[10px] text-[color:var(--ui-text-faint)]">
           <Sparkles className="w-3 h-3" /> {linkedLabel}
         </span>
@@ -359,7 +413,16 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
       </div>
 
       <div className="flex-1 flex min-h-0">
-        <div className="w-52 shrink-0 border-r border-[color:var(--ui-border)] overflow-y-auto scrollbar-custom bg-[var(--ui-panel-bg)]">
+        <div
+          className="w-52 shrink-0 border-r border-[color:var(--ui-border)] overflow-y-auto scrollbar-custom bg-[var(--ui-panel-bg)]"
+          onContextMenu={(e) => {
+            // Blank rail space → the category manager menu with New category.
+            if (readOnly) return;
+            e.preventDefault();
+            setRailMenu({ x: e.clientX, y: e.clientY });
+          }}
+          data-budget-category-rail
+        >
           <button
             type="button"
             onClick={() => setFocusCategoryId(null)}
@@ -372,6 +435,12 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
               key={cat.category.id}
               type="button"
               onClick={() => setFocusCategoryId(focusCategoryId === cat.category.id ? null : cat.category.id)}
+              onContextMenu={(e) => {
+                if (readOnly) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setRailMenu({ x: e.clientX, y: e.clientY, categoryId: cat.category.id });
+              }}
               className={`w-full text-left px-3 py-2 border-b border-l-2 border-[color:var(--ui-border)] ${focusCategoryId === cat.category.id ? 'border-l-[color:var(--ui-accent-header-fill)] bg-[var(--ui-item-hover-bg)] font-semibold text-[color:var(--ui-text-strong)]' : 'border-l-transparent text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]'}`}
             >
               <div className="flex items-center justify-between gap-1">
@@ -381,6 +450,16 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
               <div className="text-[10px] opacity-80">{formatMoney(cat.totalCents, settings)}</div>
             </button>
           ))}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={addCategory}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)]"
+              data-budget-new-category
+            >
+              <Plus className="w-3 h-3" /> New category
+            </button>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -388,12 +467,16 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
             model={model}
             readOnly={readOnly}
             focusCategoryId={focusCategoryId}
+            filter={rowFilter}
+            onFilterCounts={(shown, total) => setFilterCounts(prev => (prev.shown === shown && prev.total === total ? prev : { shown, total }))}
             onCommit={commitEdits}
             onOpenLine={(line) => setEditingLineId(line.id)}
             onOpenNode={(kind, id) => setEditingNode({ kind, id })}
             onAddAccount={addAccount}
             onQuickAddLine={quickAddLine}
             onQuickAddAccountLine={quickAddAccountLine}
+            onQuickAddLastLine={quickAddLastLine}
+            onBulkAddLines={promptAddLines}
             onDuplicateLine={duplicateLine}
             onDeleteCategory={confirmDeleteCategory}
             onDeleteAccount={confirmDeleteAccount}
@@ -403,6 +486,9 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
           <div className="flex items-center gap-3 px-3 py-1.5 border-t border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-[10px] text-[color:var(--ui-text-muted)] shrink-0">
             <span>Fringes <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.fringeCents, settings)}</strong></span>
             <span>Contingency <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.markupCents, settings)}</strong></span>
+            {rowFilter.trim() && (
+              <span data-budget-filtered className="rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">Filtered</span>
+            )}
             <span className="ml-auto">
               {categoryTotal ? `${categoryTotal.category.name}: ` : 'Grand total: '}
               <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(categoryTotal ? categoryTotal.totalCents : totals.grandTotalCents, settings)}</strong>
@@ -410,6 +496,18 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
           </div>
         </div>
       </div>
+
+      <ContextMenu open={!!railMenu} x={railMenu?.x ?? 0} y={railMenu?.y ?? 0} onClose={() => setRailMenu(null)}>
+        {railMenu?.categoryId && (
+          <>
+            <ContextMenuItem onClick={() => { const id = railMenu.categoryId!; setRailMenu(null); setEditingNode({ kind: 'category', id }); }}>Edit category</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const id = railMenu.categoryId!; setRailMenu(null); addAccount(id); }}>Add account</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const id = railMenu.categoryId!; setRailMenu(null); void confirmDeleteCategory(id); }}>Delete category</ContextMenuItem>
+            <ContextMenuDivider />
+          </>
+        )}
+        <ContextMenuItem icon={<Plus className="w-3.5 h-3.5" />} onClick={() => { setRailMenu(null); addCategory(); }}>New category</ContextMenuItem>
+      </ContextMenu>
 
       {editingNode && (editingCategory || editingAccount) && (
         <BudgetNodeModal

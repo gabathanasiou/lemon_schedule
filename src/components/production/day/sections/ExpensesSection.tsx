@@ -1,24 +1,64 @@
 import React, { useMemo } from 'react';
-import { Plus, Receipt, Wallet } from 'lucide-react';
+import { Plus, Wallet } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import { expensesOfDay, expenseAccountLabel, summarizeExpenses } from '../../../../lib/budget/costReport';
-import { EXPENSE_METHOD_LABELS, EXPENSE_STATUS_LABELS } from '../../../../lib/budget/model';
+import { expensesOfDay, summarizeExpenses } from '../../../../lib/budget/costReport';
+import { makeExpense } from '../../../../lib/budget/model';
 import { formatMoney } from '../../../../lib/budget/format';
+import { ExpensesGrid } from '../../../budget/ExpensesGrid';
 import Button from '../../../Button';
+import { useDialog } from '../../../Dialog';
 
 /**
- * Day Manager → Expenses (roadmap 334 phase 2). Expenses are PROJECT state;
- * this card filters by the day's date/chrono number — it never stores a ledger
- * in `daybreakMeta`. The shared ExpenseModal is root-owned by
- * `DayManagerPage` (`actions.openExpense`).
+ * Day Manager → Expenses (roadmap 334 phase 2, Glide in roadmap 336). Expenses
+ * are PROJECT state; this card filters by the day's date/chrono number — it
+ * never stores a ledger in `daybreakMeta`. Fast entry runs through the SAME
+ * `ExpensesGrid` recipe as the Budget ledger: commit-on-blur cells, a
+ * persistent trash lane and (i) → the shared `ExpenseModal` (root-owned by
+ * `DayManagerPage`, `actions.openExpense`). **Add expense** lands an editable
+ * row WITHOUT opening the modal.
  */
-const ExpensesSection: React.FC<DaySectionProps> = ({ day, project, actions, readOnly }) => {
+const ExpensesSection: React.FC<DaySectionProps> = ({ day, project, dispatch, actions, readOnly }) => {
+  const dialog = useDialog();
   const expenses = useMemo(() => expensesOfDay(project, { date: day.date, chronoDay: day.chronoDay }), [project, day.date, day.chronoDay]);
   const summary = useMemo(() => summarizeExpenses(expenses), [expenses]);
   const settings = project.budget?.settings;
   const hasBudget = !!project.budget;
 
   const openExpense = (id?: string) => actions.openExpense?.(id);
+
+  /** Modal-less quick add: the new row is immediately editable in the grid. */
+  const quickAdd = () => {
+    dispatch({
+      type: 'ADD_EXPENSE',
+      payload: makeExpense({ date: day.date, dayDate: day.date, dayNumber: day.chronoDay, description: 'New expense' }),
+    });
+  };
+
+  const duplicate = (source: (typeof expenses)[number]) => {
+    dispatch({
+      type: 'ADD_EXPENSE',
+      payload: makeExpense({
+        ...source,
+        id: undefined,
+        description: `${source.description} (copy)`,
+        date: day.date,
+        dayDate: day.date,
+        dayNumber: day.chronoDay,
+      }),
+    });
+  };
+
+  const confirmDelete = async (id: string) => {
+    const expense = expenses.find(e => e.id === id);
+    if (!expense) return;
+    const ok = await dialog.confirm({
+      title: 'Delete expense?',
+      message: `“${expense.description}” will be removed. Undo is available.`,
+      danger: true,
+      suppressKey: 'lemon_schedule_expense_delete',
+    });
+    if (ok) dispatch({ type: 'DELETE_EXPENSE', payload: id });
+  };
 
   return (
     <div className="space-y-2" data-expenses-section>
@@ -41,53 +81,32 @@ const ExpensesSection: React.FC<DaySectionProps> = ({ day, project, actions, rea
             ? `${expenses.length} expense${expenses.length === 1 ? '' : 's'}`
             : 'No expenses attributed to this day yet'}
         </span>
-        <Button variant="subtle" onClick={() => openExpense()} disabled={readOnly}>
+        <Button variant="subtle" onClick={quickAdd} disabled={readOnly}>
           <Plus className="w-3 h-3" /> Add expense
         </Button>
       </div>
 
-      {expenses.length === 0 ? (
-        <div className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-5 text-center">
-          <Receipt className="w-4 h-4 mx-auto text-[color:var(--ui-text-disabled)]" />
-          <p className="text-[11px] text-[color:var(--ui-text-faint)] mt-1.5">
-            Expenses added from the Budget tab or a CSV appear here when their day matches this production day.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)]">
-          <table className="w-full border-collapse text-[11px]">
-            <thead className="bg-[var(--ui-panel-bg)] text-[9px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">
-              <tr className="border-b border-[color:var(--ui-border)]">
-                <th className="px-2 py-1.5 text-left font-semibold">Date</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Description</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Account</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Method</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Status</th>
-                <th className="px-2 py-1.5 text-right font-semibold">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map(expense => (
-                <tr
-                  key={expense.id}
-                  onClick={() => openExpense(expense.id)}
-                  className={`border-b border-[color:var(--ui-border)] last:border-b-0 cursor-pointer hover:bg-[var(--ui-item-hover-bg)] ${expense.status === 'void' ? 'opacity-50 line-through' : ''}`}
-                >
-                  <td className="px-2 py-1.5 whitespace-nowrap tabular-nums">{expense.date}</td>
-                  <td className="px-2 py-1.5 text-[color:var(--ui-text-strong)]">
-                    <span className="block truncate max-w-[220px]">{expense.description}</span>
-                    {expense.vendor && <span className="block text-[9px] text-[color:var(--ui-text-faint)] truncate max-w-[220px]">{expense.vendor}</span>}
-                  </td>
-                  <td className="px-2 py-1.5 text-[color:var(--ui-text-muted)] truncate max-w-[180px]">{expenseAccountLabel(project, expense)}</td>
-                  <td className="px-2 py-1.5 text-[color:var(--ui-text-muted)]">{EXPENSE_METHOD_LABELS[expense.method] || expense.method}</td>
-                  <td className="px-2 py-1.5 text-[color:var(--ui-text-muted)]">{EXPENSE_STATUS_LABELS[expense.status] || expense.status}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-medium text-[color:var(--ui-text-strong)]">{formatMoney(expense.amountCents, settings)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] overflow-hidden">
+        <ExpensesGrid
+          project={project}
+          expenses={expenses}
+          readOnly={!!readOnly}
+          fill={false}
+          presenceScope={`day:${day.chronoDay}:expenses`}
+          emptyLabel="No expenses attributed to this day yet — Add expense, or tag one with this date."
+          onOpenExpense={(expense) => openExpense(expense.id)}
+          onDeleteExpense={(expense) => { void confirmDelete(expense.id); }}
+          onDuplicateExpense={duplicate}
+          onCommit={(commits) => {
+            dispatch({ type: 'BATCH_START' });
+            try {
+              for (const commit of commits) dispatch({ type: 'UPDATE_EXPENSE', payload: { id: commit.id, updates: commit.updates } });
+            } finally {
+              dispatch({ type: 'BATCH_COMMIT' });
+            }
+          }}
+        />
+      </div>
 
       {expenses.length > 0 && (
         <div className="flex items-center gap-3 text-[10px] text-[color:var(--ui-text-muted)]">

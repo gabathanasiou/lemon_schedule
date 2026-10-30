@@ -1,5 +1,8 @@
 import React from 'react';
 import { ChevronDown, Download, FileUp, Plus, Receipt, RotateCcw } from 'lucide-react';
+import { SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
+import { DayPickerList } from '../production/day/DayPicker';
 import type { Expense, Project } from '../../types';
 import { useProject } from '../../store';
 import { useDayViews } from '../../lib/dayView';
@@ -47,7 +50,6 @@ export function ExpensesView({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [statusOpen, setStatusOpen] = React.useState(false);
   const [methodOpen, setMethodOpen] = React.useState(false);
-  const [accountOpen, setAccountOpen] = React.useState(false);
   const [dayOpen, setDayOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
@@ -55,6 +57,16 @@ export function ExpensesView({
   const categories = project.budget?.categories || [];
   const settings = project.budget?.settings;
   const selectedDay = days.find(d => String(d.sectionIndex) === dayId);
+  const accountItems = React.useMemo<SearchMenuItem[]>(() => accounts.map(account => ({
+    id: account.id,
+    label: `${account.number} ${account.name}`.trim(),
+    group: account.categoryId,
+  })), [accounts]);
+  const accountGroups = React.useMemo<SearchMenuGroup[]>(() => categories.map(category => ({
+    key: category.id,
+    label: `${category.number} ${category.name}`.trim(),
+    count: accounts.filter(a => a.categoryId === category.id).length,
+  })), [accounts, categories]);
 
   const filtered = React.useMemo(() => {
     const list = (project.expenses || []).filter(expense => {
@@ -200,51 +212,41 @@ export function ExpensesView({
             </DropdownItem>
           ))}
         </DropdownMenu>
-        <DropdownMenu
-          open={accountOpen}
-          onOpenChange={setAccountOpen}
-          width="w-72"
+        {/* Account filter = the shared catalogue picker (roadmap 344): a
+            morph trigger + accordion categories, never an always-inline search
+            box inside a menu. */}
+        <SearchMenu
+          mode="expandable"
           theme="light"
-          searchable
-          searchPlaceholder="Search accounts…"
-          trigger={<Button theme="light"><span className="max-w-[160px] truncate">{accountLabel}</span><ChevronDown className="w-3 h-3" /></Button>}
-        >
-          <DropdownItem onClick={() => { setAccountOpen(false); setAccountKey('all'); }} icon={accountKey === 'all' ? <span className="text-[10px]">✓</span> : undefined} group="All">All accounts</DropdownItem>
-          <DropdownItem onClick={() => { setAccountOpen(false); setAccountKey('none'); }} icon={accountKey === 'none' ? <span className="text-[10px]">✓</span> : undefined} group="All">Unallocated</DropdownItem>
-          {accounts.map(account => {
-            const category = categories.find(c => c.id === account.categoryId);
-            return (
-              <DropdownItem
-                key={account.id}
-                group={category ? `${category.number} ${category.name}`.trim() : 'Accounts'}
-                onClick={() => { setAccountOpen(false); setAccountKey(account.id); }}
-                icon={accountKey === account.id ? <span className="text-[10px]">✓</span> : undefined}
-              >
-                {account.number} {account.name}
-              </DropdownItem>
-            );
-          })}
-        </DropdownMenu>
+          triggerVariant="outline"
+          triggerLabel={accountLabel}
+          placeholder="Search accounts…"
+          items={accountItems}
+          groups={accountGroups}
+          expandableGroups
+          groupExpandMode="single"
+          selectedId={accountKey !== 'all' && accountKey !== 'none' ? accountKey : undefined}
+          leadingActions={[
+            { label: 'All accounts', onClick: () => setAccountKey('all') },
+            { label: 'Unallocated', onClick: () => setAccountKey('none') },
+          ]}
+          onSelect={(item) => setAccountKey(item.id)}
+        />
+        {/* Day filter = the shared day list (roadmap 344), never a bespoke
+            day menu: weeks group the days and “All days” is the leading row. */}
         <DropdownMenu
           open={dayOpen}
           onOpenChange={setDayOpen}
           width="w-64"
           theme="light"
-          searchable
-          searchPlaceholder="Search days…"
           trigger={<Button theme="light"><span className="max-w-[160px] truncate">{dayLabel}</span><ChevronDown className="w-3 h-3" /></Button>}
         >
-          <DropdownItem onClick={() => { setDayOpen(false); setDayId('all'); }} icon={dayId === 'all' ? <span className="text-[10px]">✓</span> : undefined}>All days</DropdownItem>
-          <DropdownDivider />
-          {days.map(day => (
-            <DropdownItem
-              key={String(day.sectionIndex)}
-              onClick={() => { setDayOpen(false); setDayId(String(day.sectionIndex)); }}
-              icon={dayId === String(day.sectionIndex) ? <span className="text-[10px]">✓</span> : undefined}
-            >
-              DAY {day.chronoDay} · {formatDateShort(day.date)}
-            </DropdownItem>
-          ))}
+          <DayPickerList
+            options={days.map(day => ({ sectionIndex: day.sectionIndex, chronoDay: day.chronoDay, date: day.date }))}
+            selectedIndex={dayId === 'all' ? -1 : Number(dayId)}
+            onSelect={(index) => { setDayOpen(false); setDayId(String(index)); }}
+            allLabel="All days"
+          />
         </DropdownMenu>
         {hasFilters && (
           <Button variant="subtle" theme="light" onClick={clearFilters} title="Clear filters">

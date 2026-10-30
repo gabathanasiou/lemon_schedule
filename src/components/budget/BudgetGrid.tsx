@@ -3,7 +3,8 @@ import type { GridCell } from '@glideapps/glide-data-grid';
 import {
   InlineGlideTable, type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction,
 } from '../InlineGlideTable';
-import { textCell } from '../../lib/glideCells';
+import { textCell, disclosureGlyphCell } from '../../lib/glideCells';
+import { buildBudgetRows, collapseBudgetRows, filterBudgetRows, type BudgetGridRow } from '../../lib/budget/gridRows';
 import { formatMoney } from '../../lib/budget/format';
 import type { BudgetModel, ComputedBudgetLine } from '../../lib/budget/calc';
 import type { BudgetLine, BudgetSettings } from '../../types';
@@ -17,25 +18,8 @@ export interface BudgetGridCommit {
   value: string;
 }
 
-type RowKind = 'category' | 'account' | 'line' | 'markup';
-
-interface BudgetRow extends Record<string, string> {
-  key: string;
-  kind: RowKind;
-  id: string;
-  item: string;
-  qty: string;
-  unit: string;
-  rate: string;
-  x: string;
-  cur: string;
-  curSymbol: string;
-  fringes: string;
-  groups: string;
-  total: string;
-}
-
 const COLUMNS: InlineGlideColumn[] = [
+  { key: 'disclosure', label: '', width: 22 },
   { key: 'item', label: 'Account / Description', width: 300 },
   { key: 'qty', label: 'Qty', width: 54, align: 'center' },
   { key: 'unit', label: 'Unit', width: 68, align: 'center' },
@@ -53,13 +37,10 @@ const ACCOUNT_BG = '#f6f6f7';
 const STRONG_TEXT = '#18181b';
 const ACCOUNT_TEXT = '#3f3f46';
 
-function itemLabel(number: string | undefined, name: string): string {
-  return number ? `${number}  ${name}` : name;
-}
-
-function lineTotalLabel(line: ComputedBudgetLine, settings: BudgetSettings): string {
-  return formatMoney(line.localTotalCents, { ...settings, currencySymbol: line.currencySymbol });
-}
+/** Collapse state is VIEW-ONLY and per session: module-level so a day/tab
+ *  switch (the view unmounting) keeps it, never project/undo/presence state. */
+const COLLAPSED_CATEGORIES = new Set<string>();
+const COLLAPSED_ACCOUNTS = new Set<string>();
 
 /**
  * The editable budget detail sheet — the shared `InlineGlideTable` recipe with
@@ -68,21 +49,30 @@ function lineTotalLabel(line: ComputedBudgetLine, settings: BudgetSettings): str
  * fringes, groups); there is no second grid engine.
  */
 export function BudgetGrid({
-  model, readOnly, focusCategoryId,
-  onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onDuplicateLine,
+  model, readOnly, focusCategoryId, filter, onFilterCounts,
+  onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine,
+  onBulkAddLines, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
 }: {
   model: BudgetModel;
   readOnly: boolean;
   focusCategoryId: string | null;
+  /** Display-only row filter (roadmap 342) — comma tags AND-match. */
+  filter: string;
+  /** Reports visible (filtered) vs all sheet rows for the toolbar count. */
+  onFilterCounts?: (shown: number, total: number) => void;
   onCommit: (commits: BudgetGridCommit[]) => void;
   onOpenLine: (line: BudgetLine) => void;
   onOpenNode: (kind: 'category' | 'account', id: string) => void;
   onAddAccount: (categoryId: string) => void;
-  /** Category row "+": add a line directly (no modal). */
-  onQuickAddLine: (categoryId: string) => void;
-  /** Account row context "Add line": add directly (no modal). */
-  onQuickAddAccountLine: (accountId: string) => void;
+  /** Category row "+": add a line directly (no modal). Returns the line id. */
+  onQuickAddLine: (categoryId: string) => string | null;
+  /** Account row context "Add line": add directly (no modal). Returns the line id. */
+  onQuickAddAccountLine: (accountId: string) => string;
+  /** Shift+Enter with nothing focused: append to the sheet's last account. */
+  onQuickAddLastLine: () => string | null;
+  /** Context-menu "Add line…": ask a count, create N lines in one batch. */
+  onBulkAddLines: (kind: 'category' | 'account', id: string) => void;
   onDuplicateLine: (lineId: string) => void;
   onDeleteCategory: (id: string) => void;
   onDeleteAccount: (id: string) => void;
@@ -95,61 +85,45 @@ export function BudgetGrid({
   const groups = model.budget.groups || [];
   const settings = model.settings;
 
-  const unitName = React.useCallback((id: string) => units.find(u => u.id === id)?.name || '', [units]);
-  const namesById = React.useCallback((ids: string[] | undefined, list: { id: string; name: string }[]) =>
-    (ids || []).map(id => list.find(x => x.id === id)?.name || '').filter(Boolean).join(', '), []);
+  /** View-only disclosure state lives in the module sets; this revision bump
+   *  re-renders the flattened rows (never a project/undo write). */
+  const [viewRev, bumpView] = React.useReducer((x: number) => x + 1, 0);
+  const toggleCategory = React.useCallback((id: string) => {
+    if (COLLAPSED_CATEGORIES.has(id)) COLLAPSED_CATEGORIES.delete(id);
+    else COLLAPSED_CATEGORIES.add(id);
+    bumpView();
+  }, []);
+  const toggleAccount = React.useCallback((id: string) => {
+    if (COLLAPSED_ACCOUNTS.has(id)) COLLAPSED_ACCOUNTS.delete(id);
+    else COLLAPSED_ACCOUNTS.add(id);
+    bumpView();
+  }, []);
 
-  const rows = React.useMemo<BudgetRow[]>(() => {
-    const out: BudgetRow[] = [];
-    for (const cat of model.categories) {
-      if (focusCategoryId && cat.category.id !== focusCategoryId) continue;
-      out.push({
-        key: `cat:${cat.category.id}`, kind: 'category', id: cat.category.id,
-        item: itemLabel(cat.category.number, cat.category.name),
-        qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
-        fringes: formatMoney(cat.fringeCents, settings),
-        groups: '',
-        total: formatMoney(cat.totalCents, settings),
-      });
-      for (const acc of cat.accounts) {
-        out.push({
-          key: `acc:${acc.account.id}`, kind: 'account', id: acc.account.id,
-          item: itemLabel(acc.account.number, acc.account.name),
-          qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '',
-          fringes: formatMoney(acc.fringeCents, settings),
-          groups: '',
-          total: formatMoney(acc.totalCents, settings),
-        });
-        for (const line of acc.lines) {
-          out.push({
-            key: `line:${line.line.id}`, kind: 'line', id: line.line.id,
-            item: line.line.description,
-            qty: String(line.qty),
-            unit: unitName(line.line.unit),
-            rate: (line.rateCents / 100).toFixed(2),
-            x: String(line.multiplier),
-            cur: line.currency,
-            curSymbol: line.currencySymbol,
-            fringes: namesById(line.line.fringes, fringes),
-            groups: namesById(line.line.groups, groups),
-            total: lineTotalLabel(line, settings),
-          });
-        }
-      }
-    }
-    for (const markup of model.markups) {
-      const signed = markup.sign * markup.cents;
-      out.push({
-        key: `markup:${markup.markup.id}`, kind: 'markup', id: markup.markup.id,
-        item: `${markup.markup.name} — ${markup.markup.calc === 'percent' ? `${markup.markup.percent || 0}%` : 'flat'}`,
-        qty: '', unit: '', rate: '', x: '', cur: '', curSymbol: '', fringes: '', groups: '',
-        total: formatMoney(signed, settings),
-      });
-    }
-    return out;
-  }, [model, focusCategoryId, settings, unitName, namesById]);
+  /** One builder feeds the grid + the filter (`lib/budget/gridRows.ts`). */
+  const allRows = React.useMemo(
+    () => buildBudgetRows(model, focusCategoryId, settings),
+    [model, focusCategoryId, settings],
+  );
+  const filteredRows = React.useMemo(() => filterBudgetRows(allRows, filter), [allRows, filter]);
+  const rows = React.useMemo(
+    () => collapseBudgetRows(filteredRows, COLLAPSED_CATEGORIES, COLLAPSED_ACCOUNTS),
+    // viewRev is the mutation signal for the module-level collapse sets.
+    [filteredRows, viewRev],
+  );
+  const onFilterCountsRef = React.useRef(onFilterCounts);
+  onFilterCountsRef.current = onFilterCounts;
+  React.useEffect(() => {
+    onFilterCountsRef.current?.(filteredRows.length, allRows.length);
+  }, [filteredRows.length, allRows.length]);
 
   const rowMeta = React.useMemo(() => new Map(rows.map((r, i) => [i, r])), [rows]);
+
+  /** line id → its account id (Shift+Enter on a line row adds beside it). */
+  const accountByLineId = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const cat of model.categories) for (const acc of cat.accounts) for (const line of acc.lines) map.set(line.line.id, acc.account.id);
+    return map;
+  }, [model]);
 
   const commit = React.useCallback((edits: InlineGlideEdit[]) => {
     const commits: BudgetGridCommit[] = [];
@@ -183,12 +157,42 @@ export function BudgetGrid({
     },
   }), [units, currencies, fringes, groups]);
 
+  /** Per-line fringe editor (roadmap 338): every item's `detail` is the
+   *  canonical computed contribution for THIS line (`computeBudget` →
+   *  `computedLine.fringes[].cents`) plus the library definition. Never a
+   *  re-derived fringe amount. */
+  const computedByLineId = React.useMemo(() => {
+    const map = new Map<string, ComputedBudgetLine>();
+    for (const cat of model.categories) for (const acc of cat.accounts) for (const l of acc.lines) map.set(l.line.id, l);
+    return map;
+  }, [model]);
+  const getEditorCfg = React.useCallback((rowIndex: number, colKey: string) => {
+    if (colKey !== 'fringes') return undefined;
+    const row = rowMeta.get(rowIndex);
+    if (!row || row.kind !== 'line') return undefined;
+    const centsById = new Map((computedByLineId.get(row.id)?.fringes || []).map(f => [f.id, f.cents]));
+    return {
+      kind: 'entity' as const,
+      mode: 'multi' as const,
+      displayMode: 'name' as const,
+      allowFreeText: true,
+      placeholder: 'Fringes',
+      items: fringes.map(f => {
+        const cents = centsById.get(f.id);
+        const def = f.calc === 'percent'
+          ? `${f.percent || 0}%`
+          : f.calc === 'fixedPerUnit' ? `${formatMoney(f.amountCents || 0, settings)}/unit` : formatMoney(f.amountCents || 0, settings);
+        return { id: f.id, name: f.name, detail: `${cents != null ? `+ ${formatMoney(cents, settings)}` : '—'} · ${def}` };
+      }),
+    };
+  }, [rowMeta, computedByLineId, fringes, settings]);
+
   /** The (i) action + the same actions as right-click items. */
-  const actionsFor = React.useCallback((row: BudgetRow): { label: string; run: () => void; danger?: boolean }[] => {
+  const actionsFor = React.useCallback((row: BudgetGridRow): { label: string; run: () => void; danger?: boolean }[] => {
     if (readOnly) return [];
     if (row.kind === 'category') {
       return [
-        { label: 'Add line', run: () => onQuickAddLine(row.id) },
+        { label: 'Add line…', run: () => onBulkAddLines('category', row.id) },
         { label: 'Edit category', run: () => onOpenNode('category', row.id) },
         { label: 'Add account', run: () => onAddAccount(row.id) },
         { label: 'Delete category', run: () => onDeleteCategory(row.id), danger: true },
@@ -196,7 +200,7 @@ export function BudgetGrid({
     }
     if (row.kind === 'account') {
       return [
-        { label: 'Add line', run: () => onQuickAddAccountLine(row.id) },
+        { label: 'Add line…', run: () => onBulkAddLines('account', row.id) },
         { label: 'Edit account', run: () => onOpenNode('account', row.id) },
         { label: 'Delete account', run: () => onDeleteAccount(row.id), danger: true },
       ];
@@ -212,14 +216,72 @@ export function BudgetGrid({
       ];
     }
     return [{ label: 'Delete markup', run: () => onDeleteMarkup(row.id), danger: true }];
-  }, [readOnly, model, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
+  }, [readOnly, model, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup, onBulkAddLines]);
 
+  /** The (i) glyph is INSPECT/EDIT only (roadmap 335): its target is explicit
+   *  per row kind, never the first context-menu action. Category/account rows
+   *  open their node editor, line rows open the line editor; markup rows have
+   *  no editor. Quick-add lives on the + glyph and the right-click menu. */
   const rowInfo = React.useCallback((rowIndex: number) => {
     const row = rowMeta.get(rowIndex);
-    if (!row || row.kind === 'markup') return null;
-    const first = actionsFor(row)[0];
-    return first ? { title: first.label, onClick: first.run } : null;
-  }, [rowMeta, actionsFor]);
+    if (!row) return null;
+    if (row.kind === 'category') return { title: 'Edit category', onClick: () => onOpenNode('category', row.id) };
+    if (row.kind === 'account') return { title: 'Edit account', onClick: () => onOpenNode('account', row.id) };
+    if (row.kind === 'line') {
+      const line = model.categories.flatMap(c => c.accounts).flatMap(a => a.lines).find(l => l.line.id === row.id)?.line;
+      return line ? { title: 'Line details', onClick: () => onOpenLine(line) } : null;
+    }
+    return null;
+  }, [rowMeta, model, onOpenNode, onOpenLine]);
+
+  /** Shift+Enter (roadmap 337): add a line in the focused row's context (its
+   *  account), or append to the sheet when nothing is focused. Returns the new
+   *  row key so the grid can move the selection onto it. */
+  const addRowFrom = React.useCallback((rowIndex: number | null): string | null => {
+    if (readOnly) return null;
+    const row = rowIndex == null ? undefined : rowMeta.get(rowIndex);
+    if (row?.kind === 'category') {
+      const id = onQuickAddLine(row.id);
+      return id ? `line:${id}` : null;
+    }
+    if (row?.kind === 'account') return `line:${onQuickAddAccountLine(row.id)}`;
+    if (row?.kind === 'line') {
+      const accountId = accountByLineId.get(row.id);
+      return accountId ? `line:${onQuickAddAccountLine(accountId)}` : null;
+    }
+    const id = onQuickAddLastLine();
+    return id ? `line:${id}` : null;
+  }, [rowMeta, accountByLineId, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine]);
+
+  /** Left/Right on a band's disclosure (or its name cell) collapses/expands
+   *  that band (roadmap 340) — view-only state, also live in read-only. */
+  const cellKeyDown = React.useCallback((rowIndex: number, colKey: string, key: string): boolean => {
+    if (key !== 'ArrowLeft' && key !== 'ArrowRight') return false;
+    if (colKey !== 'disclosure' && colKey !== 'item') return false;
+    const row = rowMeta.get(rowIndex);
+    if (!row) return false;
+    if (row.kind === 'category') {
+      const collapsed = COLLAPSED_CATEGORIES.has(row.id);
+      if (key === 'ArrowRight' && collapsed) toggleCategory(row.id);
+      else if (key === 'ArrowLeft' && !collapsed) toggleCategory(row.id);
+      return true;
+    }
+    if (row.kind === 'account') {
+      const collapsed = COLLAPSED_ACCOUNTS.has(row.id);
+      if (key === 'ArrowRight' && collapsed) toggleAccount(row.id);
+      else if (key === 'ArrowLeft' && !collapsed) toggleAccount(row.id);
+      return true;
+    }
+    return false;
+  }, [rowMeta, toggleCategory, toggleAccount]);
+
+  const rowTheme = React.useCallback((rowIndex: number) => {
+    const row = rowMeta.get(rowIndex);
+    if (!row) return undefined;
+    if (row.kind === 'category') return { bgCell: CATEGORY_BG, textDark: STRONG_TEXT, textMedium: STRONG_TEXT, textLight: STRONG_TEXT };
+    if (row.kind === 'account') return { bgCell: ACCOUNT_BG, textDark: ACCOUNT_TEXT, textMedium: ACCOUNT_TEXT, textLight: ACCOUNT_TEXT };
+    return undefined;
+  }, [rowMeta]);
 
   /** Persistent trash column — every deletable row gets its own glyph. */
   const rowActions = React.useCallback((rowIndex: number): InlineGlideRowAction[] => {
@@ -255,22 +317,32 @@ export function BudgetGrid({
     );
   }, [rowMeta, actionsFor]);
 
-  const getCellContent = React.useCallback((col: InlineGlideColumn, row: BudgetRow): GridCell => {
+  const getCellContent = React.useCallback((col: InlineGlideColumn, row: BudgetGridRow): GridCell => {
     const kind = row.kind;
     const isHeader = kind === 'category' || kind === 'account';
     const editable = !readOnly && kind === 'line' && EDITABLE.has(col.key);
     switch (col.key) {
+      case 'disclosure':
+        if (kind === 'category') {
+          return disclosureGlyphCell({
+            expanded: !COLLAPSED_CATEGORIES.has(row.id),
+            label: `${COLLAPSED_CATEGORIES.has(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
+            onActivate: () => toggleCategory(row.id),
+          });
+        }
+        if (kind === 'account') {
+          return disclosureGlyphCell({
+            expanded: !COLLAPSED_ACCOUNTS.has(row.id),
+            label: `${COLLAPSED_ACCOUNTS.has(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
+            onActivate: () => toggleAccount(row.id),
+          });
+        }
+        return textCell('', { readonly: true, allowOverlay: false });
       case 'item':
         return textCell(row.item, {
           readonly: !editable,
           align: 'left',
-          themeOverride: kind === 'category'
-            ? { bgCell: CATEGORY_BG, textDark: STRONG_TEXT, textMedium: STRONG_TEXT, textLight: STRONG_TEXT }
-            : kind === 'account'
-              ? { bgCell: ACCOUNT_BG, textDark: ACCOUNT_TEXT, textMedium: ACCOUNT_TEXT, textLight: ACCOUNT_TEXT }
-              : kind === 'markup'
-                ? { textDark: '#71717a', textLight: '#71717a' }
-                : undefined,
+          themeOverride: kind === 'markup' ? { textDark: '#71717a', textLight: '#71717a' } : undefined,
         });
       case 'qty':
         return textCell(row.qty, { readonly: !editable, align: 'center' });
@@ -286,11 +358,11 @@ export function BudgetGrid({
       case 'groups':
         return textCell(row[col.key], { readonly: !editable });
       case 'total':
-        return textCell(row.total, { readonly: true, align: 'right', themeOverride: kind === 'category' ? { bgCell: CATEGORY_BG } : kind === 'account' ? { bgCell: ACCOUNT_BG } : undefined });
+        return textCell(row.total, { readonly: true, align: 'right' });
       default:
         return textCell(row[col.key] ?? '', { readonly: true });
     }
-  }, [readOnly, settings]);
+  }, [readOnly, settings, toggleCategory, toggleAccount]);
 
   if (model.categories.length === 0) {
     return (
@@ -304,7 +376,7 @@ export function BudgetGrid({
   }
 
   return (
-    <div className="flex-1 overflow-auto scrollbar-custom" data-budget-grid>
+    <div className="flex-1 min-h-0 flex flex-col" data-budget-grid>
       <InlineGlideTable
         columns={COLUMNS}
         rows={rows}
@@ -314,8 +386,13 @@ export function BudgetGrid({
         readOnly={readOnly}
         rowActions={rowActions}
         rowInfo={rowInfo}
+        rowThemeOverride={rowTheme}
+        heightMode="fill"
         rowMenuItems={rowMenuItems}
+        onAddRow={addRowFrom}
+        onCellKeyDown={cellKeyDown}
         editors={editors}
+        getEditor={getEditorCfg}
         baseRowHeight={26}
         baseHeaderHeight={30}
         presenceScope="budget:detail"

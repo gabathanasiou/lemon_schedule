@@ -1,5 +1,5 @@
 import type {
-  Budget, BudgetAccount, BudgetCategory, BudgetFringe, BudgetGlobal,
+  Budget, BudgetAccount, BudgetCategory, BudgetCurrency, BudgetFringe, BudgetGlobal,
   BudgetGroup, BudgetLine, BudgetMarkup, BudgetSettings, BudgetUnit,
   BudgetVersion, BudgetVersionTrashItem, Expense, ExpenseMethod, ExpenseStatus,
   Project, PurchaseOrder, PurchaseOrderStatus,
@@ -33,13 +33,65 @@ export const DEFAULT_BUDGET_UNITS: BudgetUnit[] = [
   { id: 'unit-percent', name: '%', plural: '%', type: 'percent' },
 ];
 
-export const DEFAULT_BUDGET_CURRENCIES = [
+export const DEFAULT_BUDGET_CURRENCIES: BudgetCurrency[] = [
   { code: 'USD', symbol: '$', rateToBase: 1 },
   // No default rate: converting a foreign line without a rate is a warning, not
-  // a silent 1:1 (docs/BUDGETING.md §1).
+  // a silent 1:1 (docs/BUDGETING.md §1). "Sync rates" fills them in (roadmap 341).
   { code: 'EUR', symbol: '€', rateToBase: undefined },
   { code: 'GBP', symbol: '£', rateToBase: undefined },
+  { code: 'CAD', symbol: 'CA$', rateToBase: undefined },
+  { code: 'AUD', symbol: 'A$', rateToBase: undefined },
+  { code: 'NZD', symbol: 'NZ$', rateToBase: undefined },
+  { code: 'JPY', symbol: '¥', rateToBase: undefined },
+  { code: 'CNY', symbol: 'CN¥', rateToBase: undefined },
+  { code: 'HKD', symbol: 'HK$', rateToBase: undefined },
+  { code: 'SGD', symbol: 'S$', rateToBase: undefined },
+  { code: 'INR', symbol: '₹', rateToBase: undefined },
+  { code: 'KRW', symbol: '₩', rateToBase: undefined },
+  { code: 'CHF', symbol: 'CHF', rateToBase: undefined },
+  { code: 'SEK', symbol: 'kr', rateToBase: undefined },
+  { code: 'NOK', symbol: 'kr', rateToBase: undefined },
+  { code: 'DKK', symbol: 'kr', rateToBase: undefined },
+  { code: 'PLN', symbol: 'zł', rateToBase: undefined },
+  { code: 'CZK', symbol: 'Kč', rateToBase: undefined },
+  { code: 'HUF', symbol: 'Ft', rateToBase: undefined },
+  { code: 'RON', symbol: 'lei', rateToBase: undefined },
+  { code: 'TRY', symbol: '₺', rateToBase: undefined },
+  { code: 'BRL', symbol: 'R$', rateToBase: undefined },
+  { code: 'MXN', symbol: 'MX$', rateToBase: undefined },
+  { code: 'ZAR', symbol: 'R', rateToBase: undefined },
+  { code: 'AED', symbol: 'AED', rateToBase: undefined },
+  { code: 'SAR', symbol: 'SAR', rateToBase: undefined },
+  { code: 'ILS', symbol: '₪', rateToBase: undefined },
+  { code: 'THB', symbol: '฿', rateToBase: undefined },
+  { code: 'MYR', symbol: 'RM', rateToBase: undefined },
+  { code: 'IDR', symbol: 'Rp', rateToBase: undefined },
+  { code: 'PHP', symbol: '₱', rateToBase: undefined },
+  { code: 'TWD', symbol: 'NT$', rateToBase: undefined },
 ];
+
+/** Currency rows a budget should have: the defaults, keeping any existing row
+ *  (and its hand-edited symbol/rate) by code (roadmap 341 — additive only). */
+export function mergeDefaultCurrencies(existing: BudgetCurrency[] | undefined): BudgetCurrency[] {
+  const byCode = new Map((existing || []).map(c => [c.code.toUpperCase(), c]));
+  for (const def of DEFAULT_BUDGET_CURRENCIES) {
+    if (!byCode.has(def.code)) byCode.set(def.code, { ...def });
+  }
+  return [...byCode.values()];
+}
+
+/** The selected currency's symbol — the ONE derived value for
+ *  `BudgetSettings.currencySymbol` (never a second editable source). */
+export function currencySymbolFor(code: string, currencies: BudgetCurrency[] | undefined): string {
+  const hit = (currencies || []).find(c => c.code.toUpperCase() === code.toUpperCase());
+  return hit?.symbol || hit?.code || code || DEFAULT_BUDGET_SETTINGS.currencySymbol || '$';
+}
+
+/** Settings after picking a base currency: derive the symbol in the same
+ *  write so formatting never reads a stale one (roadmap 341). */
+export function settingsWithCurrency(settings: BudgetSettings, code: string, currencies: BudgetCurrency[] | undefined): BudgetSettings {
+  return { ...settings, currency: code, currencySymbol: currencySymbolFor(code, currencies) };
+}
 
 export const DEFAULT_BUDGET_GROUPS: BudgetGroup[] = [
   { id: 'grp-atl', name: 'Above the Line', color: '#2563eb', inBudget: true },
@@ -296,6 +348,10 @@ export function migrateBudget(project: { budget?: Budget }): boolean {
   ensure('globals', []);
   ensure('units', DEFAULT_BUDGET_UNITS.map(u => ({ ...u })));
   ensure('currencies', DEFAULT_BUDGET_CURRENCIES.map(c => ({ ...c })));
+  // Additive currency seed (roadmap 341): keep hand-edited rows/rates and add
+  // any default code the saved budget predates.
+  const mergedCurrencies = mergeDefaultCurrencies(b.currencies);
+  if (mergedCurrencies.length !== (b.currencies || []).length) { b.currencies = mergedCurrencies; changed = true; }
   ensure('markups', []);
   ensure('versionTrash', []);
   if (!b.settings) { b.settings = { ...DEFAULT_BUDGET_SETTINGS }; changed = true; }

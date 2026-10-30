@@ -308,7 +308,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={cfg.seedValue ?? currentVal} initialQuery={initialValue} resolveEditing={cfg.resolveEditing} allowFreeText={cfg.allowFreeText} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipLeadingComma} selectAllOnOpen={selectOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow style={{ height: '100%', display: 'flex', alignItems: 'center' }} />;
+        return <EntityDropdown value={cfg.seedValue ?? currentVal} initialQuery={initialValue} resolveEditing={cfg.resolveEditing} allowFreeText={cfg.allowFreeText} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipLeadingComma} selectAllOnOpen={selectOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} browse={cfg.browse} autoGrow style={align && align !== 'left' ? { textAlign: align } : undefined} />;
       };
       components.set(colKey, Editor);
     }
@@ -356,10 +356,12 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const { Editor, box } = editorFor(colKey);
     box.current = { cfg: editorCfg ?? null, align: colDef.align, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current, seed, customPicker: isKitPicker };
     // Plain text (and time, whose desktop arm IS the stock text entry) keeps
-    // Glide's default overlay chrome (padding); entity/enum editors bring
-    // their own trigger + panel styling.
+    // Glide's default overlay chrome (padding); entity/enum editors use the
+    // SAME padded box (roadmap 347) so the popout text sits exactly where the
+    // cell's canvas text does — never a `disablePadding` full-bleed editor that
+    // drifts a few pixels off the cell's margins/sizing.
     if (!editorCfg || editorCfg.kind === 'text' || editorCfg.kind === 'time') return { editor: Editor };
-    return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
+    return { editor: Editor, styleOverride: { overflow: 'visible' } };
   };
 }
 

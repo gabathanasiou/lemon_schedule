@@ -296,7 +296,7 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Open phase-2 follow-ups (roadmap 335-348)
+### Phase-2 follow-ups (roadmap 335-347 SHIPPED; 348 open)
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
   (category/account → node modal, line → line modal), not context-menu-first.
 - **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the day filter, summary, CTA and read-only rules.
@@ -312,8 +312,9 @@ fields), `API.md`, roadmap.
 - **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; reuse `CardSection`/`DaySectionCard`, `DayPicker`, `SearchMenu` — no bespoke rewrites.
 - **345** Glide status cells: one shared status→tone map painting `bgCell` + text (expenses first), label always visible; editable tint is the explicit white-cell exception.
 - **346** Formula book/autocomplete: plain-text `FormulaField` (not RichTextEditor), shared symbol/function registry, searchable book + caret insert; safe v1 functions; no cross-line refs.
+- **347** Glide open-editor geometry: picker overlays use Glide's cell padding so every popout matches the cell's margins/size (shared `createGlideCellEditor`).
 - **348** Schedule review sync: pure diff (add/update/remove/keep/check) grouped category → account → department; “X updates” modal with before/after totals and per-row apply, one batch; never rates/chart/manual lines; locked/read-only refuse.
-Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
+Silent-break cases live in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual.
 ---
 
 ## Phase 3 — Overtime

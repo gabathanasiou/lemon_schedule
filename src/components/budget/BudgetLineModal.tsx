@@ -7,6 +7,8 @@ import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import Button from '../Button';
 import { BudgetInput, MoneyField, NumberField } from './fields';
+import { FormulaField } from './FormulaField';
+import { buildFormulaBook } from '../../lib/budget/formulaBook';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { formatMoney } from '../../lib/budget/format';
@@ -105,11 +107,21 @@ export function BudgetLineModal({
   const unitItems: PickerItem[] = units.map(u => ({ id: u.id, label: `${u.name}${u.hours ? ` (${u.hours}h)` : ''}` }));
   const currencyItems: PickerItem[] = currencies.map(c => ({ id: c.code, label: c.symbol ? `${c.symbol} ${c.code}` : c.code }));
   const groupItems = groups.map(g => ({ id: g.id, label: g.name }));
-  const fringeItems = fringes.map(f => ({
-    id: f.id,
-    label: f.name,
-    secondary: f.calc === 'percent' ? `${f.percent || 0}%` : formatMoney(f.amountCents || 0, model.settings),
-  }));
+  const formulaEntries = React.useMemo(
+    () => buildFormulaBook(model.globals, model.budget.globals),
+    [model.globals, model.budget.globals],
+  );
+  const fringeItems = fringes.map(f => {
+    const contribution = computed?.fringes.find(x => x.id === f.id)?.cents;
+    const definition = f.calc === 'percent' ? `${f.percent || 0}%` : formatMoney(f.amountCents || 0, model.settings);
+    return {
+      id: f.id,
+      label: f.name,
+      // Roadmap 338: the canonical computed contribution for THIS line, never
+      // a re-derived fringe amount.
+      secondary: contribution != null ? `+ ${formatMoney(contribution, model.settings)} · ${definition}` : `${definition} · —`,
+    };
+  });
 
   return (
     <Modal
@@ -307,16 +319,16 @@ export function BudgetLineModal({
         <Section title="Formula overrides (advanced)">
           <div className="space-y-2">
             <Field label="Qty formula">
-              <BudgetInput value={line.qtyFormula || ''} onCommit={v => onUpdate({ qtyFormula: v || undefined })} readOnly={readOnly} placeholder="e.g. SHOOT_DAYS * 2" />
+              <FormulaField value={line.qtyFormula || ''} onCommit={v => onUpdate({ qtyFormula: v || undefined })} entries={formulaEntries} readOnly={readOnly} ariaLabel="Qty formula" placeholder="e.g. SHOOT_DAYS * 2" />
             </Field>
             <Field label="Rate formula">
-              <BudgetInput value={line.rateFormula || ''} onCommit={v => onUpdate({ rateFormula: v || undefined })} readOnly={readOnly} placeholder="e.g. PREP_WEEKS * 5000" />
+              <FormulaField value={line.rateFormula || ''} onCommit={v => onUpdate({ rateFormula: v || undefined })} entries={formulaEntries} readOnly={readOnly} ariaLabel="Rate formula" placeholder="e.g. PREP_WEEKS * 5000" />
             </Field>
             <Field label="X formula">
-              <BudgetInput value={line.multiplierFormula || ''} onCommit={v => onUpdate({ multiplierFormula: v || undefined })} readOnly={readOnly} placeholder="e.g. 1 + 0.1" />
+              <FormulaField value={line.multiplierFormula || ''} onCommit={v => onUpdate({ multiplierFormula: v || undefined })} entries={formulaEntries} readOnly={readOnly} ariaLabel="X formula" placeholder="e.g. 1 + 0.1" />
             </Field>
             <p className="text-[10px] text-[color:var(--ui-text-faint)]">
-              Globals: SHOOT_DAYS, PREP_DAYS, PREP_WEEKS, WRAP_DAYS, WRAP_WEEKS, POST_WEEKS, TOTAL_WEEKS plus your own from the Library.
+              Type to autocomplete, or open the book. Functions: ROUND, MIN, MAX, ABS, CLAMP. Error codes show on the line; unknown names are #REF!.
             </p>
           </div>
         </Section>

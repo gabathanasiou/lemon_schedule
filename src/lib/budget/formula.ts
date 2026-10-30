@@ -2,15 +2,36 @@ import type { BudgetGlobal } from '../../types';
 
 /**
  * Safe arithmetic evaluator for budget formulas (`docs/BUDGETING.md` §4).
- * Grammar: numbers, `+ - * /`, parentheses, unary minus and global symbols.
- * No functions, no `eval`, no property access. Errors never throw — they come
- * back as `#REF!` (unknown symbol), `#DIV/0!`, `#VALUE!` (syntax) or `#CYCLE!`.
+ * Grammar: numbers, `+ - * /`, parentheses, unary minus, global symbols and a
+ * small safe function set (ROUND/MIN/MAX/ABS/CLAMP — roadmap 346). No `eval`,
+ * no property access. Errors never throw — they come back as `#REF!` (unknown
+ * symbol/function), `#DIV/0!`, `#VALUE!` (syntax/arity) or `#CYCLE!`.
  */
 
 export interface FormulaResult {
   value: number;
   error?: string;
 }
+
+/** Safe functions: key = display name, arity-checked before evaluation. */
+export interface FormulaFunctionDef {
+  key: string;
+  minArgs: number;
+  maxArgs: number;
+  detail: string;
+  example: string;
+  apply: (args: number[]) => number;
+}
+
+export const FORMULA_FUNCTIONS: FormulaFunctionDef[] = [
+  { key: 'ROUND', minArgs: 1, maxArgs: 2, detail: 'Round to a number of decimals (default 0).', example: 'ROUND(Qty * 1.125, 2)', apply: ([x, digits = 0]) => { const f = 10 ** Math.trunc(digits); return Math.round(x * f) / f; } },
+  { key: 'MIN', minArgs: 1, maxArgs: Infinity, detail: 'The smallest of the arguments.', example: 'MIN(Qty, 10)', apply: args => Math.min(...args) },
+  { key: 'MAX', minArgs: 1, maxArgs: Infinity, detail: 'The largest of the arguments.', example: 'MAX(Qty, 1)', apply: args => Math.max(...args) },
+  { key: 'ABS', minArgs: 1, maxArgs: 1, detail: 'Absolute value.', example: 'ABS(Balance)', apply: ([x]) => Math.abs(x) },
+  { key: 'CLAMP', minArgs: 3, maxArgs: 3, detail: 'Keep a value between a low and a high bound.', example: 'CLAMP(Qty, 0, 12)', apply: ([x, lo, hi]) => Math.min(Math.max(x, lo), hi) },
+];
+
+const FUNCTION_BY_KEY = new Map(FORMULA_FUNCTIONS.map(f => [f.key, f]));
 
 type Token =
   | { t: 'num'; v: number }
@@ -29,7 +50,7 @@ function tokenize(input: string): { tokens: Token[]; error?: string } {
     if (/\s/.test(ch)) { i++; continue; }
     if (ch === '(') { tokens.push({ t: 'lparen' }); i++; continue; }
     if (ch === ')') { tokens.push({ t: 'rparen' }); i++; continue; }
-    if ('+-*/'.includes(ch)) { tokens.push({ t: 'op', v: ch }); i++; continue; }
+    if ('+-*/,'.includes(ch)) { tokens.push({ t: 'op', v: ch }); i++; continue; }
     if (/[0-9.]/.test(ch)) {
       let j = i;
       let seenDot = false;
@@ -127,6 +148,27 @@ class Parser {
     if (tok.t === 'sym') {
       this.pos++;
       const key = tok.v.toUpperCase();
+      // Function call: the symbol is immediately followed by `(`.
+      if (this.peek()?.t === 'lparen') {
+        const fn = FUNCTION_BY_KEY.get(key);
+        if (!fn) { this.error = '#REF!'; return 0; }
+        this.pos++;
+        const args: number[] = [];
+        if (this.peek()?.t === 'rparen') {
+          this.pos++;
+        } else {
+          for (;;) {
+            args.push(this.expr());
+            if (this.error) return 0;
+            const next = this.peek();
+            if (next?.t === 'op' && next.v === ',') { this.pos++; continue; }
+            if (next?.t === 'rparen') { this.pos++; break; }
+            this.error = '#VALUE!'; return 0;
+          }
+        }
+        if (args.length < fn.minArgs || args.length > fn.maxArgs) { this.error = '#VALUE!'; return 0; }
+        return fn.apply(args);
+      }
       const v = this.globals[key] ?? this.globals[tok.v];
       if (v === undefined) { this.error = '#REF!'; return 0; }
       return v;
@@ -149,7 +191,13 @@ export function evaluateFormula(expr: string | undefined, globals: Record<string
 export function formulaSymbols(expr: string | undefined): string[] {
   const { tokens } = tokenize(String(expr ?? ''));
   const out = new Set<string>();
-  for (const t of tokens) if (t.t === 'sym') out.add(t.v);
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.t !== 'sym') continue;
+    // A function name is a call, not a project/system symbol reference.
+    if (tokens[i + 1]?.t === 'lparen') continue;
+    out.add(t.v);
+  }
   return [...out];
 }
 
