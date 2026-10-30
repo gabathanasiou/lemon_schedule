@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ProjectProvider, useProject, useProjectTheme } from './store';
 import { useDialog } from './components/Dialog';
+import { ProjectDialogProvider } from './components/ProjectDialogProvider';
 import { Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
@@ -1471,16 +1472,20 @@ function AppContent() {
 export default function App() {
   return (
     <ProjectProvider>
-      <PresenceProvider>
-        <NewCastNamingProvider>
-          <SceneDuplicateProvider>
-            <AppContent />
-            {/* After AppContent so invite modals stack ON TOP of the boot
-                Project Manager (Radix stack order = DOM order). */}
-            <ShareLinkGate />
-          </SceneDuplicateProvider>
-        </NewCastNamingProvider>
-      </PresenceProvider>
+      {/* Project identity + dialogs (roadmaps 332/333): the ONE context scope
+          every primary and every confirm/prompt/alert inherits from. */}
+      <ProjectDialogProvider>
+        <PresenceProvider>
+          <NewCastNamingProvider>
+            <SceneDuplicateProvider>
+              <AppContent />
+              {/* After AppContent so invite modals stack ON TOP of the boot
+                  Project Manager (Radix stack order = DOM order). */}
+              <ShareLinkGate />
+            </SceneDuplicateProvider>
+          </NewCastNamingProvider>
+        </PresenceProvider>
+      </ProjectDialogProvider>
     </ProjectProvider>
   );
 }

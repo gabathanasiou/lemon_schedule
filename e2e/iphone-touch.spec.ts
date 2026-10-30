@@ -72,7 +72,7 @@ test('File → Import: the in-place submenu card covers the parent, stays on scr
   const vw = page.viewportSize()!.width;
   /* Compare with the UNTRANSFORMED parent width: the parent is scaled down
      behind the card, so its bounding box is slightly narrower. */
-  const parentWidth = await parent.evaluate((el) => el.offsetWidth);
+  const parentWidth = await parent.evaluate((el) => (el as HTMLElement).offsetWidth);
   expect(Math.abs(cardBox.width - parentWidth)).toBeLessThanOrEqual(2);
   expect(Math.abs(cardBox.x - parentBox.x)).toBeLessThanOrEqual(12);
   expect(cardBox.x).toBeGreaterThanOrEqual(0);

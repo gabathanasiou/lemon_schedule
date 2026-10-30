@@ -150,7 +150,7 @@ export function TeamPanel() {
               disabled={busy}
               className={`${PANEL_INPUT_CLASS} flex-1 min-w-0`}
             />
-            <Button variant="primary" theme="dark" onClick={handleCreate} disabled={busy || !newTeamName.trim()}>
+            <Button variant="solid" onClick={handleCreate} disabled={busy || !newTeamName.trim()}>
               Create Team
             </Button>
           </div>

@@ -246,17 +246,17 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `flex items-center justify-between py-1` (label `text-xs text-zinc-300`, annotations
   `text-zinc-500`); segmented toggles = kit `Seg variant="track" theme="dark"` (the hand-rolled
   `p-0.5` recipe is retired). **Footer buttons — one hero, rest ghost**: every modal footer has
-  exactly ONE hero button = the primary action (kit `ModalFooterButton`, default `variant` — solid
-  `bg-zinc-800`, e.g. "+ New Project"); EVERY other button — Cancel, secondary actions, Import — is
-  `variant="ghost"` (e.g. "Import"). Destructive: `variant="danger"` (ghost, `mr-auto`) for Delete,
-  `variant="danger-solid"` for red confirms. Never hand-write footer button classes.
-- **Modal theming (roadmap 302)**: the app `Modal` shim applies `projectModalThemeOf` — every
-  project kind is a neutral surface, so the shell and its kit children carry NO project accent
-  inside; Drive/shared colour stays in the chrome. Pass `surface="accent"` to opt one surface into
-  the accent ladder, or wrap a single control in an accent-only `ThemeProvider` for a manual (Lego)
-  override. Never hand-tint modal bodies with `bg-blue/emerald-*`. The shim pins `theme="dark"` until
-  the light-modal work lands, so a light page scope (e.g. the Day Manager pilot, 310) never flips an
-  overlay.
+  exactly ONE hero = the primary action (kit `ModalFooterButton` — the registered `solid` style,
+  mode zinc / project accent on an accent surface); a body primary uses `Button variant="solid"`
+  (same tokens). EVERY other button (Cancel, Import) is `variant="ghost"`; destructive actions use
+  `variant="danger"`/`danger-solid`. Never hand-write footer button classes.
+- **Modal theming (roadmap 333)**: the app `Modal` shim applies `projectModalThemeOf` — every
+  project kind is an ACCENT surface: painted inner header card, neutral body/footer, accent
+  selection states, and a primary `Button` on the identity header step (`--ui-btn-primary-bg`).
+  The modal primary (footer hero + body `Button variant="solid"`) uses the shared `solid` tokens —
+  mode zinc, project accent on an accent surface. Local zinc; `ProjectDialogProvider` shares the
+  mapper with dialogs. Never hand-tint modal bodies with `bg-blue/emerald-*`; the shim pins
+  `theme="dark"` (two-layer rule), so a light page scope never flips an overlay.
 - **Project chrome (roadmap 311)**: wrap the app header / pop-out toolbar / page toolbar in
   `ProjectChromeScope` (`src/components/ProjectChromeScope.tsx`) — one kit `ThemeScope` publishing
   `mode`, the project accent and `context="chrome"`. Bar/hover/title-ring/tab-pill read

@@ -52,18 +52,19 @@ export function tabPillFillOf(accent: ProjectAccentName, mode: 'light' | 'dark')
   return mode === 'dark' ? 'bg-[var(--ui-accent-pill-bg)]' : 'bg-[var(--ui-tab-pill-accent)]';
 }
 
-/** Modal shell theme (roadmap 302): the project accent + surface treatment.
- *  Normal app modals (local, Drive and shared) are NEUTRAL surfaces — the
- *  project colour lives in the chrome (header/tabs), not in the modal body.
- *  The accent stays available for a deliberate local override or an explicit
- *  accent-tinted surface. */
+/** Modal shell theme (roadmap 333): the project accent ON an accent surface —
+ *  the kit's updated modal look (painted inner header card, neutral body,
+ *  accent hierarchy), matching the app header. Local resolves to zinc, which
+ *  is the same near-black header as before. The modal CTA keeps the identity
+ *  accent even on a neutral surface (kit `identityAccent`), so a future
+ *  zinc-only preference stays a one-line map here. */
 export function projectModalThemeOf(theme: ProjectTheme): {
   accent: 'zinc' | 'blue' | 'emerald';
   surface: 'neutral' | 'accent';
 } {
   return {
     accent: projectAccentNameOf(theme),
-    surface: 'neutral',
+    surface: 'accent',
   };
 }
 

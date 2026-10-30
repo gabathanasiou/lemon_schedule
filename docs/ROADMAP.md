@@ -1273,144 +1273,24 @@ Auto-ID.
 234 (peer selection); 327 is the fallback grid if that experiment wins instead.
 
 
-## 332. Primary buttons — the app-header colour, everywhere (`[ ]`)
+## 334. Budgeting & cost tracking — master plan (big)
 
-**Request** (user 2026-10-29): the ui-kit's primary button should wear the app
-header's colour, and every primary button in the app — including the
-`PageToolbar` mini-tab bars — should match that style.
+**Plan: `docs/BUDGETING.md` (model/engine/store/phases) + `docs/BUDGETING-SURFACES.md` (UI/Day Manager/reports) + `docs/BUDGETING-PHASES.md` (AI work packages) + `docs/BUDGETING-RESEARCH.md` (market evidence). Read them first.** Asked 2026-10-30 (user): a Budget tab, Day Manager expenses, crew + cast overtime (global/day/dept/person), budget attributes in the Reports Designer, UI-kit only, Glide tables. **No AI in the app** (user decision) — the debug bridge/MCP is the external-agent seam.
 
-**Findings** (verified against kit v0.2.2 + this app):
-- `docs/DESIGN-LANGUAGE.md` §Buttons already documents the intended fill:
-  `primary` is zinc-900 locally (the header is zinc-950 — the same drift,
-  smaller step), `bg-blue-950 hover:bg-blue-900` for Drive and
-  `bg-emerald-950 hover:bg-emerald-900` for shared — the header's step.
-- The kit drifted from it: `Button` primary is two hardcoded zinc fills
-  (`ui-kit/src/Button.tsx:209,221`), and the `cloud` prop swaps in
-  `--ui-accent-solid` = **accent-800** (`Button.tsx:230-233`), a lighter step.
-  The header is `--ui-accent-header-bg` = accent-900 (light) / **accent-950**
-  (dark chrome, `src/components/AppHeader.tsx`) — Drive #172554, shared
-  #022c22, local #09090b.
-- The mini-tab bars already sit in `ProjectChromeScope`
-  (`src/components/PageToolbar.tsx`), so they inherit the project accent — they
-  just get the wrong step. Some primaries pass `cloud={accent}`
-  (ScheduleToolbar Day Breaks / Banners / Edit, BreakdownTabGlide "Add Scene",
-  SceneSheet, SortDropdown, managerShell); page/modal primaries don't
-  (RulesTab, TeamPanel, ScriptView, SessionsPanel) and stay zinc on every
-  project.
-- `surface="neutral"` resolves the accent to zinc, so a Drive/shared modal's
-  inner primary cannot see the identity. 332 makes the primary the ONE
-  deliberate exception (identity fill; state colours stay neutral), and 333's
-  accent surfaces give the accent back inside modals as well.
+**Shape:** fixed 3 levels (Category → Account → Line), integer-cent money, one engine for Budget/Cost Report/reports, editable Glide grid + DOM report tables. The differentiator is the schedule loop: stripboard/DOOD/crew roster → live-linked quantities; Day Manager → actuals/OT; Reports Designer → branded prints. Blank/manual budgets are first-class; schedule links are live with no sync button (pin per line; locking a version freezes linked quantities).
 
-**Work:**
-- Kit: ONE primary fill token pair (`--ui-btn-primary-bg` / `-hover` + text) =
-  the header steps (accent-950 / accent-900; zinc #09090b / #18181b), consumed
-  by `Button variant="primary"` and `ModalFooterButton tone="accent"`. It keeps
-  the project identity through a neutral surface (the ONE deliberate exception
-  to "neutral means neutral"); `cloud` stays a backwards-compatible alias.
-  Document the role in the kit's `docs/CONTROLS.md` + `docs/THEMING.md`.
-- App: drop `cloud={accent}` where the chrome scope already publishes the
-  identity; sweep every `variant="primary"` (the list above plus any new one)
-  so Drive/shared read the header tint and local stays black — toolbar
-  primaries, page-body primaries and modal heroes. List any surface that
-  intentionally stays neutral in `DESIGN-LANGUAGE.md` §Buttons; a toolbar must
-  never mix.
-- Playground: Theme lab primary at zinc/blue/emerald × light/dark; assert the
-  computed background equals the project header step.
+**Phases (each a complete vertical slice; detailed AI work packages in `docs/BUDGETING-PHASES.md`):**
+- **1 — Budget authoring, versions & reports:** model/shared chart/library, versions (picker/trash/active/lock, shared chart + per-version lines), tab/nav, Glide grid, templates, fringes/globals/groups/units/markups, live schedule links (no sync), blank/from-schedule creation, per-line currency + fx/base totals, `budgetTable` + budget fields/collections, Top Sheet/Account Detail/Budget Health prints, CSV/JSON.
+- **2 — Cost tracking:** expenses/POs, Cost Report view, Day Manager Expenses card/modal, actuals/committed/ETC/EFC/variance, cost report print, expense fields/CSV.
+- **3 — Overtime:** crew + cast rates/guarantee, project/day/dept/person overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost, post-to-expenses, OT report fields, version lock.
+- **4 — Advanced:** version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP, episodic, approvals/petty-cash depth, MMB import/export.
 
-**Verify:** kit lint/build + playground; app `npm run lint`; rule-7 visual pass
-on local / Drive / shared: the Schedule mini-tab bar (Day Breaks / Banners /
-Edit), the Breakdown "Add Scene", a manager "Add <noun>", a modal footer hero —
-light toolbars and the dark Call Sheet bar.
+**Non-negotiables:** money in cents; one read model (`computeBudget`/`computeCostReport`); explicit store actions in `ACTION_TYPES`; bulk ops in one batch; no per-row `useProject()`; commits on blur, never per keystroke; `locked = readOnly || !canEdit`; no secrets/receipt blobs in project state; budget is readable by view-only collaborators (say so in sharing). Reports/exports use the Reports Designer block tree + budget fields/collections, never a second engine; PDF via the print dialog, CSV/JSON via budget exporters.
 
-**Docs:** `docs/UI-KIT.md` (kit release note), `docs/DESIGN-LANGUAGE.md`
-§Buttons + §Toolbar composition + §Theming, `docs/UI-PRIMITIVES.md` (Button
-bullet).
+**Decided 2026-10-30:** top-level Budget tab; estimate-first but complete authoring (versions + schedule links + reports); crew **and** cast OT; project-level budget visibility (online view permissions later); no AI in the app; Feature + Blank templates; per-line currency from day one; OT 10h/1.5x-after-10/2x-after-12 (cast separate SAG-style preset); ETC = remaining budget; generated lines live-linked.
 
-**Relations:** `extends` 302 (ambient accent is the mechanism; this sets the
-primary's step and sweeps the app); `relates to` 248/311 (chrome identity),
-56 (kit promotion); 333 (the modal hero/header follow the same token).
+**Only open question:** version compare in phase 4 (recommended; versions ship in phase 1) or pull it into phase 1.
 
+**Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
-## 333. App modals → the updated kit modal look (accent surface) (`[ ]`)
-
-**Request** (user 2026-10-29): the modals in the main app should match the style
-of the updated ui-kit modals.
-
-**Findings** (verified against kit v0.2.2 + this app):
-- The kit's updated modal look is the accent-surface shell: `surface="accent"`
-  paints the project colour as an INNER rounded header card (accent-950, white
-  title, 6px neutral gutter) on a neutral body, the footer stays the neutral
-  band, and the ONE hero is `ModalFooterButton tone="accent"`
-  (`ui-kit/src/Modal.tsx` header/footer tokens, `ModalFooterButton.tsx:33-37`,
-  kit commit 8521475 — the inner painted header).
-  `ui-kit/docs/ADOPTING-THEMING.md` is the adoption recipe.
-- The app pins the old look in ONE place: `projectModalThemeOf` returns
-  `surface: 'neutral'` for all three kinds (`src/lib/projectTheme.ts`); the
-  shim (`src/components/Modal.tsx`) already feeds `theme`/`accent`/`surface`
-  to the kit shell. The `surface: 'accent'` flip is literally one line and it
-  propagates to the ambient kit controls inside every modal too — Button, Seg
-  (EditorChrome), DatePicker, DropdownMenu, PickerField and Tooltip all read
-  `useKitTheme()`. Two small follow-ons, not a per-modal sweep:
-  `ModalFooterButton`'s hero is NOT ambient (`tone` defaults `zinc`), and
-  `DialogProvider` is mounted above the page scopes (`src/main.tsx`), so
-  confirm/prompt/alert need the same mapping passed in. The 63 explicit
-  `theme="dark"` props in files that open a modal (app total 119) set the MODE
-  and stay correct while modals are dark; dropping them is 302's
-  ambient-widget cleanup, not this item's prerequisite.
-- The kit playground is the proof this is ONE recipe, not per-widget work:
-  `playground/src/main.tsx` wraps the whole app in one `<ThemeScope
-  mode accent surface="accent">` (and mirrors the axes onto `<body>` for
-  portaled CSS), and `BasicModalDemo` opens a Modal with ZERO theme props —
-  the kit Modal resolves from `useKitTheme()` (`Modal.tsx` `resolveKitTheme`).
-  Only the Theme lab passes explicit props, because it demonstrates them. The
-  lab also nests its own `DialogProvider` inside the scope
-  (`ThemeLabSection.tsx`) — the root playground one sits outside it, which is
-  exactly the app-side gap to fix.
-- This SUPERSEDES the 302 stage-2 choice ("every app modal is a neutral
-  surface; Drive/shared keep their colour in the chrome") — record the reversal
-  in the 302 progress notes, AGENTS.md and the docs. Mode stays dark (the
-  two-layer rule); this is the surface/accent adoption, not a light-modal
-  switch.
-
-**Work:**
-- Shell: `projectModalThemeOf` maps every kind to `surface="accent"` (local
-  resolves to zinc — the same near-black header, now with the kit's inner-card
-  geometry; Drive/shared take blue/emerald); update the mapper's unit test
-  (`src/lib/__tests__/projectTheme.test.ts`). Keep the `?modalTheme=` harness.
-- Hero — fix it in the KIT, not the app: `ModalFooterButton` defaults `tone`
-  from `useKitTheme()` (accent on an accent/chrome surface, zinc otherwise —
-  mirror `Button`'s `buttonCloudOf`). Then every footer hero follows with zero
-  app call-site changes; no wrapper.
-- Dialogs: move `<DialogProvider>` inside a project-scoped `ThemeScope` (its
-  props are optional and inherit the nearest scope) or pass the mapper at
-  `main.tsx` — one structural change, no per-dialog props.
-- Non-ambient controls inside modals (SearchMenu defaults `light`, NumberInput
-  and RuleCard still take explicit palettes) keep their current look: the app
-  passes `theme="dark"` there, so they stay consistent with the dark modal but
-  will not show accent states until 302 makes them ambient — polish, not a
-  blocker. No per-modal theme surgery.
-- Check the few structural outliers only (standalone panels that copy the modal
-  chrome — SessionsPanel, TeamPanel, ScriptUpdateModal — and any hand-rolled
-  footer bar), then list fixed-palette exceptions (print previews, Call Sheet
-  zone editor, script diff) in DESIGN-LANGUAGE §Modal anatomy.
-
-**Verify:** kit lint + playground `modal-portal.spec`/`dialog.spec`; app
-`npm run lint`; rule-7 visual pass on local / Drive / shared × dark (and the
-light harness): a Day modal, the Element View, the Link Manager, Import, Trash,
-Account, a dark-pinned Design/Reports modal; `?modalTheme=light` check; iPad
-spot-check of a stacked modal (the morph/dim machinery is unchanged). The
-visual pass is the bulk of the item — after the kit hero default, the app-side
-code is the mapper line plus moving `DialogProvider`, exactly like the
-playground's single scope.
-
-**Docs:** `docs/DESIGN-LANGUAGE.md` §Modal anatomy & rules + §Theming,
-`docs/UI-PRIMITIVES.md` §UI Primitives (Modal theming), `docs/UI-KIT.md`
-(release note), `ui-kit/docs/CONTROLS.md` (`ModalFooterButton` ambient tone),
-the `AGENTS.md` modal-theme sentence — the app now uses the accent surface, not
-"every kind = neutral".
-
-**Relations:** `supersedes` the app-modal neutral-surface decision in 302
-(stage 2); `relates to` 302 (optional ambient-widget cleanup — not a blocker),
-332 (same identity token), 310 (bodies already tokenised), 56 (kit promotion),
-263 (modal morph).
+**Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.

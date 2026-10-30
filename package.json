@@ -2,7 +2,7 @@
   "name": "lemon-schedule",
   "private": true,
   "license": "Apache-2.0",
-  "version": "0.3.149",
+  "version": "0.3.150",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0 --strictPort",
