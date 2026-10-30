@@ -32,10 +32,10 @@ describe('chrome mappers', () => {
     expect(projectAccentNameOf('shared')).toBe('emerald');
   });
 
-  it('modal theme: every project kind uses a neutral surface; accent is identity only (roadmap 302)', () => {
-    expect(projectModalThemeOf('local')).toEqual({ accent: 'zinc', surface: 'neutral' });
-    expect(projectModalThemeOf('drive')).toEqual({ accent: 'blue', surface: 'neutral' });
-    expect(projectModalThemeOf('shared')).toEqual({ accent: 'emerald', surface: 'neutral' });
+  it('modal theme: every project kind wears its accent surface (roadmap 333)', () => {
+    expect(projectModalThemeOf('local')).toEqual({ accent: 'zinc', surface: 'accent' });
+    expect(projectModalThemeOf('drive')).toEqual({ accent: 'blue', surface: 'accent' });
+    expect(projectModalThemeOf('shared')).toEqual({ accent: 'emerald', surface: 'accent' });
   });
 
   it('tab pill: zinc keeps the plain pill; dark accent chrome uses the raised accent role', () => {

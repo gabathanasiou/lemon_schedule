@@ -1,7 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
-import {DialogProvider} from './components/Dialog';
 import {GoogleAuthProvider} from './lib/googleDriveAuth';
 import {SupabaseAuthProvider} from './lib/supabase/auth';
 import {PHONE_DEVICE_QUERY} from './lib/device';
@@ -22,9 +21,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <GoogleAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <SupabaseAuthProvider>
-        <DialogProvider>
-          <App />
-        </DialogProvider>
+        <App />
       </SupabaseAuthProvider>
     </GoogleAuthProvider>
   </StrictMode>,
