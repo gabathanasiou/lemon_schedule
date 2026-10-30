@@ -1517,3 +1517,27 @@ that syncs exchange rates (check for a suitable API).
 mocked in the unit test; manual pass for the button success/failure and CSP.
 Run the security-review relevance check (network origin + CSP).
 **Relations:** `relates to` **334**; `touches` **285** (CSP), **security-review**.
+
+## 342. Budget tab — Glide-style quick row filter (`[ ]`)
+
+**Asked 2026-10-30 (user):** add a quick-search filter to the Budget tab like
+the one on the Glide Breakdown pages.
+
+**Work:**
+- Put the shared `GlideFilter`/kit `MorphSearchField` in the Budget toolbar
+  (next to Category/Markup): Filter button → text field, collapsed state names
+  the term + `shown / total`, Escape clears and collapses, click-away only
+  collapses. No second filter component.
+- Display-only over the budget sheet; reuse `parseSearchTags` (comma tags, ALL
+  match, case-insensitive). Match category number/name, account number/name,
+  line description/notes, unit, currency and fringe/group names; keep a
+  category/account band visible when a child matches, and never reorder rows.
+- The filtered list indexes the grid for editing/copy/paste/fill (no stale
+  indices). Totals/KPIs stay whole-budget — show a “Filtered” cue instead of
+  silently reporting a subset; clear restores the full sheet.
+- Per-user view state only (never project data/undo); works in read-only.
+
+**Verify:** unit only if a new matcher is added; fold cases into
+`e2e/budget.spec.ts` (typing hides rows, clear restores, totals unchanged) plus
+a manual visual pass. **Relations:** `relates to` **334**, **172** (the shared
+Glide filter recipe).

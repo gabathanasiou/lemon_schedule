@@ -296,7 +296,7 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Open phase-2 follow-ups (roadmap 335-341)
+### Open phase-2 follow-ups (roadmap 335-342)
 Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid).
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
   (category/account → node modal, line → line modal), not context-menu-first.
@@ -310,6 +310,8 @@ Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid
 - **341** Currency library: derive the symbol from the chosen currency (remove
   the symbol input), seed common currencies, add manual "Sync rates" (no-key
   provider + CSP, base = 1, one batch, last-synced stamp).
+- **342** Budget quick filter: shared `GlideFilter`/`MorphSearchField`,
+  display-only AND tags over category/account/line text; totals stay whole.
 Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
