@@ -162,12 +162,16 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Field label="Date">
-                <DateField
-                  value={expense.date ? [expense.date] : []}
-                  onChange={dates => { if (dates.length) patch({ date: dates[dates.length - 1] }); }}
-                  placeholder="Pick a date"
-                  initialView={expense.date}
-                />
+                {readOnly ? (
+                  <span className="text-xs text-[color:var(--ui-text)]">{expense.date || '—'}</span>
+                ) : (
+                  <DateField
+                    value={expense.date ? [expense.date] : []}
+                    onChange={dates => { if (dates.length) patch({ date: dates[dates.length - 1] }); }}
+                    placeholder="Pick a date"
+                    initialView={expense.date}
+                  />
+                )}
               </Field>
               <Field label="Amount">
                 <MoneyField
