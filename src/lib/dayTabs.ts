@@ -5,7 +5,7 @@
  * section. Keep this list and the `tabs` metadata in `daySectionRegistry.tsx`
  * in sync.
  */
-export const DAY_MANAGER_TABS = ['overview', 'all', 'locations', 'scenes', 'callTimes', 'crew'] as const;
+export const DAY_MANAGER_TABS = ['overview', 'all', 'locations', 'scenes', 'callTimes', 'crew', 'expenses'] as const;
 
 export type DayManagerTab = (typeof DAY_MANAGER_TABS)[number];
 
@@ -16,6 +16,7 @@ export const DAY_MANAGER_TAB_LABELS: Record<DayManagerTab, string> = {
   scenes: 'Scenes',
   callTimes: 'Call Times',
   crew: 'Crew',
+  expenses: 'Expenses',
 };
 
 export function isDayManagerTab(value: unknown): value is DayManagerTab {

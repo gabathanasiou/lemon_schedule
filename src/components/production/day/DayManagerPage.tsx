@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThemeScope, useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
-import { ArrowLeft, CalendarDays, ChevronDown, Clapperboard, Clock, CopyPlus, ExternalLink, Flag, Info, LayoutGrid, MapPin, Plus, Users } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, Clapperboard, Clock, CopyPlus, ExternalLink, Flag, Info, LayoutGrid, MapPin, Plus, Receipt, Users } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject, useProjectTheme } from '../../../store';
@@ -31,6 +31,8 @@ import { EventModal } from '../../calendar/EventModal';
 import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
+import { ExpenseModal } from '../../budget/ExpenseModal';
+import { makeExpense } from '../../../lib/budget/model';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 import { useReportCtx } from '../../../lib/useReportCtx';
@@ -58,6 +60,7 @@ const DAY_TAB_OPTIONS: { id: DayManagerTab; label: string; title: string; icon: 
   { id: 'scenes', label: DAY_MANAGER_TAB_LABELS.scenes, title: 'Scenes', icon: <Clapperboard className="w-3.5 h-3.5" /> },
   { id: 'callTimes', label: DAY_MANAGER_TAB_LABELS.callTimes, title: 'Call times', icon: <Clock className="w-3.5 h-3.5" /> },
   { id: 'crew', label: DAY_MANAGER_TAB_LABELS.crew, title: 'Crew', icon: <Users className="w-3.5 h-3.5" /> },
+  { id: 'expenses', label: DAY_MANAGER_TAB_LABELS.expenses, title: 'Cost tracking for this day', icon: <Receipt className="w-3.5 h-3.5" /> },
 ];
 
 export interface DayManagerPageProps {
@@ -81,6 +84,8 @@ export interface DayManagerPageProps {
   /** The call-sheet editor is a full-surface dark mode — report it so the
    *  host can darken the surrounding sub-tab chrome while it is open. */
   onChromeModeChange?: (dark: boolean) => void;
+  /** Jump to the Budget tab (the Expenses card's "Create a budget" CTA). */
+  onOpenBudget?: () => void;
 }
 
 const templateZoneBlocks = (design: ReportDesign): ReportBlock[] =>
@@ -99,6 +104,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   onPrintCallSheet,
   onPopOutDay,
   onChromeModeChange,
+  onOpenBudget,
 }) => {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
@@ -141,6 +147,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   // null = closed; object = open (optionally with role/name/slot prefilled).
   const [addCrew, setAddCrew] = useState<{ role?: string; name?: string; slotId?: string } | null>(null);
+  const [expenseId, setExpenseId] = useState<string | null>(null);
 
   const selected = useMemo(() => {
     if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
@@ -252,9 +259,21 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     openEvent: (date, status, category, elementKey) => setEventEditor({ date, status, category, elementKey }),
     openCallTimesSettings: () => setCallTimesOpen(true),
     openAddCrewMember: opts => setAddCrew(opts ?? {}),
+    openExpense: (id) => {
+      if (id) { setExpenseId(id); return; }
+      if (!selected) return;
+      const expense = makeExpense({
+        date: selected.date || undefined,
+        dayDate: selected.date || undefined,
+        dayNumber: selected.chronoDay,
+      });
+      dispatch({ type: 'ADD_EXPENSE', payload: expense });
+      setExpenseId(expense.id);
+    },
+    openBudget: onOpenBudget,
     callSheetDesignId: callSheetDesign?.id || '',
     selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
-  }), [onOpenScene, callSheetDesign?.id, setPrefs]);
+  }), [onOpenScene, onOpenBudget, callSheetDesign?.id, setPrefs, selected?.date, selected?.chronoDay, dispatch]);
 
   const toggleSection = (id: string) => setPrefs(p => ({
     ...p,
@@ -364,7 +383,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         data-section={def.id}
         title={def.title}
         icon={def.icon}
-        summary={def.summary(selected)}
+        summary={def.summary(selected, project)}
         collapsed={prefs.collapsed.includes(def.id)}
         collapsible={!empty}
         onToggle={() => toggleSection(def.id)}
@@ -572,6 +591,15 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
       {crewMemberModal}
+      {expenseId && (
+        <ExpenseModal
+          expenseId={expenseId}
+          project={project}
+          dispatch={dispatch}
+          readOnly={locked}
+          onClose={() => setExpenseId(null)}
+        />
+      )}
     </div>
     </ThemeScope>
   );

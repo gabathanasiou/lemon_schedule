@@ -125,7 +125,7 @@ const CopyDayModal: React.FC<CopyDayModalProps> = ({ target, days, onClose }) =>
                 <Checkbox checked={on} onChange={v => toggle(def.id, v)} variant="plain" />
                 <span className="min-w-0">
                   <span className="block text-xs font-medium text-[color:var(--ui-text-strong)]">{def.title}</span>
-                  <span className="block text-[11px] text-[color:var(--ui-text-faint)] truncate">{def.summary(source) || '—'}</span>
+                  <span className="block text-[11px] text-[color:var(--ui-text-faint)] truncate">{def.summary(source, project) || '—'}</span>
                 </span>
               </label>
             );

@@ -1,15 +1,19 @@
 import React from 'react';
-import type { DayMeta } from '../../../types';
+import { Receipt } from 'lucide-react';
+import type { DayMeta, Project } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import type { DaySectionProps } from './daySectionTypes';
 import type { DayManagerTab } from '../../../lib/dayTabs';
 import { formatDateShort } from '../../../lib/utils';
+import { expensesOfDay, summarizeExpenses } from '../../../lib/budget/costReport';
+import { formatMoney } from '../../../lib/budget/format';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
 import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
 import BreaksNotesSection, { BreaksNotesIcon } from './sections/BreaksNotesSection';
 import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
+import ExpensesSection from './sections/ExpensesSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
 import ConflictsSection, { ConflictsIcon } from './sections/ConflictsSection';
 
@@ -23,8 +27,9 @@ export interface DaySectionDef {
   id: string;
   title: string;
   icon: React.ReactNode;
-  /** One-line live summary shown in the collapsed card header. */
-  summary: (day: DayView) => string;
+  /** One-line live summary shown in the collapsed card header. `project` is
+   *  supplied by surfaces that need project state (the cost/expenses card). */
+  summary: (day: DayView, project?: Project) => string;
   Component: React.ComponentType<DaySectionProps>;
   copyable: boolean;
   copyMode?: 'replace' | 'merge';
@@ -163,6 +168,22 @@ export const DAY_SECTIONS: DaySectionDef[] = [
       };
       return Object.keys(patch).length ? patch : undefined;
     },
+  },
+  {
+    wide: true,
+    id: 'expenses',
+    title: 'Expenses',
+    icon: <Receipt className="w-3.5 h-3.5" />,
+    summary: (day, project) => {
+      if (!project) return '—';
+      const list = expensesOfDay(project, { date: day.date, chronoDay: day.chronoDay });
+      if (list.length === 0) return project.budget ? 'None' : 'No budget';
+      const summary = summarizeExpenses(list);
+      return `${list.length} · ${formatMoney(summary.actualCents, project.budget?.settings)} actual`;
+    },
+    Component: ExpensesSection,
+    copyable: false,
+    tabs: ['all', 'overview', 'expenses'],
   },
   {
     id: 'events',

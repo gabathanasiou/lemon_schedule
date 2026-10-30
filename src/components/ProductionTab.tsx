@@ -46,6 +46,8 @@ interface ProductionTabProps {
   onOpenScene?: (sceneId: string) => void;
   onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
+  /** Day Manager Expenses → "Create a budget" jumps to the Budget tab. */
+  onOpenBudget?: () => void;
 }
 
 /** Production tab shell (roadmap 103, consolidated 177): the Day Manager, the
@@ -53,7 +55,7 @@ interface ProductionTabProps {
  *  collapsed to three, with a toolbar toggle for each merged pair. Project
  *  Details and the Call Times settings live in the Day Manager header as
  *  draggable modals (ProductionDetailsModal / CallTimesSettingsModal). */
-export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, dayTab, onDayTabChange, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, dayTab, onDayTabChange, onOpenScene, onPrintCallSheet, onPopOutDay, onOpenBudget }: ProductionTabProps) {
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   // Second slot, immediately left of the view switcher: the day selector is
@@ -145,6 +147,7 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}
           onChromeModeChange={handleDaysChrome}
+          onOpenBudget={onOpenBudget}
         />
       ) : subTab === 'crew' ? (
         views.crew === 'glide' ? (
