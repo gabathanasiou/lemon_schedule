@@ -73,6 +73,10 @@ const DROPDOWN_POS = ['dropdown-positioning'];
    `playwright.ipad.config.ts` (run explicitly). Listed so the mapping documents
    which source files affect iPad behavior. */
 const IPAD = ['ipad-touch-scroll', 'ipad-modal-drag-menu'];
+/* iPhone WebKit touch audit (roadmaps 331/182). Self-skips outside the
+   `playwright.iphone.config.ts` profile; listed so the mapping documents which
+   app surfaces the phone spec covers. */
+const TOUCH = ['iphone-touch'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
 /* Chrome bars (roadmap 264): the app header, every PageToolbar mini tab bar and
@@ -92,6 +96,9 @@ const RULES = [
   { g: 'src/lib/dayMeta.ts', s: 'ALL' },
   { g: 'src/lib/appNav.ts', s: 'ALL' },
   { g: 'src/lib/containers.ts', s: 'ALL' },
+  { g: 'src/lib/useHoverTip.ts', s: TOUCH },
+  { g: 'src/components/HoverTooltip.tsx', s: TOUCH },
+  { g: 'src/components/DelegatedTooltip.tsx', s: TOUCH },
   { g: 'src/lib/categories.ts', s: 'ALL' },
   { g: 'src/lib/projectCodec.ts', s: 'ALL' },
   { g: 'src/lib/utils.ts', s: 'ALL' },
@@ -115,14 +122,15 @@ const RULES = [
   { g: 'src/lib/chromeAudit.ts', s: CHROME },
   { g: 'src/lib/projectTheme.ts', s: CHROME },
   { g: 'src/lib/useStatusBarTheme.ts', s: CHROME },
-  { g: 'src/components/AppHeader.tsx', s: CHROME },
-  { g: 'src/components/PageToolbar.tsx', s: CHROME },
+  { g: 'src/components/AppHeader.tsx', s: [...CHROME, ...TOUCH] },
+  { g: 'src/components/PageToolbar.tsx', s: [...CHROME, ...TOUCH] },
   { g: 'src/components/VersionToolbar.tsx', s: CHROME },
   { g: 'src/components/UserPresenceCluster.tsx', s: CHROME },
   { g: 'src/components/UndoRedoButtons.tsx', s: CHROME },
   { g: 'src/components/RoomNote.tsx', s: CHROME },
-  { g: 'src/components/SaveIndicator.tsx', s: CHROME },
+  { g: 'src/components/SaveIndicator.tsx', s: [...CHROME, ...TOUCH] },
   // config / harness files — full suite
+  { g: 'playwright.iphone.config.ts', s: TOUCH },
   { g: 'package*.json', s: 'ALL' },
   { g: 'vite.config.*', s: 'ALL' },
   { g: 'playwright*.config.ts', s: 'ALL' },
@@ -149,7 +157,7 @@ const RULES = [
   // ribbon designer + stripboard cell rendering
   { g: 'src/components/ribbon/**', s: RIBBON },
   { g: 'src/components/RibbonTab.tsx', s: RIBBON },
-  { g: 'src/components/SortableRibbon.tsx', s: [...RIBBON, ...LINKED] },
+  { g: 'src/components/SortableRibbon.tsx', s: [...RIBBON, ...LINKED, ...TOUCH] },
   { g: 'src/components/RibbonCellText.tsx', s: RIBBON },
   { g: 'src/components/columnResize.tsx', s: RIBBON },
   { g: 'src/lib/ribbon*.ts', s: RIBBON },
@@ -274,8 +282,8 @@ const RULES = [
   { g: 'src/lib/debugBridge.ts', s: ['debug-bridge'] },
   { g: 'e2e/fixtures/**', s: ['msd-import'] },
   // pointer / keyboard / modals
-  { g: 'src/lib/device.ts', s: [...MODAL, ...IPAD] },
-  { g: 'src/components/Modal.tsx', s: [...MODAL, ...IPAD] },
+  { g: 'src/lib/device.ts', s: [...MODAL, ...IPAD, ...TOUCH] },
+  { g: 'src/components/Modal.tsx', s: [...MODAL, ...IPAD, ...TOUCH] },
   { g: 'src/components/TrashModal.tsx', s: TRASH },
   { g: 'src/components/NewProjectModal.tsx', s: TRASH },
   { g: 'src/components/ProjectManagerBoot.tsx', s: ['seeded-smoke'] },

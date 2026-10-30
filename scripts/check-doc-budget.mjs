@@ -196,7 +196,9 @@ if (fragileTotal) {
 // When this trips, do ONE of: merge the new cases into an existing spec; move
 // pure logic down to a unit test (`npm run test:unit`); or consciously raise a
 // cap here with a one-line reason. Never just append a spec.
-const E2E_SPEC_CAP = 70;
+// 70 → 71: roadmap 331/182 — the iPhone WebKit touch spec (phone shell,
+// the File menu's accordion submenu, tooltip dismissal, landscape day modal).
+const E2E_SPEC_CAP = 71;
 // 260 → 267: roadmap 38 script-diff acceptance (split/merge badges + in-app edit
 // conflict), 132 Part D duplicate modes and Part F tag remap — behavior needs
 // real DOM/file-chooser coverage, not unit-only.
@@ -256,7 +258,8 @@ const E2E_SPEC_CAP = 70;
 // 289 → 290: roadmap 322 — Glide's typed-open passes the first character as
 // `initialValue` (no input event); a picker that ignores it silently drops the
 // letter and opens on the wrong row.
-const E2E_TEST_CAP = 290;
+// 290 → 293: roadmap 331/182 — the three iPhone touch cases above.
+const E2E_TEST_CAP = 293;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
