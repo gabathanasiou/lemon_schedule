@@ -456,7 +456,7 @@ function AppContent() {
     go(place);
   }, [go, currentSubOf, prodViews]);
 
-  // ⌘/Ctrl + 1..7 jump straight to a header tab (roadmap 258) — the muscle
+  // ⌘/Ctrl + 1..8 jump straight to a header tab (roadmap 258) — the muscle
   // memory for the icon-first nav. Same seam as a tab click (requestTabSwitch
   // keeps the remembered sub-tab / mode).
   useEffect(() => {
