@@ -310,7 +310,7 @@ Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid
 - **342** Budget quick filter: shared `GlideFilter`/`MorphSearchField`,
   display-only AND tags over category/account/line text; totals stay whole.
 - **343** Budget Glide visuals: band colour across every cell of a category/account row; sticky column header in `InlineGlideTable`.
-- **344** UI control-face audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; audit all new budget surfaces.
+- **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; reuse `CardSection`/`DaySectionCard`, `DayPicker`, `SearchMenu` — no bespoke rewrites.
 Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
