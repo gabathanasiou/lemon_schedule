@@ -85,6 +85,14 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     }
   }, [dispatch, budget.categories, budget.accounts]);
 
+  /** Account context "Add line" — same quick add, no modal. */
+  const quickAddAccountLine = React.useCallback((accountId: string) => {
+    dispatch({
+      type: 'ADD_BUDGET_LINE',
+      payload: makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' }),
+    });
+  }, [dispatch]);
+
   const duplicateLine = React.useCallback((lineId: string) => {
     const source = linesById.get(lineId)?.line;
     if (!source) return;
@@ -384,8 +392,8 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
             onOpenLine={(line) => setEditingLineId(line.id)}
             onOpenNode={(kind, id) => setEditingNode({ kind, id })}
             onAddAccount={addAccount}
-            onAddLine={addLine}
             onQuickAddLine={quickAddLine}
+            onQuickAddAccountLine={quickAddAccountLine}
             onDuplicateLine={duplicateLine}
             onDeleteCategory={confirmDeleteCategory}
             onDeleteAccount={confirmDeleteAccount}

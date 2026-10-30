@@ -69,7 +69,7 @@ function lineTotalLabel(line: ComputedBudgetLine, settings: BudgetSettings): str
  */
 export function BudgetGrid({
   model, readOnly, focusCategoryId,
-  onCommit, onOpenLine, onOpenNode, onAddAccount, onAddLine, onQuickAddLine, onDuplicateLine,
+  onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
 }: {
   model: BudgetModel;
@@ -79,9 +79,10 @@ export function BudgetGrid({
   onOpenLine: (line: BudgetLine) => void;
   onOpenNode: (kind: 'category' | 'account', id: string) => void;
   onAddAccount: (categoryId: string) => void;
-  onAddLine: (accountId: string) => void;
   /** Category row "+": add a line directly (no modal). */
   onQuickAddLine: (categoryId: string) => void;
+  /** Account row context "Add line": add directly (no modal). */
+  onQuickAddAccountLine: (accountId: string) => void;
   onDuplicateLine: (lineId: string) => void;
   onDeleteCategory: (id: string) => void;
   onDeleteAccount: (id: string) => void;
@@ -195,8 +196,8 @@ export function BudgetGrid({
     }
     if (row.kind === 'account') {
       return [
+        { label: 'Add line', run: () => onQuickAddAccountLine(row.id) },
         { label: 'Edit account', run: () => onOpenNode('account', row.id) },
-        { label: 'Add line', run: () => onAddLine(row.id) },
         { label: 'Delete account', run: () => onDeleteAccount(row.id), danger: true },
       ];
     }
@@ -211,7 +212,7 @@ export function BudgetGrid({
       ];
     }
     return [{ label: 'Delete markup', run: () => onDeleteMarkup(row.id), danger: true }];
-  }, [readOnly, model, onOpenNode, onAddAccount, onAddLine, onQuickAddLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
+  }, [readOnly, model, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
 
   const rowInfo = React.useCallback((rowIndex: number) => {
     const row = rowMeta.get(rowIndex);
