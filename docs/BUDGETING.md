@@ -248,13 +248,15 @@ totalCents = baseCents + fringeCents
 ```
 actual    = Σ expenses status actual|paid, date ≤ asOf
 committed = Σ committed expenses WITHOUT a poId
-            + Σ open/partial PO remaining (amount − actual/committed charged to it)
+            + Σ open/partial PO remaining
 etc       = line.etcCents ?? max(0, budget − actual − committed)
 efc       = actual + committed + etc
 variance  = budget + approvedOverage − efc
 % used    = (actual + committed) / (budget + approvedOverage)
 ```
 
+- Expense `amountCents` is base-currency cents; `currency` is a payment label
+  and is never FX-converted in phase 2.
 - A `lineId` rolls into that line; account-level expenses roll into the
   account's **Unallocated** child; no valid account = one project-level
   Unallocated row. Stale ids degrade there.
@@ -322,8 +324,7 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
 
 ## 7. Surfaces (summary — manual: `docs/BUDGETING-SURFACES.md`)
 
-- Budget tab (⌘8) between Production and Reports; sub-tabs Budget / Cost Report
-  / Expenses / Library — all live. Phone chrome is unsupported in v1.
+- Budget tab (⌘8) between Production and Reports; sub-tabs Budget / Cost Report / Expenses / Library — all live. Phone unsupported.
 - Budget view: KPI strip, category rail, one expanded sheet, toolbar (Category,
   Markup, linked-line summary, Print, Export, Import), footer totals. Category
   rows carry a **+** quick-add: a line lands in the category's first account
@@ -374,9 +375,7 @@ approval workflow.
 overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost,
 post-to-expenses, report fields, version-lock interaction.
 
-**4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/
-credits, currency report, AICP, episodic, approvals/petty-cash depth, MMB
-import/export. Compare remains phase 4 (no phase-1 compare UI was built).
+**4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty-cash, MMB import/export (no compare UI built).
 
 ## 9. Verification & docs
 - `npm run lint` (tsc + doc budget + roadmap hygiene + e2e lint) and

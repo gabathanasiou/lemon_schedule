@@ -350,10 +350,10 @@ export function fieldsForScope(
   const scopeSet = new Set(['production', 'project', 'document', 'smart']);
   const mapped = fieldScopeFor(scope);
   if (mapped) scopeSet.add(mapped);
-  // Budget fields (roadmap 334) are document-wide: the summary fields render in
-  // cover/exec text at top level, and the per-item fields resolve inside a
-  // budget collection repeat/table (where `mapped` is already 'budget').
-  if (!scope) scopeSet.add('budget');
+  // Budget/cost fields (roadmap 334) are document-wide at top level: summary
+  // fields render in cover/exec text, while per-item fields resolve inside a
+  // budget/cost repeat/table (where `mapped` is already the collection scope).
+  if (!scope) { scopeSet.add('budget'); scopeSet.add('costReport'); }
   // Cast items are elements with identity extras — both families apply.
   if (mapped === 'cast') scopeSet.add('elements');
   // Cast identity fields belong to element contexts too: Elements → Cast
