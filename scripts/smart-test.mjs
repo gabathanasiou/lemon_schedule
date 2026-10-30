@@ -74,6 +74,7 @@ const DROPDOWN_POS = ['dropdown-positioning'];
    which source files affect iPad behavior. */
 const IPAD = ['ipad-touch-scroll', 'ipad-modal-drag-menu'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
+const BUDGET = ['budget'];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
 /* Chrome bars (roadmap 264): the app header, every PageToolbar mini tab bar and
    the popout toolbar share the chromeSpacing scale; the rendered-geometry audit
@@ -190,7 +191,13 @@ const RULES = [
   { g: 'src/components/LiveNumberInput.tsx', s: RIBBON },
   // glide breakdown
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED, ...ENTITY_CTX] },
-  { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
+  { g: 'src/components/InlineGlideTable.tsx', s: [...GLIDE, ...BUDGET] },
+  // budgeting (roadmap 334) — own spec; store/** already escalates to ALL
+  { g: 'src/components/budget/**', s: BUDGET },
+  { g: 'src/lib/budget/**', s: BUDGET },
+  { g: 'src/lib/reportBudget.ts', s: BUDGET },
+  { g: 'src/components/reports/ReportBudgetTable.tsx', s: BUDGET },
+  { g: 'src/components/reports/BudgetBlockControls.tsx', s: BUDGET },
   // shared Glide DB shell + the row-filter field also serve crew/locations
   { g: 'src/lib/glideShell.tsx', s: [...GLIDE, ...CREW, 'locations'] },
   { g: 'src/lib/glideFilter.ts', s: [...GLIDE, ...CREW, 'locations'] },

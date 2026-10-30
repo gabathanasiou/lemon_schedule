@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BudgetLine, Project, Scene } from '../../types';
-import { makeBlankProject } from '../../store/reducer';
+import { makeBlankProject, reducer } from '../../store/reducer';
 import { evaluateFormula, evaluateGlobals } from '../budget/formula';
 import { formatMoney, parseMoney } from '../budget/format';
 import { computeBudget } from '../budget/calc';
@@ -264,5 +264,79 @@ describe('budget versions', () => {
       expect(new Set(nums).size).toBe(nums.length);
     }
     expect(b.markups[0].percent).toBe(10);
+  });
+});
+
+describe('budget store actions', () => {
+  function stateWithBudget() {
+    const p = makeTestProject();
+    p.budget = featureBudget();
+    const account = accountId(p, '1100');
+    const line = addLine(p, { accountId: account, qty: 2, rateCents: 1000, source: { kind: 'shootDays' } });
+    return {
+      p,
+      lineId: line.id,
+      state: { past: [], present: p, future: [], _batchDepth: 0 } as Parameters<typeof reducer>[0],
+    };
+  }
+
+  it('creates, deletes and restores versions without touching the shared chart', () => {
+    const { state, p } = stateWithBudget();
+    const active = p.budget!.activeVersionId;
+    const next = reducer(state, { type: 'NEW_BUDGET_VERSION', payload: { name: 'v02' } });
+    expect(next.present.budget!.versions).toHaveLength(2);
+    expect(next.present.budget!.activeVersionId).not.toBe(active);
+    expect(next.present.budget!.accounts).toBe(p.budget!.accounts);
+    const deleted = reducer(next, { type: 'DELETE_BUDGET_VERSION', payload: next.present.budget!.activeVersionId });
+    expect(deleted.present.budget!.versions).toHaveLength(1);
+    expect(deleted.present.budget!.versionTrash).toHaveLength(1);
+    const trashedId = deleted.present.budget!.versionTrash![0].version.id;
+    const restored = reducer(deleted, { type: 'RESTORE_BUDGET_VERSION_FROM_TRASH', payload: trashedId });
+    expect(restored.present.budget!.versions).toHaveLength(2);
+    expect(restored.present.budget!.versionTrash).toHaveLength(0);
+  });
+
+  it('never deletes the last version', () => {
+    const { state, p } = stateWithBudget();
+    const next = reducer(state, { type: 'DELETE_BUDGET_VERSION', payload: p.budget!.activeVersionId });
+    expect(next.present.budget!.versions).toHaveLength(1);
+    expect(next.present.budget!.versionTrash || []).toHaveLength(0);
+  });
+
+  it('locks by pinning linked quantities; unlocking keeps the pins', () => {
+    const { state, lineId } = stateWithBudget();
+    const id = state.present.budget!.activeVersionId;
+    const locked = reducer(state, { type: 'LOCK_BUDGET_VERSION', payload: { id, pinned: { [lineId]: 1 } } });
+    const v = locked.present.budget!.versions.find(x => x.id === id)!;
+    expect(v.locked).toBe(true);
+    expect(v.lines.find(l => l.id === lineId)!.qtyOverride).toBe(1);
+    const unlocked = reducer(locked, { type: 'UNLOCK_BUDGET_VERSION', payload: id });
+    expect(unlocked.present.budget!.versions.find(x => x.id === id)!.locked).toBe(false);
+    expect(unlocked.present.budget!.versions.find(x => x.id === id)!.lines.find(l => l.id === lineId)!.qtyOverride).toBe(1);
+  });
+
+  it('links/unlinks and pins/unpins a line', () => {
+    const { state, lineId } = stateWithBudget();
+    const unlinked = reducer(state, { type: 'UNLINK_BUDGET_LINE', payload: { lineId, keepQty: 1 } });
+    const line = unlinked.present.budget!.versions[0].lines.find(l => l.id === lineId)!;
+    expect(line.source).toBeUndefined();
+    expect(line.qty).toBe(1);
+    const linked = reducer(unlinked, { type: 'LINK_BUDGET_LINE', payload: { lineId, source: { kind: 'shootDays' } } });
+    expect(linked.present.budget!.versions[0].lines.find(l => l.id === lineId)!.source).toEqual({ kind: 'shootDays' });
+    const pinned = reducer(linked, { type: 'PIN_BUDGET_LINE', payload: { lineId, qty: 3 } });
+    expect(pinned.present.budget!.versions[0].lines.find(l => l.id === lineId)!.qtyOverride).toBe(3);
+    const unpinned = reducer(pinned, { type: 'UNPIN_BUDGET_LINE', payload: lineId });
+    expect(unpinned.present.budget!.versions[0].lines.find(l => l.id === lineId)!.qtyOverride).toBeUndefined();
+  });
+
+  it('reassigns or deletes lines when an account is deleted', () => {
+    const { state, p } = stateWithBudget();
+    const from = accountId(p, '1100');
+    const to = accountId(p, '1200');
+    const next = reducer(state, { type: 'DELETE_BUDGET_ACCOUNT', payload: { id: from, reassignToId: to } });
+    expect(next.present.budget!.accounts.some(a => a.id === from)).toBe(false);
+    expect(next.present.budget!.versions[0].lines[0].accountId).toBe(to);
+    const gone = reducer(next, { type: 'DELETE_BUDGET_ACCOUNT', payload: { id: to } });
+    expect(gone.present.budget!.versions[0].lines).toHaveLength(0);
   });
 });
