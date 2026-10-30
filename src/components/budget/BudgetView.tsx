@@ -14,18 +14,10 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import { budgetReportDesigns } from '../../lib/budget/reportTemplates';
+import { SectionTile } from './SectionTile';
 import { BudgetGrid, type BudgetGridCommit } from './BudgetGrid';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
-
-function SectionTile({ label, value, tone }: { label: string; value: string; tone?: 'muted' | 'strong' }) {
-  return (
-    <div className="min-w-0 rounded-md border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-2.5 py-1.5">
-      <div className="text-[9px] uppercase tracking-wide text-[color:var(--ui-text-faint)] truncate">{label}</div>
-      <div className={`text-xs font-semibold truncate ${tone === 'muted' ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-strong)]'}`}>{value}</div>
-    </div>
-  );
-}
 
 /** Budget authoring surface: KPI strip, category rail and the editable sheet. */
 export function BudgetView({ model, project, readOnly, onPrintDesign }: { model: BudgetModel; project: Project; readOnly: boolean; onPrintDesign?: (design: ReportDesign) => void }) {
@@ -67,6 +59,31 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     dispatch({ type: 'ADD_BUDGET_LINE', payload: line });
     setEditingLineId(line.id);
   }, [dispatch]);
+
+  /** Category "+" — create the line in the category's first account (or a
+   *  General account when the category has none) without opening the modal. */
+  const quickAddLine = React.useCallback((categoryId: string) => {
+    const category = budget.categories.find(c => c.id === categoryId);
+    if (!category) return;
+    const accounts = budget.accounts
+      .filter(a => a.categoryId === categoryId)
+      .sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number));
+    dispatch({ type: 'BATCH_START' });
+    try {
+      let accountId = accounts[0]?.id;
+      if (!accountId) {
+        const account = makeBudgetAccount({ categoryId, name: 'General' });
+        dispatch({ type: 'ADD_BUDGET_ACCOUNT', payload: account });
+        accountId = account.id;
+      }
+      dispatch({
+        type: 'ADD_BUDGET_LINE',
+        payload: makeBudgetLine({ accountId, description: 'New Line', qty: 1, rateCents: 0, unit: 'unit-flat' }),
+      });
+    } finally {
+      dispatch({ type: 'BATCH_COMMIT' });
+    }
+  }, [dispatch, budget.categories, budget.accounts]);
 
   const duplicateLine = React.useCallback((lineId: string) => {
     const source = linesById.get(lineId)?.line;
@@ -368,6 +385,7 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
             onOpenNode={(kind, id) => setEditingNode({ kind, id })}
             onAddAccount={addAccount}
             onAddLine={addLine}
+            onQuickAddLine={quickAddLine}
             onDuplicateLine={duplicateLine}
             onDeleteCategory={confirmDeleteCategory}
             onDeleteAccount={confirmDeleteAccount}

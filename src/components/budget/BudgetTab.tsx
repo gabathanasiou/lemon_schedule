@@ -16,6 +16,8 @@ import { BudgetVersionMenu } from './BudgetVersionMenu';
 import { BudgetEmptyState } from './BudgetEmptyState';
 import { BudgetView } from './BudgetView';
 import { BudgetLibraryView } from './BudgetLibraryView';
+import { CostReportView } from './CostReportView';
+import { ExpensesView } from './ExpensesView';
 
 export type BudgetSubTab = 'budget' | 'cost' | 'expenses' | 'library';
 
@@ -25,17 +27,6 @@ const SUB_TABS = [
   { id: 'expenses' as const, label: 'Expenses', icon: <Receipt className="w-3.5 h-3.5" /> },
   { id: 'library' as const, label: 'Library', icon: <Library className="w-3.5 h-3.5" /> },
 ];
-
-function NextPhase({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-10 bg-[var(--ui-modal-header-base)]">
-      <div className="max-w-md text-center">
-        <h2 className="text-sm font-semibold text-[color:var(--ui-text-strong)]">{title}</h2>
-        <p className="text-xs text-[color:var(--ui-text-muted)] mt-2">{body}</p>
-      </div>
-    </div>
-  );
-}
 
 /**
  * Budget tab root (roadmap 334 phase 1): one project read, sub-tab routing,
@@ -153,15 +144,9 @@ export default function BudgetTab({
       ) : subTab === 'library' ? (
         <BudgetLibraryView model={model} project={project} readOnly={locked} />
       ) : subTab === 'cost' ? (
-        <NextPhase
-          title="Cost Report — next phase"
-          body="Expenses, POs and actuals/committed/ETC/EFC arrive with cost tracking. The budget you author here becomes its baseline."
-        />
+        <CostReportView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} />
       ) : subTab === 'expenses' ? (
-        <NextPhase
-          title="Expenses — next phase"
-          body="Day Manager expenses, petty cash and POs arrive with cost tracking. Until then, the Budget tab is estimate-only."
-        />
+        <ExpensesView project={project} readOnly={!canWrite} />
       ) : (
         <BudgetView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} />
       )}

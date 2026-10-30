@@ -69,7 +69,7 @@ function lineTotalLabel(line: ComputedBudgetLine, settings: BudgetSettings): str
  */
 export function BudgetGrid({
   model, readOnly, focusCategoryId,
-  onCommit, onOpenLine, onOpenNode, onAddAccount, onAddLine, onDuplicateLine,
+  onCommit, onOpenLine, onOpenNode, onAddAccount, onAddLine, onQuickAddLine, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
 }: {
   model: BudgetModel;
@@ -80,6 +80,8 @@ export function BudgetGrid({
   onOpenNode: (kind: 'category' | 'account', id: string) => void;
   onAddAccount: (categoryId: string) => void;
   onAddLine: (accountId: string) => void;
+  /** Category row "+": add a line directly (no modal). */
+  onQuickAddLine: (categoryId: string) => void;
   onDuplicateLine: (lineId: string) => void;
   onDeleteCategory: (id: string) => void;
   onDeleteAccount: (id: string) => void;
@@ -185,6 +187,7 @@ export function BudgetGrid({
     if (readOnly) return [];
     if (row.kind === 'category') {
       return [
+        { label: 'Add line', run: () => onQuickAddLine(row.id) },
         { label: 'Edit category', run: () => onOpenNode('category', row.id) },
         { label: 'Add account', run: () => onAddAccount(row.id) },
         { label: 'Delete category', run: () => onDeleteCategory(row.id), danger: true },
@@ -208,7 +211,7 @@ export function BudgetGrid({
       ];
     }
     return [{ label: 'Delete markup', run: () => onDeleteMarkup(row.id), danger: true }];
-  }, [readOnly, model, onOpenNode, onAddAccount, onAddLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
+  }, [readOnly, model, onOpenNode, onAddAccount, onAddLine, onQuickAddLine, onOpenLine, onDuplicateLine, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
 
   const rowInfo = React.useCallback((rowIndex: number) => {
     const row = rowMeta.get(rowIndex);
@@ -221,11 +224,14 @@ export function BudgetGrid({
   const rowActions = React.useCallback((rowIndex: number): InlineGlideRowAction[] => {
     const row = rowMeta.get(rowIndex);
     if (!row || readOnly) return [];
-    if (row.kind === 'category') return [{ key: 'delete', title: 'Delete category', icon: 'trash', onClick: () => onDeleteCategory(row.id) }];
+    if (row.kind === 'category') return [
+      { key: 'add-line', title: 'Add line', icon: 'plus', onClick: () => onQuickAddLine(row.id) },
+      { key: 'delete', title: 'Delete category', icon: 'trash', onClick: () => onDeleteCategory(row.id) },
+    ];
     if (row.kind === 'account') return [{ key: 'delete', title: 'Delete account', icon: 'trash', onClick: () => onDeleteAccount(row.id) }];
     if (row.kind === 'line') return [{ key: 'delete', title: 'Delete line', icon: 'trash', onClick: () => onDeleteLine(row.id) }];
     return [{ key: 'delete', title: 'Delete markup', icon: 'trash', onClick: () => onDeleteMarkup(row.id) }];
-  }, [rowMeta, readOnly, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
+  }, [rowMeta, readOnly, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup, onQuickAddLine]);
 
   const rowMenuItems = React.useCallback((rowIndex: number, close: () => void) => {
     const row = rowMeta.get(rowIndex);
