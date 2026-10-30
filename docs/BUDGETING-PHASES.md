@@ -1,8 +1,9 @@
 # Budgeting — AI phase work packages
 
-Status: **execution guide for roadmap 334.** **Phases 1-2 are LANDED
-(2026-10-30)** — their shipped reality is recorded in the phase sections and
-the two companion manuals. Phases 3-4 are forward-looking. Read
+Status: **execution guide for roadmap 334.** **Phases 1-3 are LANDED
+(2026-10-30)** — shipped reality is in the phase sections and the two
+companion manuals. **Phase 4 package 1 (version compare) is LANDED**; the
+remaining packages are forward-looking. Read
 `docs/BUDGETING.md` (model, engine, store), `docs/BUDGETING-SURFACES.md`
 (UI/Day Manager/reports) and `docs/BUDGETING-RESEARCH.md` (market evidence)
 first. This file turns the plan into complete, AI-executable phases: scope,
@@ -363,13 +364,12 @@ fields; viewer refusal. Vitest `overtime.test.ts`; e2e modal/post/reload.
 
 Ship each as its own branch/PR; do not bundle.
 
-1. **Version compare + Original/Variance.** Match accounts by number; two
-   compare versions; read-only compare mode; `original` snapshot; variance
-   columns. Reuse `ItemManagerDropdown`/`reportTemplates`.
-2. **Cashflow.** Line phase/start/end/spread; weekly/monthly tranches; holdback;
-   `budgetTable` cashflow mode; landscape print + CSV.
-3. **Incentives/credits.** `BudgetIncentive` definitions; qualified groups/
-   tags/locations; cap types QS/CR; discount; net total; incentive summary print.
+1. **Version compare — LANDED (2026-10-30).** `budgetTable` `comparison`
+   (Original/Budget/Variance/Var %) + `budgetVersionId`/`budgetCompareVersionId`
+   picks, `ctx.budgetForVersion`, `buildComparisonReport`, print. Read-only;
+   stable-id matching, numbers stay labels; `line.original` stays reserved.
+2. **Cashflow.** Line phase/start/end/spread; weekly/monthly tranches; holdback; `budgetTable` cashflow mode; landscape print + CSV.
+3. **Incentives/credits.** `BudgetIncentive` definitions; qualified groups/tags/locations; cap types QS/CR; discount; net total; incentive summary print.
 4. **Multi-currency UI.** Per-line currency/fx UI, currency report, rate table;
    base totals stay cents.
 5. **AICP / episodic.** Commercial template + bid form; pattern/amort and

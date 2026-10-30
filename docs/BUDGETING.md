@@ -10,13 +10,9 @@ overtime or budget-report code.
 
 ## 1. Decisions (standing)
 
-- **No AI in the app.** No model calls, prompts, generated content or AI
-  branding. The debug bridge / local MCP is the external-agent seam.
+- **No AI in the app.** No model calls/prompts/generated content/branding; the debug bridge/MCP is the agent seam.
 - **Top-level Budget tab** with `Budget` / `Cost Report` / `Expenses` /
   `Library` — all live. Project-level visibility (viewers see it); share copy remains.
-- **Estimate-first authoring, cost tracking and overtime are complete.** Model,
-  versions, grid, templates, library, live schedule links, prints, CSV/JSON,
-  the Cost Report, the ledger, Day Manager expenses and overtime ship.
 - **Fixed three levels** — Category (top sheet) → Account (cost report) → Line
   (detail). No arbitrary nesting.
 - **Money is integer minor units (cents).** Percentages/quantities are plain
@@ -26,8 +22,7 @@ overtime or budget-report code.
   display in their currency, account/category/grand totals convert to base.
   A missing rate is a warning and contributes 0 — never a silent 1:1.
 - **Templates:** Blank, Feature and From schedule. Commercial/AICP stay later.
-  **Generated lines are live-linked**; pin per line; locking a version freezes
-  every linked quantity.
+  **Generated lines are live-linked**; pin per line; lock freezes quantities.
 - **Budget versions are a third independent axis** (schedule / calendar /
   budget): chart/library shared, only lines per version; Create/Duplicate clone
   copy-on-write.
@@ -36,7 +31,7 @@ overtime or budget-report code.
   locked version pins linked quantities.
 - **Reports use the Reports Designer engine**: one `budgetTable` leaf + budget
   collections/fields; no second report engine. Modes are `topsheet` /
-  `accounts` / `lines` / `costReport`; `hotCost` / `cashflow` / `comparison`
+  `accounts` / `lines` / `costReport` / `comparison`; `hotCost` / `cashflow`
   fall back to `topsheet` until their engines land.
 - **Formula input is a small arithmetic evaluator** with safe functions, not
   the rich-text token editor (no `eval`, no cross-line refs). **The editable
@@ -349,8 +344,8 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
   (Frankfurter, base=1, one batch, inline errors, last-synced stamp);
   `ItemManagerDropdown` with lock/unlock and trash restore. Globals row (i)
   opens the `FormulaField` editor (autocomplete + book).
-- Reports: `budgetTable` leaf (four modes incl. Cost Report), budget/cost
-  collections/fields, four transient prints + "Save as design".
+- Reports: `budgetTable` leaf (five modes incl. Cost Report + Comparison),
+  budget/cost collections/fields, transient prints + Save as design.
 
 ## 8. Phases
 
@@ -382,7 +377,12 @@ project policy preset are data/bridge-editable (Crew Manager exposes crew
 rates; cast details keeps the MMS text rate); no version-lock coupling beyond
 the existing line lock.
 
-**4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty-cash, MMB import/export (no compare UI built).
+**4 — Advanced (each own branch).** **Version compare — LANDED:** `budgetTable`
+`comparison` reads two chosen versions (read-only) with Original / Budget /
+Variance / Var % columns; `budgetForVersion` memoizes each version in the
+report ctx; transient comparison print. `line.original` stays reserved for a
+future as-bid snapshot. Remaining: cashflow, incentives/credits, currency
+report, AICP/episodic, approvals/petty cash, MMB import/export.
 
 ## 9. Verification & docs
 - `npm run lint` + `npm run test:unit` (budget/reportBudget/costReport/

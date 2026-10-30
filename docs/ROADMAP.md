@@ -1340,7 +1340,11 @@ iPad touch hardening (69/70/71/78/80/183/184/206/273).
 - **1 — Budget authoring, versions & reports:** model/shared chart/library, versions (picker/trash/active/lock, shared chart + per-version lines), tab/nav, Glide grid, templates, fringes/globals/groups/units/markups, live schedule links (no sync), blank/from-schedule creation, per-line currency + fx/base totals, `budgetTable` + budget fields/collections, Top Sheet/Account Detail/Budget Health prints, CSV/JSON.
 - **2 — Cost tracking — LANDED (2026-10-30):** expenses/POs, Cost Report view, Day Manager Expenses card/modal, actuals/committed/ETC/EFC/variance, cost report print, expense fields/CSV.
 - **3 — Overtime:** crew + cast rates/guarantee, project/day/dept/person overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost, post-to-expenses, OT report fields, version lock.
-- **4 — Advanced:** version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP, episodic, approvals/petty-cash depth, MMB import/export.
+- **4 — Advanced (separate branches):** **version compare + Original/Variance
+  — LANDED (2026-10-30):** `budgetTable` `comparison` mode reads two block-named
+  versions through `ctx.budgetForVersion`, Original/Budget/Variance/Var % columns,
+  read-only, transient comparison print. Remaining: cashflow, incentives/credits,
+  currency report, AICP, episodic, approvals/petty-cash depth, MMB import/export.
 
 **Status 2026-10-30:** **Phases 1-3 landed** (`feature/334-budgeting`,
 `feature/334-budgeting-phase2`). Phase 1: model/engine (`src/lib/budget/`),
@@ -1355,14 +1359,17 @@ Cost Report + Expenses views + shared `ExpenseModal`, Day Manager Expenses tab,
 `budgetTable` cost mode + Cost Report print + expense CSV, `costReportSummary`.
 Phase 3: overtime types/policy, `lib/budget/overtime.ts`, Crew card Overtime
 modal + badge (Day/Departments/Crew/Cast), copy-day, crew/cast/day/department
-report fields, `overtimeSummary` (bridge/MCP). Phase 4 remains (PO authoring is
-action/bridge-only; numeric cast rates are data/bridge-editable).
+report fields, `overtimeSummary` (bridge/MCP). **Phase 4 package 1 (version
+compare) landed:** `budgetTable` `comparison` + `ctx.budgetForVersion` +
+`buildComparisonReport` + the Budget/Compare-to picks and comparison print
+(`334` stays open for the remaining packages). PO authoring is action/bridge-only;
+numeric cast rates are data/bridge-editable.
 
 **Non-negotiables:** money in cents; one read model (`computeBudget`/`computeCostReport`); explicit store actions in `ACTION_TYPES`; bulk ops in one batch; no per-row `useProject()`; commits on blur, never per keystroke; `locked = readOnly || !canEdit`; no secrets/receipt blobs in project state; budget is readable by view-only collaborators (say so in sharing). Reports/exports use the Reports Designer block tree + budget fields/collections, never a second engine; PDF via the print dialog, CSV/JSON via budget exporters.
 
 **Decided 2026-10-30:** top-level Budget tab; estimate-first but complete authoring (versions + schedule links + reports); crew **and** cast OT; project-level budget visibility (online view permissions later); no AI in the app; Feature + Blank templates; per-line currency from day one; OT 10h/1.5x-after-10/2x-after-12 (cast separate SAG-style preset); ETC = remaining budget; generated lines live-linked.
 
-**Resolved:** compare stays phase 4 (versions ship in phase 1).
+**Resolved:** compare shipped as phase 4 package 1 (versions shipped in phase 1).
 
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
