@@ -1,6 +1,9 @@
 import type { Budget, BudgetLine, Project } from '../../../types';
 import { makeBudgetLine } from '../model';
-import { computeScheduleQuantities, scheduleQtyFor } from '../scheduleSync';
+import {
+  computeScheduleQuantities, scheduleQtyFor, scheduleSourceDescription,
+  SCHEDULE_SOURCE_ACCOUNT, SCHEDULE_SOURCE_UNIT,
+} from '../scheduleSync';
 import { featureBudget } from './index';
 
 /**
@@ -52,11 +55,11 @@ export function buildBudgetFromSchedule(project: Project): Budget {
 
   // Production days: the set-operations day rate is the classic per-day line.
   if (q.shootDays > 0) {
-    push('2400', {
-      description: 'Production days — set operations',
+    push(SCHEDULE_SOURCE_ACCOUNT.shootDays, {
+      description: scheduleSourceDescription(project, { kind: 'shootDays' }),
       kind: 'rental',
       qty: q.shootDays,
-      unit: 'unit-day',
+      unit: SCHEDULE_SOURCE_UNIT,
       rateCents: 0,
       multiplier: 1,
       source: { kind: 'shootDays' },
@@ -64,24 +67,20 @@ export function buildBudgetFromSchedule(project: Project): Budget {
   }
 
   // Crew: one line per person who actually works a production day.
-  const personName = (roleKey: string, personId: string) => {
-    const role = project.crewRoles?.find(r => r.key === roleKey);
-    const person = (project.crew?.[roleKey] || []).find(p => p.id === personId);
-    return `${role?.label || roleKey} — ${person?.name || personId}`;
-  };
   for (const role of project.crewRoles || []) {
     for (const person of project.crew?.[role.key] || []) {
       const days = q.crewPersonDays[`${role.key}\u0000${person.id}`] || 0;
       if (days <= 0) continue;
-      push('2100', {
-        description: personName(role.key, person.id),
+      const source = { kind: 'crewRole' as const, roleKey: role.key, personId: person.id };
+      push(SCHEDULE_SOURCE_ACCOUNT.crewRole, {
+        description: scheduleSourceDescription(project, source),
         kind: 'labor',
         qty: days,
-        unit: 'unit-day',
+        unit: SCHEDULE_SOURCE_UNIT,
         rateCents: 0,
         multiplier: 1,
         phase: 'shoot',
-        source: { kind: 'crewRole', roleKey: role.key, personId: person.id },
+        source,
       });
     }
   }
@@ -90,15 +89,16 @@ export function buildBudgetFromSchedule(project: Project): Budget {
   for (const member of project.castMembers || []) {
     const days = q.castDays[member.id] || 0;
     if (days <= 0) continue;
-    push('1400', {
-      description: `${member.id}. ${member.name}`,
+    const source = { kind: 'cast' as const, castId: member.id };
+    push(SCHEDULE_SOURCE_ACCOUNT.cast, {
+      description: scheduleSourceDescription(project, source),
       kind: 'labor',
       qty: days,
-      unit: 'unit-day',
+      unit: SCHEDULE_SOURCE_UNIT,
       rateCents: 0,
       multiplier: 1,
       phase: 'shoot',
-      source: { kind: 'cast', castId: member.id },
+      source,
     });
   }
 
@@ -106,16 +106,17 @@ export function buildBudgetFromSchedule(project: Project): Budget {
   for (const location of project.locations || []) {
     const days = q.locationDays[location.id] || 0;
     if (days <= 0) continue;
-    push('3200', {
-      description: location.name,
+    const source = { kind: 'location' as const, locationId: location.id };
+    push(SCHEDULE_SOURCE_ACCOUNT.location, {
+      description: scheduleSourceDescription(project, source),
       kind: 'rental',
       qty: days,
-      unit: 'unit-day',
+      unit: SCHEDULE_SOURCE_UNIT,
       rateCents: 0,
       multiplier: 1,
       phase: 'shoot',
       locationId: location.id,
-      source: { kind: 'location', locationId: location.id },
+      source,
     });
   }
 

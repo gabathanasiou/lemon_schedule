@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, FileUp, Plus, Printer, Sparkles } from 'lucide-react';
+import { Download, FileUp, Plus, Printer, RefreshCw, Sparkles } from 'lucide-react';
 import type { BudgetFringe, BudgetGroup, BudgetLine, BudgetMarkup, Project, ReportDesign } from '../../types';
 import type { BudgetModel } from '../../lib/budget/calc';
 import { flatBudgetLines } from '../../lib/budget/calc';
@@ -14,10 +14,12 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import { budgetReportDesigns } from '../../lib/budget/reportTemplates';
+import { buildScheduleDiffApply, computeScheduleBudgetDiff } from '../../lib/budget/diff';
 import { SectionTile } from './SectionTile';
 import { BudgetGrid, clearBudgetCollapse, type BudgetGridCommit } from './BudgetGrid';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
+import { ScheduleReviewModal } from './ScheduleReviewModal';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../ContextMenu';
 import { GlideFilter } from '../GlideFilter';
 
@@ -40,10 +42,39 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
   }, []);
   const [exportOpen, setExportOpen] = React.useState(false);
   const [printOpen, setPrintOpen] = React.useState(false);
+  const [reviewOpen, setReviewOpen] = React.useState(false);
   const printDesigns = React.useMemo(() => budgetReportDesigns(), []);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const budget = model.budget;
   const settings = model.settings;
+  const reviewDiff = React.useMemo(
+    () => computeScheduleBudgetDiff(project, model.version.id, { model }),
+    [project, model],
+  );
+
+  /** Roadmap 348 — apply the reviewed selection as ONE undo entry. Only the
+   *  linked quantity snapshots, requested adds and explicitly chosen removals
+   *  are written; the diff builder refuses locked/non-active versions. */
+  const applyReview = React.useCallback((selectedIds: string[]) => {
+    if (readOnly || !reviewDiff) return;
+    const apply = buildScheduleDiffApply(project, reviewDiff, selectedIds);
+    if (!apply) return;
+    if (apply.updates.length === 0 && apply.adds.length === 0 && apply.deletes.length === 0) {
+      setReviewOpen(false);
+      return;
+    }
+    dispatch({ type: 'BATCH_START' });
+    try {
+      if (apply.updates.length > 0) {
+        dispatch({ type: 'BULK_UPDATE_BUDGET_LINES', payload: { updates: apply.updates } });
+      }
+      for (const line of apply.adds) dispatch({ type: 'ADD_BUDGET_LINE', payload: line });
+      for (const id of apply.deletes) dispatch({ type: 'DELETE_BUDGET_LINE', payload: id });
+    } finally {
+      dispatch({ type: 'BATCH_COMMIT' });
+    }
+    setReviewOpen(false);
+  }, [dispatch, project, readOnly, reviewDiff]);
 
   const linesById = React.useMemo(() => {
     const map = new Map<string, ReturnType<typeof flatBudgetLines>[number]>();
@@ -351,6 +382,19 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
         <span className="ml-1 flex items-center gap-1 text-[10px] text-[color:var(--ui-text-faint)]">
           <Sparkles className="w-3 h-3" /> {linkedLabel}
         </span>
+        <Button
+          theme="light"
+          onClick={() => setReviewOpen(true)}
+          disabled={!reviewDiff || reviewDiff.totalRows === 0}
+          title="Review what changed in the schedule since this budget version was written"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          {!reviewDiff || reviewDiff.totalRows === 0
+            ? 'Up to date'
+            : reviewDiff.changeCount === 0
+              ? `${reviewDiff.counts.check} to check from the schedule`
+              : `${reviewDiff.totalRows} update${reviewDiff.totalRows === 1 ? '' : 's'} from the schedule`}
+        </Button>
         <div className="ml-auto flex items-center gap-1">
           {onPrintDesign && (
             <DropdownMenu
@@ -556,6 +600,18 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
           onUnlink={() => dispatch({ type: 'UNLINK_BUDGET_LINE', payload: { lineId: editingLine.id, keepQty: linesById.get(editingLine.id)?.qty } })}
           onPin={(qty) => dispatch({ type: 'PIN_BUDGET_LINE', payload: { lineId: editingLine.id, qty } })}
           onUnpin={() => dispatch({ type: 'UNPIN_BUDGET_LINE', payload: editingLine.id })}
+        />
+      )}
+
+      {reviewOpen && reviewDiff && (
+        <ScheduleReviewModal
+          open
+          onClose={() => setReviewOpen(false)}
+          project={project}
+          diff={reviewDiff}
+          settings={settings}
+          readOnly={readOnly}
+          onApply={applyReview}
         />
       )}
     </div>
