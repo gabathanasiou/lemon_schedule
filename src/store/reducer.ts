@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation } from '../types';
+import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation, Budget, BudgetCategory, BudgetAccount, BudgetLine, BudgetSettings, BudgetLineSource } from '../types';
 import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
@@ -46,6 +46,18 @@ import {
   caseSetScriptDocument, caseUpdateScriptDocument,
   caseAddScriptAnnotation, caseUpdateScriptAnnotation, caseRemoveScriptAnnotation,
 } from './actions/script';
+import {
+  caseAddBudgetCategory, caseUpdateBudgetCategory, caseDeleteBudgetCategory,
+  caseAddBudgetAccount, caseUpdateBudgetAccount, caseDeleteBudgetAccount,
+  caseAddBudgetLine, caseUpdateBudgetLine, caseDeleteBudgetLine, caseBulkUpdateBudgetLines,
+  caseLinkBudgetLine, caseUnlinkBudgetLine, casePinBudgetLine, caseUnpinBudgetLine,
+  caseSetBudgetLibrary, caseUpdateBudgetSettings, caseApplyBudgetTemplate, caseImportBudget,
+  caseNewBudgetVersion, caseRenameBudgetVersion, caseDeleteBudgetVersion,
+  caseRestoreBudgetVersionFromTrash, caseSetActiveBudgetVersion,
+  caseLockBudgetVersion, caseUnlockBudgetVersion,
+} from './actions/budget';
+import type { BudgetLibraryPayload } from './actions/budget';
+import { migrateBudget } from '../lib/budget/model';
 import { snapshotSceneFields } from '../lib/script';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -254,6 +266,32 @@ export type Action =
   | { type: 'ADD_SCRIPT_ANNOTATION'; payload: { annotation: ScriptAnnotation } }
   | { type: 'UPDATE_SCRIPT_ANNOTATION'; payload: { id: string; updates: Partial<ScriptAnnotation> } }
   | { type: 'REMOVE_SCRIPT_ANNOTATION'; payload: string }
+  // Budgeting (roadmap 334)
+  | { type: 'ADD_BUDGET_CATEGORY'; payload: BudgetCategory }
+  | { type: 'UPDATE_BUDGET_CATEGORY'; payload: { id: string; updates: Partial<BudgetCategory> } }
+  | { type: 'DELETE_BUDGET_CATEGORY'; payload: string }
+  | { type: 'ADD_BUDGET_ACCOUNT'; payload: BudgetAccount }
+  | { type: 'UPDATE_BUDGET_ACCOUNT'; payload: { id: string; updates: Partial<BudgetAccount> } }
+  | { type: 'DELETE_BUDGET_ACCOUNT'; payload: { id: string; reassignToId?: string } }
+  | { type: 'ADD_BUDGET_LINE'; payload: BudgetLine }
+  | { type: 'UPDATE_BUDGET_LINE'; payload: { id: string; updates: Partial<BudgetLine> } }
+  | { type: 'DELETE_BUDGET_LINE'; payload: string }
+  | { type: 'BULK_UPDATE_BUDGET_LINES'; payload: { updates: { id: string; updates: Partial<BudgetLine> }[] } }
+  | { type: 'LINK_BUDGET_LINE'; payload: { lineId: string; source: BudgetLineSource } }
+  | { type: 'UNLINK_BUDGET_LINE'; payload: { lineId: string; keepQty?: number } }
+  | { type: 'PIN_BUDGET_LINE'; payload: { lineId: string; qty?: number } }
+  | { type: 'UNPIN_BUDGET_LINE'; payload: string }
+  | { type: 'SET_BUDGET_LIBRARY'; payload: BudgetLibraryPayload }
+  | { type: 'UPDATE_BUDGET_SETTINGS'; payload: Partial<BudgetSettings> }
+  | { type: 'APPLY_BUDGET_TEMPLATE'; payload: { key: 'blank' | 'feature'; id?: string } }
+  | { type: 'IMPORT_BUDGET'; payload: { budget: Budget } }
+  | { type: 'NEW_BUDGET_VERSION'; payload: { name: string; cloneFromId?: string | null; id?: string } }
+  | { type: 'RENAME_BUDGET_VERSION'; payload: { id: string; name: string } }
+  | { type: 'DELETE_BUDGET_VERSION'; payload: string }
+  | { type: 'RESTORE_BUDGET_VERSION_FROM_TRASH'; payload: string }
+  | { type: 'SET_ACTIVE_BUDGET_VERSION'; payload: string }
+  | { type: 'LOCK_BUDGET_VERSION'; payload: { id: string; pinned?: Record<string, number> } }
+  | { type: 'UNLOCK_BUDGET_VERSION'; payload: string }
 
 /**
  * Runtime mirror of the `Action` union above — consumed by the agentic debug
@@ -295,6 +333,15 @@ export const ACTION_TYPES = new Set<string>([
   'SET_DAY_TYPES',
   'SET_SCRIPT_DOCUMENT', 'UPDATE_SCRIPT_DOCUMENT',
   'ADD_SCRIPT_ANNOTATION', 'UPDATE_SCRIPT_ANNOTATION', 'REMOVE_SCRIPT_ANNOTATION',
+  // Budgeting (roadmap 334) — KEEP IN SYNC with the union above.
+  'ADD_BUDGET_CATEGORY', 'UPDATE_BUDGET_CATEGORY', 'DELETE_BUDGET_CATEGORY',
+  'ADD_BUDGET_ACCOUNT', 'UPDATE_BUDGET_ACCOUNT', 'DELETE_BUDGET_ACCOUNT',
+  'ADD_BUDGET_LINE', 'UPDATE_BUDGET_LINE', 'DELETE_BUDGET_LINE', 'BULK_UPDATE_BUDGET_LINES',
+  'LINK_BUDGET_LINE', 'UNLINK_BUDGET_LINE', 'PIN_BUDGET_LINE', 'UNPIN_BUDGET_LINE',
+  'SET_BUDGET_LIBRARY', 'UPDATE_BUDGET_SETTINGS', 'APPLY_BUDGET_TEMPLATE', 'IMPORT_BUDGET',
+  'NEW_BUDGET_VERSION', 'RENAME_BUDGET_VERSION', 'DELETE_BUDGET_VERSION',
+  'RESTORE_BUDGET_VERSION_FROM_TRASH', 'SET_ACTIVE_BUDGET_VERSION',
+  'LOCK_BUDGET_VERSION', 'UNLOCK_BUDGET_VERSION',
 ]);
 
 export interface State {
@@ -431,6 +478,9 @@ export function reducer(state: State, action: Action): State {
     // adopt the loaded scenes as the baseline, so edits made from now on are
     // still detectable (the pre-load history is unknowable).
     if (p.scriptDocument && !p.scriptBaselineFields) p.scriptBaselineFields = snapshotSceneFields(p.scenes);
+    // Budgeting (roadmap 334): idempotent read normalization on every load path
+    // (local/Drive/online/room). NEVER auto-creates a budget.
+    migrateBudget(p);
 
     return {
       past: [],
@@ -598,6 +648,31 @@ export function reducer(state: State, action: Action): State {
     case 'ADD_SCRIPT_ANNOTATION': return caseAddScriptAnnotation(state, action, applyChange);
     case 'UPDATE_SCRIPT_ANNOTATION': return caseUpdateScriptAnnotation(state, action, applyChange);
     case 'REMOVE_SCRIPT_ANNOTATION': return caseRemoveScriptAnnotation(state, action, applyChange);
+    case 'ADD_BUDGET_CATEGORY': return caseAddBudgetCategory(state, action, applyChange);
+    case 'UPDATE_BUDGET_CATEGORY': return caseUpdateBudgetCategory(state, action, applyChange);
+    case 'DELETE_BUDGET_CATEGORY': return caseDeleteBudgetCategory(state, action, applyChange);
+    case 'ADD_BUDGET_ACCOUNT': return caseAddBudgetAccount(state, action, applyChange);
+    case 'UPDATE_BUDGET_ACCOUNT': return caseUpdateBudgetAccount(state, action, applyChange);
+    case 'DELETE_BUDGET_ACCOUNT': return caseDeleteBudgetAccount(state, action, applyChange);
+    case 'ADD_BUDGET_LINE': return caseAddBudgetLine(state, action, applyChange);
+    case 'UPDATE_BUDGET_LINE': return caseUpdateBudgetLine(state, action, applyChange);
+    case 'DELETE_BUDGET_LINE': return caseDeleteBudgetLine(state, action, applyChange);
+    case 'BULK_UPDATE_BUDGET_LINES': return caseBulkUpdateBudgetLines(state, action, applyChange);
+    case 'LINK_BUDGET_LINE': return caseLinkBudgetLine(state, action, applyChange);
+    case 'UNLINK_BUDGET_LINE': return caseUnlinkBudgetLine(state, action, applyChange);
+    case 'PIN_BUDGET_LINE': return casePinBudgetLine(state, action, applyChange);
+    case 'UNPIN_BUDGET_LINE': return caseUnpinBudgetLine(state, action, applyChange);
+    case 'SET_BUDGET_LIBRARY': return caseSetBudgetLibrary(state, action, applyChange);
+    case 'UPDATE_BUDGET_SETTINGS': return caseUpdateBudgetSettings(state, action, applyChange);
+    case 'APPLY_BUDGET_TEMPLATE': return caseApplyBudgetTemplate(state, action, applyChange);
+    case 'IMPORT_BUDGET': return caseImportBudget(state, action, applyChange);
+    case 'NEW_BUDGET_VERSION': return caseNewBudgetVersion(state, action, applyChange);
+    case 'RENAME_BUDGET_VERSION': return caseRenameBudgetVersion(state, action, applyChange);
+    case 'DELETE_BUDGET_VERSION': return caseDeleteBudgetVersion(state, action, applyChange);
+    case 'RESTORE_BUDGET_VERSION_FROM_TRASH': return caseRestoreBudgetVersionFromTrash(state, action, applyChange);
+    case 'SET_ACTIVE_BUDGET_VERSION': return caseSetActiveBudgetVersion(state, action, applyChange);
+    case 'LOCK_BUDGET_VERSION': return caseLockBudgetVersion(state, action, applyChange);
+    case 'UNLOCK_BUDGET_VERSION': return caseUnlockBudgetVersion(state, action, applyChange);
     default:
       return state;
   }

@@ -21,6 +21,8 @@ import {
   type SortRowsOptions,
 } from './scheduleOps';
 import { createBlankScene } from './sceneFactory';
+import { makeBlankBudget, makeBudgetLine, makeBudgetVersion } from './budget/model';
+import { computeBudget } from './budget/calc';
 import { deserializeProject } from './projectCodec';
 import type { PresenceDiagnostics } from './supabase/presenceChannel';
 import type { PresenceAnchor } from './supabase/presence';
@@ -42,7 +44,7 @@ import { buildDayViews, type DayView } from './dayView';
 import { computeViolationIndex } from './violations';
 import { computeElementDayStats } from './elementDayStats';
 import { generateUUID } from './utils';
-import type { Project, Scene, CalendarVersion, CustomCategoryDef, ScriptBlock, ScheduleRow, ReportBlock, ReportDesign } from '../types';
+import type { Project, Scene, CalendarVersion, CustomCategoryDef, ScriptBlock, ScheduleRow, ReportBlock, ReportDesign, Budget, BudgetLine, BudgetVersion } from '../types';
 import type { ProjectMeta } from '../store/storage';
 
 /**
@@ -263,6 +265,23 @@ export interface LemonAgentBridge {
   onAction: (cb: (action: Action) => void) => () => void;
   makeBlankScene: (partial?: Partial<Scene>) => Scene;
   makeBlankProject: (title?: string) => Project;
+  makeBlankBudget: (name?: string) => Budget;
+  makeBudgetVersion: (partial: Partial<BudgetVersion> & { name: string }) => BudgetVersion;
+  makeBudgetLine: (partial: Partial<BudgetLine> & { accountId: string }) => BudgetLine;
+  /** Active-version totals + counts — the agent read seam for budgeting. */
+  budgetSummary: () => {
+    versionId: string;
+    versionName: string;
+    locked: boolean;
+    versions: { id: string; name: string; lineCount: number; locked: boolean }[];
+    categories: number;
+    accounts: number;
+    lines: number;
+    linkedLines: number;
+    pinnedLines: number;
+    totals: { baseCents: number; fringeCents: number; markupCents: number; grandTotalCents: number };
+    errors: string[];
+  } | null;
   getReportRegistry: () => AgentBridgeReportRegistry;
   getReportDesign: (reportId: string) => ReportDesign | null;
   makeReportBlock: (params: Partial<ReportBlock> & { type: ReportBlock['type'] }) => ReportBlock;
@@ -405,6 +424,10 @@ function buildBridge(): LemonAgentBridge {
     'Factories (build valid entities without hand-crafting ids/fields):',
     '  makeBlankScene(partial?)     → complete Scene with a fresh id',
     '  makeBlankProject(title?)     → complete blank Project (pinned daybreak, default design/reports)',
+    '  makeBlankBudget(name?)       → empty Budget (one version + default library)',
+    '  makeBudgetVersion({name})    → BudgetVersion with a fresh id',
+    '  makeBudgetLine({accountId})  → BudgetLine with a fresh id',
+    '  budgetSummary()              → active-version totals/link counts/errors (null = no budget)',
     '  makeReportBlock({type,...})  → valid ReportBlock (block types via getReportRegistry)',
     '  newId()                      → fresh uuid',
     '',
@@ -712,6 +735,37 @@ function buildBridge(): LemonAgentBridge {
     },
     makeBlankScene: (partial?: Partial<Scene>) => createBlankScene(partial),
     makeBlankProject: (title?: string) => makeBlankProject(title),
+    makeBlankBudget: (name?: string) => makeBlankBudget(name),
+    makeBudgetVersion: (partial: Partial<BudgetVersion> & { name: string }) => makeBudgetVersion(partial),
+    makeBudgetLine: (partial: Partial<BudgetLine> & { accountId: string }) => makeBudgetLine(partial),
+    budgetSummary: () => {
+      const project = api().getProject();
+      const model = computeBudget(project);
+      if (!model) return null;
+      return deepClone({
+        versionId: model.version.id,
+        versionName: model.version.name,
+        locked: !!model.version.locked,
+        versions: (project.budget?.versions || []).map(v => ({
+          id: v.id,
+          name: v.name,
+          lineCount: v.lines.length,
+          locked: !!v.locked,
+        })),
+        categories: model.categories.length,
+        accounts: model.categories.reduce((s, c) => s + c.accounts.length, 0),
+        lines: model.lineCount,
+        linkedLines: model.linkedLineCount,
+        pinnedLines: model.pinnedLineCount,
+        totals: {
+          baseCents: model.totals.baseCents,
+          fringeCents: model.totals.fringeCents,
+          markupCents: model.totals.markupCents,
+          grandTotalCents: model.totals.grandTotalCents,
+        },
+        errors: model.errors.map(e => e.message),
+      });
+    },
     getReportRegistry: () => {
       const project = api().getProject();
       const typedByChild = new Map(TYPED_PARENT_COLLECTIONS.map((t) => [t.child as string, t.parent as string]));
