@@ -1329,3 +1329,25 @@ that eats the click.
 **Relations:** `relates to` 182 (nested touch submenus — covered by the audit),
 270 (iPhone shell), 302 (coordinate the kit version bump); follows the archived
 iPad touch hardening (69/70/71/78/80/183/184/206/273).
+
+## 334. Budgeting & cost tracking — master plan (big)
+
+**Plan: `docs/BUDGETING.md` (model/engine/store/phases) + `docs/BUDGETING-SURFACES.md` (UI/Day Manager/reports) + `docs/BUDGETING-PHASES.md` (AI work packages) + `docs/BUDGETING-RESEARCH.md` (market evidence). Read them first.** Asked 2026-10-30 (user): a Budget tab, Day Manager expenses, crew + cast overtime (global/day/dept/person), budget attributes in the Reports Designer, UI-kit only, Glide tables. **No AI in the app** (user decision) — the debug bridge/MCP is the external-agent seam.
+
+**Shape:** fixed 3 levels (Category → Account → Line), integer-cent money, one engine for Budget/Cost Report/reports, editable Glide grid + DOM report tables. The differentiator is the schedule loop: stripboard/DOOD/crew roster → live-linked quantities; Day Manager → actuals/OT; Reports Designer → branded prints. Blank/manual budgets are first-class; schedule links are live with no sync button (pin per line; locking a version freezes linked quantities).
+
+**Phases (each a complete vertical slice; detailed AI work packages in `docs/BUDGETING-PHASES.md`):**
+- **1 — Budget authoring, versions & reports:** model/shared chart/library, versions (picker/trash/active/lock, shared chart + per-version lines), tab/nav, Glide grid, templates, fringes/globals/groups/units/markups, live schedule links (no sync), blank/from-schedule creation, per-line currency + fx/base totals, `budgetTable` + budget fields/collections, Top Sheet/Account Detail/Budget Health prints, CSV/JSON.
+- **2 — Cost tracking:** expenses/POs, Cost Report view, Day Manager Expenses card/modal, actuals/committed/ETC/EFC/variance, cost report print, expense fields/CSV.
+- **3 — Overtime:** crew + cast rates/guarantee, project/day/dept/person overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost, post-to-expenses, OT report fields, version lock.
+- **4 — Advanced:** version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP, episodic, approvals/petty-cash depth, MMB import/export.
+
+**Non-negotiables:** money in cents; one read model (`computeBudget`/`computeCostReport`); explicit store actions in `ACTION_TYPES`; bulk ops in one batch; no per-row `useProject()`; commits on blur, never per keystroke; `locked = readOnly || !canEdit`; no secrets/receipt blobs in project state; budget is readable by view-only collaborators (say so in sharing). Reports/exports use the Reports Designer block tree + budget fields/collections, never a second engine; PDF via the print dialog, CSV/JSON via budget exporters.
+
+**Decided 2026-10-30:** top-level Budget tab; estimate-first but complete authoring (versions + schedule links + reports); crew **and** cast OT; project-level budget visibility (online view permissions later); no AI in the app; Feature + Blank templates; per-line currency from day one; OT 10h/1.5x-after-10/2x-after-12 (cast separate SAG-style preset); ETC = remaining budget; generated lines live-linked.
+
+**Only open question:** version compare in phase 4 (recommended; versions ship in phase 1) or pull it into phase 1.
+
+**Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
+
+**Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
