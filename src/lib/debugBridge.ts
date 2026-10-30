@@ -42,6 +42,7 @@ import {
 } from './reportBlocks';
 import { getReportFieldDefs } from './reportFields';
 import { buildDayViews, type DayView } from './dayView';
+import { computeDayOvertime, overtimeDayFromView } from './budget/overtime';
 import { computeViolationIndex } from './violations';
 import { computeElementDayStats } from './elementDayStats';
 import { generateUUID } from './utils';
@@ -313,6 +314,18 @@ export interface LemonAgentBridge {
   makePurchaseOrder: (partial?: Partial<PurchaseOrder> & { number?: string }) => PurchaseOrder;
   /** Cost-tracking read seam (roadmap 334 phase 2) — as-of/period totals. */
   costReportSummary: (options?: { asOf?: string; from?: string; to?: string }) => AgentBridgeCostSummary | null;
+  /** Overtime read seam (roadmap 334 phase 3): one entry per production day. */
+  overtimeSummary: (options?: { versionId?: string | null; dayNumber?: number }) => {
+    sectionIndex: number;
+    chronoDay: number;
+    date: string;
+    workDayNumber: number;
+    dayMultiplier: number;
+    hours: number;
+    otHours: number;
+    costCents: number;
+    noRate: string[];
+  }[] | null;
   /** Active-version totals + counts — the agent read seam for budgeting. */
   budgetSummary: () => {
     versionId: string;
@@ -481,6 +494,7 @@ function buildBridge(): LemonAgentBridge {
     '  makePurchaseOrder(partial?)  → PurchaseOrder with a fresh id',
     '  budgetSummary()              → active-version totals/link counts/errors (null = no budget)',
     '  costReportSummary({asOf,from,to}) → budget vs actual/committed/ETC/EFC/variance rows (null = no budget)',
+    '  overtimeSummary({dayNumber?}) → per-day hours/OT hours/cost + no-rate names',
     '  makeReportBlock({type,...})  → valid ReportBlock (block types via getReportRegistry)',
     '  newId()                      → fresh uuid',
     '',
@@ -829,6 +843,25 @@ function buildBridge(): LemonAgentBridge {
         },
         errors: model.errors.map(e => e.message),
       });
+    },
+    overtimeSummary: (options?: { versionId?: string | null; dayNumber?: number }) => {
+      const ctx = computeDayViewsFor(options?.versionId);
+      if (!ctx) return null;
+      const days = ctx.days.filter(day => day.chronoDay > 0 && (!options?.dayNumber || day.chronoDay === options.dayNumber));
+      return deepClone(days.map(day => {
+        const result = computeDayOvertime(ctx.project, overtimeDayFromView(ctx.project, day));
+        return {
+          sectionIndex: result.sectionIndex,
+          chronoDay: result.chronoDay,
+          date: result.date,
+          workDayNumber: result.workDayNumber,
+          dayMultiplier: result.dayMultiplier,
+          hours: result.hours,
+          otHours: result.totalOtHours,
+          costCents: result.totalCostCents,
+          noRate: result.noRate,
+        };
+      }));
     },
     makeExpense: (partial?: Partial<Expense>) => deepClone(makeExpense(partial ?? {})),
     makePurchaseOrder: (partial?: Partial<PurchaseOrder> & { number?: string }) => deepClone(makePurchaseOrder(partial ?? {})),

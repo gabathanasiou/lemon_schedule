@@ -171,7 +171,7 @@ export function FormulaField({
       {suggestionsOpen && pos && createPortal(
         <div
           ref={morphRef}
-          style={{ position: 'fixed', top: pos.top, left: Math.max(8, pos.left), width: Math.max(240, anchorRef.current?.getBoundingClientRect().width ?? 240), maxHeight: pos.maxH, zIndex: 10001 }}
+          style={{ position: 'fixed', top: pos.top, left: Math.max(8, pos.left), width: Math.max(240, anchorRef.current?.getBoundingClientRect().width ?? 240), maxHeight: pos.maxH, zIndex: 10001, pointerEvents: 'auto' }}
           className="overflow-y-auto scrollbar-custom rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] shadow-2xl py-1"
           data-formula-suggestions
           onMouseDown={(e) => e.preventDefault()}

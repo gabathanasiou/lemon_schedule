@@ -16,7 +16,31 @@ function buildCrewRows(project: Project, role: string): ManagerRow[] {
     name: p.name,
     phone: p.phone || '',
     email: p.email || '',
+    // Phase 3 overtime pay basis (dollars at the field, cents at the boundary).
+    rate: p.rateCents != null ? (p.rateCents / 100).toFixed(2) : '',
+    rateUnit: p.rateUnit || '',
+    guarantee: p.guaranteeHours != null ? String(p.guaranteeHours) : '',
   }));
+}
+
+/** Manager text columns → the person's numeric pay basis (cents). */
+function payPatch(src: Record<string, string>): Partial<CrewPerson> {
+  const out: Partial<CrewPerson> = {};
+  // The destructured update always carries the keys (possibly undefined) —
+  // never call string methods before proving the field is present.
+  if (typeof src.rate === 'string') {
+    const n = Number(src.rate.replace(/[^0-9.\-]/g, ''));
+    out.rateCents = Number.isFinite(n) && n > 0 ? Math.round(n * 100) : undefined;
+  }
+  if (typeof src.rateUnit === 'string') {
+    const unit = src.rateUnit.trim().toLowerCase();
+    out.rateUnit = unit === 'hour' || unit === 'day' || unit === 'flat' ? unit : undefined;
+  }
+  if (typeof src.guarantee === 'string') {
+    const n = Number(src.guarantee.replace(/[^0-9.\-]/g, ''));
+    out.guaranteeHours = Number.isFinite(n) && n > 0 ? n : undefined;
+  }
+  return out;
 }
 
 function slugifyRole(label: string): string {
@@ -30,11 +54,20 @@ function commitCrewPlan(dispatch: (action: any) => void, plan: ManagerSavePlan, 
       type: 'ADD_CREW_PERSON',
       payload: {
         role,
-        person: { id: row.id || generateUUID(), name: row.name || '', phone: row.phone || '', email: row.email || '' },
+        person: {
+          id: row.id || generateUUID(), name: row.name || '', phone: row.phone || '', email: row.email || '',
+          ...payPatch(row),
+        },
       },
     });
   }
-  for (const u of plan.updates) dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role, id: u.id, updates: u.updates as Partial<CrewPerson> } });
+  for (const u of plan.updates) {
+    const { rate, rateUnit, guarantee, ...rest } = u.updates as Record<string, string>;
+    dispatch({
+      type: 'UPDATE_CREW_PERSON',
+      payload: { role, id: u.id, updates: { ...rest, ...payPatch({ rate, rateUnit, guarantee }) } as Partial<CrewPerson> },
+    });
+  }
 }
 
 export const crewManagerConfig: ManagerShellConfig = {
@@ -54,8 +87,11 @@ export const crewManagerConfig: ManagerShellConfig = {
     { key: 'name', label: 'Name', width: 'min-w-44 max-w-56', uppercase: true },
     { key: 'phone', label: 'Phone', width: 'min-w-36' },
     { key: 'email', label: 'Email', width: 'min-w-[140px]' },
+    { key: 'rate', label: 'Rate', width: 'min-w-20' },
+    { key: 'rateUnit', label: 'Per', width: 'min-w-16' },
+    { key: 'guarantee', label: 'Guarantee', width: 'min-w-20' },
   ],
-  mergeableFields: ['phone', 'email'],
+  mergeableFields: ['phone', 'email', 'rate', 'rateUnit', 'guarantee'],
   categories: project => project.crewRoles || [],
   categoryGroup: role => crewRoleGroup(role),
   categoryGroupOptions: CREW_DEPARTMENT_NAMES,
@@ -86,7 +122,7 @@ export const crewManagerConfig: ManagerShellConfig = {
     dispatch({ type: 'DELETE_CREW_ROLE', payload: key });
   },
   loadRows: buildCrewRows,
-  makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', phone: '', email: '' }),
+  makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', phone: '', email: '', rate: '', rateUnit: '', guarantee: '' }),
   commitPlan: commitCrewPlan,
   sortModes: [
     { key: 'name', label: 'By Name', comparator: (a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()) },

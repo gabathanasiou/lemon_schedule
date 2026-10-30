@@ -66,6 +66,7 @@ export function isEmptyDayMeta(meta?: DayMeta | null): boolean {
     }
   }
   if (meta.callSheets && Object.keys(meta.callSheets).length > 0) return false;
+  if (meta.overtime) return false;
   return true;
 }
 

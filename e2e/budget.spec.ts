@@ -267,5 +267,57 @@ test.describe('Budget', () => {
       await page.locator('[data-day-tab="expenses"]').click();
       await expect(page.locator('[data-expenses-section]')).toContainText('$800');
     });
+
+    await test.step('crew overtime computes, posts to expenses and persists', async () => {
+      await page.locator('[data-day-tab="crew"]').click();
+      const seeded = await page.evaluate(() => {
+        const b = (window as any).__lemonSchedule;
+        const p = b.getProject();
+        b.dispatch({ type: 'ADD_CREW_PERSON', payload: { role: 'cameraOperator', person: { id: 'ot-p1', name: 'OT ALEX', rateCents: 10000, rateUnit: 'day' } } });
+        const version = p.versions.find((v: any) => v.id === p.activeVersionId);
+        const pinned = version.rows.find((r: any) => r.type === 'DAYBREAK' && (r.pinned || (r.containerId === 1 && r.order === 0)));
+        b.dispatch({
+          type: 'UPDATE_ROW',
+          payload: {
+            versionId: p.activeVersionId,
+            rowId: pinned.id,
+            updates: { daybreakMeta: { ...(pinned.daybreakMeta || {}), crewSlots: [{ id: 'slot-ot', role: 'cameraOperator', personId: 'ot-p1' }], overtime: { actualWrap: '21:00' } } },
+          },
+        });
+        return b.overtimeSummary();
+      });
+      // Day 1 call 08:00 → actual wrap 21:00 = 13h; 3h OT at $50 (10h paid, 2h×1.5 + 1h×2).
+      expect(seeded[0].otHours).toBe(3);
+      expect(seeded[0].costCents).toBe(5000);
+      expect(seeded[0].noRate).toEqual([]);
+
+      const badge = page.locator('[data-crew-overtime]');
+      await expect(badge).toContainText('3h · $50', { timeout: 5000 });
+      await badge.click();
+      await expect(page.getByRole('heading', { name: /^Overtime —/ })).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText('3h OT')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Post to expenses' }).click();
+      await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect.poll(async () => {
+        const expenses = await page.evaluate(() => (window as any).__lemonSchedule.getProject().expenses || []);
+        const ot = expenses.find((e: any) => String(e.description).startsWith('Overtime — OT ALEX'));
+        return ot ? ot.amountCents : 0;
+      }).toBe(5000);
+      const posted = await page.evaluate(() => (window as any).__lemonSchedule.getProject().expenses.find((e: any) => String(e.description).startsWith('Overtime —')));
+      expect(posted.method).toBe('payroll');
+      expect(posted.status).toBe('actual');
+      expect(posted.dayNumber).toBe(1);
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+
+      await waitForPersistedProject(page, 'p.expenses && p.expenses.some(e => String(e.description).startsWith("Overtime —")) && p.versions[0].rows.some(r => r.daybreakMeta && r.daybreakMeta.overtime)');
+      await page.reload();
+      await ensureProject(page);
+      await page.getByRole('button', { name: 'Production', exact: true }).click();
+      await page.locator('[data-day-tab="crew"]').click();
+      await expect(page.locator('[data-crew-overtime]')).toContainText('3h · $50');
+      const afterReload = await page.evaluate(() => (window as any).__lemonSchedule.overtimeSummary());
+      expect(afterReload[0].costCents).toBe(5000);
+    });
   });
 });

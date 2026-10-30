@@ -45,8 +45,8 @@ criteria pass. Within a phase, commit in this order:
 - No per-row `useProject()`; no deriving totals in a component; no mutating
   computed rows; no `any` casts for budget shapes.
 - No per-keystroke persistence; commit on blur/Enter, bulk ops in one
-  `BATCH_START`/`BATCH_COMMIT`.
-- No hardcoded union/legal rates, no bank/SSN/card data, no receipt blobs.
+  `BATCH_START`/`BATCH_COMMIT`. No hardcoded union/legal rates, no bank/SSN/card
+  data, no receipt blobs.
 - No in-app AI/model calls. The bridge/MCP is the only agent seam.
 - No "sync" button. Schedule links are live; pin/lock is the control.
 
@@ -78,7 +78,7 @@ versions, and print/export it through the Reports Designer. No cost tracking,
 no overtime yet.
 
 ### Data (`src/types.ts`)
-Shipped exactly: `MoneyCents`, `BudgetGroupKind`, `BudgetLineKind`,
+Shipped: `MoneyCents`, `BudgetGroupKind`, `BudgetLineKind`,
 `BudgetCategory`, `BudgetAccount`, `BudgetLine`, `BudgetLineSource`,
 `BudgetFringe`, `BudgetFringeRange`, `BudgetGroup`, `BudgetGlobal`,
 `BudgetUnit`, `BudgetCurrency`, `BudgetMarkup`, `BudgetSettings`, `Budget`,
@@ -244,8 +244,8 @@ change → linked qty, pin and lock. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md
 spec.
 
 ### Pitfalls
-- Do not put `budget` in a new context/store; it is project state.
-- Do not clone the chart/library per version; share them.
+- Do not put `budget` in a new context/store; it is project state. Do not clone
+  the chart/library per version; share them.
 - Do not deep-clone lines on version create; COW only.
 - Do not compute schedule quantities inside the reducer; pass pinned values.
 - Do not use the rich-text token editor for the budget formula fields (plain
@@ -297,8 +297,7 @@ expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
 ### Phase-2 follow-ups (roadmap 335-347 SHIPPED; 348 open)
-- **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
-  (category/account → node modal, line → line modal), not context-menu-first.
+- **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target (category/account → node modal, line → line modal), never context-menu-first.
 - **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the day filter, summary, CTA and read-only rules.
 - **337** Budget Glide bulk entry: context-menu "Add line…" count → N lines in one batch; Shift+Enter adds/focuses a row via the shared keyboard hook.
 - **338** Fringe pickers show each fringe's computed line contribution
@@ -308,7 +307,7 @@ fields), `API.md`, roadmap.
 - **341** Currency library: derive the symbol from the chosen currency (remove the symbol input), seed common currencies, add manual "Sync rates" (no-key provider + CSP, base = 1, one batch, last-synced stamp).
 - **342** Budget quick filter: shared `GlideFilter`/`MorphSearchField`,
   display-only AND tags over category/account/line text; totals stay whole.
-- **343** Budget Glide visuals: band colour across every cell of a category/account row; sticky column header in `InlineGlideTable`.
+- **343** Budget Glide visuals: band colour every cell + sticky header.
 - **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; reuse `CardSection`/`DaySectionCard`, `DayPicker`, `SearchMenu` — no bespoke rewrites.
 - **345** Glide status cells: one shared status→tone map painting `bgCell` + text (expenses first), label always visible; editable tint is the explicit white-cell exception.
 - **346** Formula book/autocomplete: plain-text `FormulaField` (not RichTextEditor), shared symbol/function registry, searchable book + caret insert; safe v1 functions; no cross-line refs.
@@ -317,18 +316,21 @@ fields), `API.md`, roadmap.
 Silent-break cases live in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual.
 ---
 
-## Phase 3 — Overtime
+## Phase 3 — Overtime — LANDED (2026-10-30)
+
+> Shipped in `src/lib/budget/overtime.ts` + `OvertimeModal` (334 stays open for
+> phase 4). Divergences: numeric cast rates/project policy are data/bridge-
+> editable (Crew Manager exposes crew rates; cast details keeps the MMS text
+> rate); no extra version-lock coupling.
 
 ### Goal
 Crew + cast overtime from the day's calls/wrap, with project/day/department/
 person overrides, a Crew card modal, and post-to-expenses.
 
 ### Data/store
-`OvertimeTier`, `OvertimePolicy` on `ProductionInfo`, `OvertimeOverride`,
-`DayOvertime` on `DayMeta`; `CrewPerson.rateCents/rateUnit/guaranteeHours/
-overtime`, `CastMember.guaranteeHours/overtime`. No new action for OT settings:
-use `patchDayMeta`/`UPDATE_ROW`; posting is `BULK_ADD_EXPENSES`. Add `Cast`
-tab fields to the existing cast details modal/rate columns in Crew Manager.
+`OvertimePolicy` on `ProductionInfo`, `DayOvertime` on `DayMeta`,
+`CrewPerson`/`CastMember` rate/guarantee/overtime. No new action: settings use
+`patchDayMeta`/`UPDATE_ROW`, posting uses `BULK_ADD_EXPENSES`.
 
 ### Engine
 `lib/budget/overtime.ts`: `resolveOvertimePolicy(project, day, dept, person)`,
@@ -352,10 +354,8 @@ Cost`; cast fields (rate/per, OT hours/cost). Existing `crewOfDay`/
 `departmentCallsOfDay` collections consume them.
 
 ### Acceptance/tests/docs
-Policy resolution; crew/cast hours/cost; no-rate hours; post-to-expenses batch;
-copy-day; lock/version; report fields; viewer refusal. Vitest OT maths; e2e
-modal/post/reload. Docs: `BUDGETING-SURFACES.md` §7, `REPORTS-DESIGNER.md`,
-`API.md`, roadmap.
+Policy resolution; hours/cost; no-rate; post-to-expenses batch; copy-day; report
+fields; viewer refusal. Vitest `overtime.test.ts`; e2e modal/post/reload.
 
 ---
 
@@ -396,6 +396,5 @@ Each sub-package gets its own acceptance/tests/docs; no half-built "advanced mod
   money formatting; print dialog always.
 - **Kit:** reuse `NumberInput`; add only suffix/MoneyField/PercentField; no
   duplicate primitives.
-- **Perf:** 1,000 lines + 500 expenses; tab-switch/edit timings; file size.
-- **Security:** no secrets; viewer read-only; sharing warning; security-review
-  relevance check when touching roles/room writes.
+- **Perf & security:** 1,000 lines + 500 expenses; no secrets; viewer read-only;
+  sharing warning; security-review relevance check on roles/room writes.

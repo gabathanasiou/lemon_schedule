@@ -50,9 +50,8 @@ the budget/cost report fields/collections or the print templates.
   the schedule" / "No lines linked"), Print (design menu + Save as design),
   Export (CSV / JSON), Import (JSON). No sync button, no View/columns menu, no
   Templates menu after creation (templates live in the empty state).
-- **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency — all base
-  cents through `formatMoney(model.settings)`. `SectionTile` is local to the
-  view (not a promoted kit primitive).
+- **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency — base cents
+  through `formatMoney(model.settings)`; `SectionTile` stays view-local.
 - **Left rail:** "All categories" + one button per category with number, name,
   % of grand and total. Clicking filters the sheet to that category (local
   state, not project state); it is navigation, not a tree editor. Right-click
@@ -364,13 +363,16 @@ Cost/Cashflow/Comparison belong to later phases.
 
 ## 7. Later phases (forward-looking — do not treat as built)
 
-- **Phase 2 — Cost Report & Expenses — LANDED (2026-10-30).** §4b. PO authoring
-  is action/bridge-only (no PO modal yet).
-- **Phase 3 — Overtime.** Crew card **Overtime** button (badge `Xh · $Y`) +
-  root-owned `OvertimeModal` (Day/Departments/Crew/Cast), policy project → day
-  → department → person, no-rate warning, Post to expenses (actual/payroll, one
-  batch); `DayMeta.overtime`; report fields `crewRate/rateUnit/hours/otHours/
-  otCost/dayCost`, `dayOvertimeHours/Cost`, `deptOtHours/Cost`, cast rate/per+OT.
+- **Phase 2 — Cost Report & Expenses — LANDED.** §4b. PO authoring is
+  action/bridge-only (no PO modal yet).
+- **Phase 3 — Overtime — LANDED (2026-10-30).** Crew card **Overtime** button
+  (badge `Xh · $Y`) + root-owned `OvertimeModal` (Day/Departments/Crew/Cast):
+  actual call/wrap, paid day, tier editor, 6th/7th multipliers, per-department
+  and per-person overrides, no-rate warning, **Post to expenses** (actual/
+  payroll, one batch). `DayMeta.overtime` owns the settings; copy-from-day
+  carries it with the crew extract. Report fields `crewRate/rateUnit/hours/otHours/
+  otCost/dayCost`, `dayOvertimeHours/Cost`, `deptOtHours/Cost`, cast numeric rates
+  (data/bridge-editable today).
 - **Phase 4 — Advanced.** Version compare, cashflow, incentives/credits,
   currency report, AICP/episodic, approvals/petty-cash, MMB import/export; each
   its own branch, no half-built "advanced mode".
@@ -378,23 +380,21 @@ Cost/Cashflow/Comparison belong to later phases.
 ## 8. UI-kit gaps (actual)
 
 - `NumberInput` is the one numeric primitive (`fields.tsx` adapters:
-  `NumberField`, `MoneyField`, `PercentField`); `ColorField` is reused.
-- No generic `Stat`/`EmptyState`: `SectionTile` and `BudgetEmptyState` stay
-  local until a second feature needs them.
+  `NumberField`, `MoneyField`, `PercentField`); `ColorField` is reused. No
+  generic `Stat`/`EmptyState`: `SectionTile`/`BudgetEmptyState` stay local.
 - Already sufficient: `Button`, `Seg`, `DropdownMenu`/`ItemManagerDropdown`,
-  `Checklist`, `Modal`/`ModalFooter`/`ModalFooterButton`, `PageToolbar`,
-  `ThemeScope`, `InlineGlideTable` + kit control cells, app glyphs
-  (`infoGlyphCell`, `colorSwatchCell`, `disclosureGlyphCell`), `SearchMenu`,
-  `DayPickerList`, `GlideFilter`, `FormulaField` (app).
+  `Checklist`, `Modal`/`ModalFooter`, `PageToolbar`, `ThemeScope`,
+  `InlineGlideTable` + kit control cells, app glyphs (`infoGlyphCell`,
+  `colorSwatchCell`, `disclosureGlyphCell`), `SearchMenu`, `DayPickerList`,
+  `GlideFilter`, `FormulaField`.
 
 ## 9. Prefs & state
 
 - Project state: the entire `Budget` (chart, library, versions, settings) +
-  `project.expenses`/`purchaseOrders`.
-- Local view state: focused category/rail menu, open line/node/group/global
-  modal, sheet row filter, band collapse (module-level per session), cost
-  report as-of/period, ledger filters. No budget-specific persisted view prefs;
-  the dialog `suppressKey`s are the only localStorage keys.
+  `project.expenses`/`purchaseOrders`. Local view state: focused category/rail
+  menu, open modals, sheet row filter, band collapse (module-level per session),
+  cost report as-of/period, ledger filters. No budget-specific persisted view
+  prefs; the dialog `suppressKey`s are the only localStorage keys.
 - The budget is never in a second context/store; `BudgetTab` reads the project
   once and passes the model/readOnly down. Children take the store only for
   `dispatch`; no row component calls `useProject()`.

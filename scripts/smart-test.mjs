@@ -196,6 +196,8 @@ const RULES = [
   { g: 'src/components/budget/**', s: BUDGET },
   { g: 'src/lib/budget/**', s: BUDGET },
   { g: 'src/lib/reportBudget.ts', s: BUDGET },
+  { g: 'src/lib/reportData.ts', s: [...REPORT, ...BUDGET] },
+  { g: 'src/lib/reportFields.ts', s: [...REPORT, ...BUDGET] },
   { g: 'src/components/reports/ReportBudgetTable.tsx', s: BUDGET },
   { g: 'src/components/reports/BudgetBlockControls.tsx', s: BUDGET },
   // shared Glide DB shell + the row-filter field also serve crew/locations

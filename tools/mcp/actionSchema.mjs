@@ -40,6 +40,12 @@ export const ENTITY_NAMES = [
   'ReportColumn',
   'ReportCustomRow',
   'ReportTableRow',
+  // Overtime (roadmap 334 phase 3)
+  'OvertimeTier',
+  'OvertimePolicy',
+  'OvertimePersonSettings',
+  'OvertimeOverride',
+  'DayOvertime',
 ];
 
 const CACHE_TTL_MS = 2000;

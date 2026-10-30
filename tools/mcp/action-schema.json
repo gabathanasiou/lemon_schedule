@@ -930,6 +930,26 @@
           "type": "string"
         },
         {
+          "name": "rateCents",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "rateUnit",
+          "optional": true,
+          "type": "'hour' | 'day' | 'flat'"
+        },
+        {
+          "name": "guaranteeHours",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "overtime",
+          "optional": true,
+          "type": "OvertimePersonSettings"
+        },
+        {
           "name": "notes",
           "optional": true,
           "type": "string"
@@ -1033,6 +1053,26 @@
           "name": "email",
           "optional": true,
           "type": "string"
+        },
+        {
+          "name": "rateCents",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "rateUnit",
+          "optional": true,
+          "type": "'hour' | 'day' | 'flat'"
+        },
+        {
+          "name": "guaranteeHours",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "overtime",
+          "optional": true,
+          "type": "OvertimePersonSettings"
         }
       ]
     },
@@ -1308,6 +1348,16 @@
           "name": "callTimes",
           "optional": true,
           "type": "CallTimeSettings"
+        },
+        {
+          "name": "overtime",
+          "optional": true,
+          "type": "OvertimePolicy"
+        },
+        {
+          "name": "castOvertime",
+          "optional": true,
+          "type": "OvertimePolicy"
         }
       ]
     },
@@ -1973,6 +2023,146 @@
           "name": "cells",
           "optional": false,
           "type": "{ id: string; field: string; align?: 'left' | 'center' | 'right' }[]"
+        }
+      ]
+    },
+    "OvertimeTier": {
+      "name": "OvertimeTier",
+      "fields": [
+        {
+          "name": "afterHours",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "multiplier",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "label",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "OvertimePolicy": {
+      "name": "OvertimePolicy",
+      "fields": [
+        {
+          "name": "dailyHours",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "tiers",
+          "optional": true,
+          "type": "OvertimeTier[]"
+        },
+        {
+          "name": "sixthDayMultiplier",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "seventhDayMultiplier",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "notes",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "OvertimePersonSettings": {
+      "name": "OvertimePersonSettings",
+      "fields": [
+        {
+          "name": "dailyHours",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "multiplier",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "guaranteeHours",
+          "optional": true,
+          "type": "number"
+        }
+      ]
+    },
+    "OvertimeOverride": {
+      "name": "OvertimeOverride",
+      "fields": [
+        {
+          "name": "target",
+          "optional": false,
+          "type": "'department' | 'person'"
+        },
+        {
+          "name": "targetId",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "dailyHours",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "tiers",
+          "optional": true,
+          "type": "OvertimeTier[]"
+        },
+        {
+          "name": "multiplier",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "note",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "DayOvertime": {
+      "name": "DayOvertime",
+      "fields": [
+        {
+          "name": "policy",
+          "optional": true,
+          "type": "OvertimePolicy"
+        },
+        {
+          "name": "overrides",
+          "optional": true,
+          "type": "OvertimeOverride[]"
+        },
+        {
+          "name": "actualCall",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "actualWrap",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "postedAt",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "postedExpenseIds",
+          "optional": true,
+          "type": "string[]"
         }
       ]
     }

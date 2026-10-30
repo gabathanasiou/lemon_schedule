@@ -1,11 +1,12 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory, Expense, PurchaseOrder } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CastMember, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayOvertime, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory, Expense, PurchaseOrder } from '../types';
 import { computeBudget, flatBudgetLines, type BudgetModel, type ComputedBudgetAccount, type ComputedBudgetCategory, type ComputedBudgetLine } from './budget/calc';
 import { computeCostReport, expensesOfDay as expensesForDay, flatCostRows, type CostReportModel, type CostRow } from './budget/costReport';
+import { computeDayOvertime, type OvertimeDayResult } from './budget/overtime';
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, elementLabelForLink, CrewLinkWarning } from './crewLinks';
 import { crewIdsForDepartment } from './linkTargets';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
-import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, reportToIdForDay, resolveSlotCall, resolveSlotReportToId, rolesForDept, slotsForDay } from './dayCrew';
+import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, reportToIdForDay, resolveSlotCall, resolveSlotReportToId, rolesForDept, roleLabelOf, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId, boardIdOf, boardLabel, compareBoardIds } from './elements';
@@ -200,6 +201,8 @@ export interface ReportDayInfo {
   /** The day's breaks/notes with their call-sheet inclusion flag. */
   breaks?: { label: string; time: string; include: boolean }[];
   notes?: { text: string; time: string; include: boolean }[];
+  /** Phase 3 — the day's overtime settings (actual times, policy, overrides). */
+  overtime?: DayOvertime;
 }
 
 export interface ReportElementInfo {
@@ -231,6 +234,10 @@ export interface ReportElementInfo {
   linkedCrew?: string;
   /** Cast performer/booking details (roadmap 157) — cast items only. */
   details?: CastDetails;
+  /** Cast numeric pay basis (phase 3) — cast items only. */
+  rateCents?: number;
+  rateUnit?: 'hour' | 'day' | 'flat';
+  guaranteeHours?: number;
 }
 
 /** One day type, as a repeat/table item of the 'dayTypes' collection — the
@@ -279,6 +286,13 @@ export interface ReportCrewItem {
   /** Crew people this person is explicitly linked to (roadmap 11) — comma list
    *  of names. */
   linkedCrew?: string;
+  /** Phase 3 — the canonical overtime model for this crew person's day. */
+  rateCents?: number;
+  rateUnit?: 'hour' | 'day' | 'flat';
+  crewHours?: number;
+  otHours?: number;
+  otCostCents?: number;
+  dayCostCents?: number;
 }
 
 /** One element appearing on a day, as a repeat/table item of the contextual
@@ -301,6 +315,10 @@ export interface ReportElementCallItem {
   callTimes: Record<string, ResolvedCall>;
   /** Cast performer/booking details (roadmap 157) — cast items only. */
   details?: CastDetails;
+  /** Cast numeric pay basis (phase 3) — cast items only. */
+  rateCents?: number;
+  rateUnit?: 'hour' | 'day' | 'flat';
+  guaranteeHours?: number;
 }
 
 /** One crew department on a day, as a repeat/table item of the contextual
@@ -310,6 +328,8 @@ export interface ReportDepartmentCallItem {
   key: string;
   label: string;
   callTime?: string;
+  otHours?: number;
+  otCostCents?: number;
 }
 
 /** One project department, as an item of the BASE `departments` collection
@@ -662,6 +682,8 @@ export interface ReportCtx {
   /** The cost read model (roadmap 334 phase 2), computed ONCE from
    *  `computeCostReport` — cost report collections/fields read these numbers. */
   costReport?: CostReportModel;
+  /** Overtime per production day (phase 3) — computed ONCE from the engine. */
+  overtimeByDay?: Map<number, OvertimeDayResult>;
 }
 
 export function todayIso(): string {
@@ -759,9 +781,62 @@ export function buildReportCtx(
       reportToId: gov?.daybreakMeta?.reportToId,
       departmentReportTo: gov?.daybreakMeta?.departmentReportTo,
       elementCalls: gov?.daybreakMeta?.elementCalls,
+      overtime: gov?.daybreakMeta?.overtime,
       breaks,
       notes,
     });
+  }
+
+  // Phase 3 — ONE overtime model per production day. Crew comes from the same
+  // canonical slot groups as `crewOfDay`; cast from the day's scenes.
+  const overtimeByDay = new Map<number, OvertimeDayResult>();
+  {
+    const people = crewPeopleById(project);
+    for (const day of dayInfos) {
+      const meta: DayMeta = {
+        crewSlots: day.crewSlots,
+        excludedCrewDepts: day.excludedCrewDepts,
+        departmentPrecalls: day.departmentPrecalls,
+        reportToId: day.reportToId,
+        departmentReportTo: day.departmentReportTo,
+        crewIds: day.crewIds,
+        crewCalls: day.crewCalls,
+        overtime: day.overtime,
+      };
+      const groups = groupSlotsByDept(project, meta, slotsForDay(project, meta), day.callTime);
+      const crew: { personId: string; name: string; roleKey: string; role: string; dept: string }[] = [];
+      for (const group of groups) {
+        if (group.excluded) continue;
+        for (const slot of group.slots) {
+          if (!slot.personId) continue;
+          const entry = people.get(slot.personId);
+          if (!entry) continue;
+          crew.push({ personId: slot.personId, name: entry.person.name, roleKey: slot.role, role: roleLabelOf(project, slot.role), dept: group.dept });
+        }
+      }
+      const castSeen = new Set<string>();
+      const cast: { castId: string; name: string }[] = [];
+      for (const si of sceneInfos) {
+        if (si.sectionIndex !== day.section.index) continue;
+        for (const raw of getFieldItems('cast', si.scene.cast)) {
+          const id = raw.trim();
+          if (!id || castSeen.has(id)) continue;
+          castSeen.add(id);
+          const member = project.castMembers.find(m => m.id === id);
+          cast.push({ castId: id, name: member?.name || id });
+        }
+      }
+      overtimeByDay.set(day.section.index, computeDayOvertime(project, {
+        sectionIndex: day.section.index,
+        chronoDay: day.chronoDay,
+        date: day.date,
+        callTime: day.callTime,
+        wrap: day.endTime,
+        crew,
+        cast,
+        meta,
+      }));
+    }
   }
 
   // Day Type Breakdown rollup — one item per registry type. Work = the
@@ -959,10 +1034,12 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
     for (const [k, dates] of Object.entries(typeDayDates.get(key) || {})) {
       typeDayLists[k] = toTypeDayEntries(dates);
     }
+    const cast = category === 'cast' ? (e as CastMember) : undefined;
     out.push({
       id: e.id,
       name: category === 'cast' ? ctx.castNames.get(e.id) || e.id : e.name,
       category,
+      ...(cast ? { rateCents: cast.rateCents, rateUnit: cast.rateUnit, guaranteeHours: cast.guaranteeHours } : {}),
       boardId: boardIdOf(e, category),
       sceneCount: scenesOf.length,
       attachedScenes: scenesOf.map(si => si.scene.sceneNumber).join(', '),
@@ -1150,6 +1227,8 @@ export function resolveCollection(
       const byId = crewPeopleById(ctx.project);
       const dayReportToId = reportToIdForDay(ctx.project, meta);
       const out: ReportCrewItem[] = [];
+      const overtimeDay = ctx.overtimeByDay?.get(day.section.index);
+      const otByPerson = new Map((overtimeDay?.crew || []).map(r => [r.id, r]));
       for (const group of groups) {
         if (group.excluded) continue;
         for (const slot of group.slots) {
@@ -1157,7 +1236,14 @@ export function resolveCollection(
           const entry = byId.get(slot.personId);
           if (!entry) continue;
           const base = byPerson.get(slot.personId);
+          const ot = otByPerson.get(slot.personId);
           out.push({
+            rateCents: ot?.rateCents,
+            rateUnit: ot?.rateUnit,
+            crewHours: ot?.hours,
+            otHours: ot?.otHours,
+            otCostCents: ot?.otCostCents,
+            dayCostCents: ot?.dayCostCents,
             roleKey: slot.role,
             id: slot.personId,
             role: base?.role || slot.role,
@@ -1223,9 +1309,13 @@ export function resolveCollection(
       const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
       const crewDepts = new Set(crew.map(c => c.department || departmentOfRole(ctx.project, c.roleKey)).filter(Boolean));
       const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls, reportToId: day.reportToId, departmentReportTo: day.departmentReportTo };
+      const overtimeDay = ctx.overtimeByDay?.get(day.section.index);
       return dayDepartments(ctx.project, meta, day.callTime)
         .filter(d => !d.excluded && (crewDepts.has(d.dept) || d.precall))
-        .map(d => ({ key: d.dept, label: d.dept, callTime: (d.precall && resolveCallExpression(d.precall, day.callTime)) || undefined }));
+        .map(d => {
+          const ot = overtimeDay?.departments.find(row => row.department === d.dept);
+          return { key: d.dept, label: d.dept, callTime: (d.precall && resolveCallExpression(d.precall, day.callTime)) || undefined, otHours: ot?.otHours, otCostCents: ot?.otCostCents };
+        });
     }
     case 'locationsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;

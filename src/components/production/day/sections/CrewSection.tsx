@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { TriangleAlert, Users } from 'lucide-react';
+import { Clock, TriangleAlert, Users } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
 import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall as deptPrecallPatch, setDeptReportTo as deptReportToPatch, slotsForDay } from '../../../../lib/dayCrew';
@@ -8,6 +8,8 @@ import { crewLinkWarnings, crewNameMap, elementLabelForLink, targetLabelForLink 
 import { crewIdsForDepartment } from '../../../../lib/linkTargets';
 import type { PickedLocation } from '../../../../lib/places';
 import Button from '../../../Button';
+import { computeDayOvertime, overtimeDayFromView } from '../../../../lib/budget/overtime';
+import { formatMoney } from '../../../../lib/budget/format';
 
 /**
  * Crew (item 146): the day's crew roster as department blocks — one slot per
@@ -27,6 +29,8 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
     [template.departmentPrecalls, day.meta.departmentPrecalls],
   );
   const reportToId = useMemo(() => reportToIdForDay(project, day.meta), [project, day.meta]);
+  // The Overtime badge reads the ONE engine — no component arithmetic.
+  const overtime = useMemo(() => computeDayOvertime(project, overtimeDayFromView(project, day)), [project, day]);
 
   const setDeptPrecall = useCallback((dept: string, expr: string) => {
     patchMeta(deptPrecallPatch(day.meta, dept, expr));
@@ -72,6 +76,17 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         <span className="text-xs text-[color:var(--ui-text-muted)] flex-1">
           {day.crew.length > 0 ? `${day.crew.length} crew across ${day.crewGroups.filter(g => !g.excluded).length} departments` : 'No crew assigned'}
         </span>
+        <Button
+          variant="subtle"
+          onClick={() => actions.openOvertime?.('day')}
+          title="Actual times, overtime policy and overrides"
+          data-crew-overtime
+        >
+          <Clock className="w-3 h-3" /> Overtime
+          <span className="ml-1 rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-[color:var(--ui-text-muted)]">
+            {Number.isInteger(overtime.totalOtHours) ? overtime.totalOtHours : overtime.totalOtHours.toFixed(1)}h · {formatMoney(overtime.totalCostCents, project.budget?.settings)}
+          </span>
+        </Button>
         <CrewAddRoleMenu
           project={project}
           slots={slots}

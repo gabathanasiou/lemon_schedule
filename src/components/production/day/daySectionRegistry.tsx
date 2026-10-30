@@ -165,6 +165,8 @@ export const DAY_SECTIONS: DaySectionDef[] = [
         ...(day.meta.departmentPrecalls ? { departmentPrecalls: day.meta.departmentPrecalls } : {}),
         ...(day.meta.reportToId ? { reportToId: day.meta.reportToId } : {}),
         ...(day.meta.departmentReportTo ? { departmentReportTo: day.meta.departmentReportTo } : {}),
+        // Phase 3: overtime policy/actual times/overrides travel with the crew.
+        ...(day.meta.overtime ? { overtime: day.meta.overtime } : {}),
       };
       return Object.keys(patch).length ? patch : undefined;
     },

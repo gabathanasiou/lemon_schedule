@@ -1,8 +1,8 @@
 # Budgeting & cost tracking — master manual
 
-Status: **phase 2 LANDED (2026-10-30, roadmap 334)** — budget authoring,
-versions, budget reports, expenses/POs and the live cost report are built.
-Phases 3-4 below are forward-looking. Market/report evidence:
+Status: **phases 1-3 LANDED (2026-10-30, roadmap 334)** — budget authoring,
+versions, budget reports, expenses/POs, the live cost report and crew/cast
+overtime are built. Phase 4 below is forward-looking. Market/report evidence:
 `docs/BUDGETING-RESEARCH.md`. Screens and the report block:
 `docs/BUDGETING-SURFACES.md`. Execution packages:
 `docs/BUDGETING-PHASES.md`. Read this file before adding budget, expense,
@@ -14,10 +14,9 @@ overtime or budget-report code.
   branding. The debug bridge / local MCP is the external-agent seam.
 - **Top-level Budget tab** with `Budget` / `Cost Report` / `Expenses` /
   `Library` — all live. Project-level visibility (viewers see it); share copy remains.
-- **Estimate-first authoring and cost tracking are complete.** Model, versions,
-  grid, templates, library, live schedule links, Top Sheet / Account Detail /
-  Budget Health prints, CSV/JSON export, the Cost Report, the expense ledger
-  and Day Manager expenses ship. Overtime follows.
+- **Estimate-first authoring, cost tracking and overtime are complete.** Model,
+  versions, grid, templates, library, live schedule links, prints, CSV/JSON,
+  the Cost Report, the ledger, Day Manager expenses and overtime ship.
 - **Fixed three levels** — Category (top sheet) → Account (cost report) → Line
   (detail). No arbitrary nesting.
 - **Money is integer minor units (cents).** Percentages/quantities are plain
@@ -50,25 +49,15 @@ overtime or budget-report code.
 ## 2. Vision — "the budget that knows your schedule"
 
 Lemon already owns the stripboard, calendar, DOOD, crew roster, calls,
-locations, elements and report designer. The loop we can own:
+locations, elements and report designer. The loop we own:
 
 ```
-stripboard / DOOD / crew roster / call sheet
-        │ quantities, days, rates, OT
-        ▼
-      Budget ──────────────► Reports Designer (Top Sheet, Account Detail,
-        │                     Cost Report, Hot Cost, Cashflow)
-        │ budget vs actual
-        ▼
-  Day Manager expenses + overtime
-        │
-        ▼
-  Cost Report (Budget · Actual · Committed · ETC · EFC · Variance)
+stripboard/DOOD/crew roster ─► Budget ─► Reports (Top Sheet, Account Detail, Cost Report, prints)
+        (quantities, rates, OT)  │ budget vs actual
+        Day Manager expenses + overtime ─► Cost Report (Actual · Committed · ETC · EFC · Variance)
 ```
 
-Phase 1 covers the top half: the estimate that follows the schedule. The cost
-report and day-expense loop are phases 2-3.
-
+Phases 1-3 cover the loop; phase 4 is advanced (compare, cashflow, incentives).
 **Non-goals (v1):** payroll processing, bank payments, cards, receipt storage,
 tax filing, AI, MMB binary import, episodic amortization, AICP bid forms.
 
@@ -138,11 +127,12 @@ settings USD / symbol `$` / whole units / minus negatives / topsheet posting.
 - `makeBlankProject` never creates a budget; `migrateBudget` normalizes arrays
   and defaults on every LOAD but never auto-creates one.
 
-### Planned additions (phase 3 — NOT in `types.ts` yet)
-`OvertimeTier`/`OvertimePolicy` on `ProductionInfo`, `OvertimeOverride` +
-`DayOvertime` on `DayMeta`, `CrewPerson.rateCents/rateUnit/guaranteeHours/
-overtime`, `CastMember.guaranteeHours/overtime` (phase 3). Field definitions
-are in `docs/BUDGETING-PHASES.md`; do not add them piecemeal.
+### Overtime (phase 3, shipped)
+`ProductionInfo.overtime`/`castOvertime` (`OvertimePolicy` with `dailyHours`,
+`tiers`, 6th/7th multipliers), `DayMeta.overtime` (`DayOvertime`: actual times,
+policy, `OvertimeOverride[]`, posted stamp), `CrewPerson.rateCents/rateUnit/
+guaranteeHours/overtime`, `CastMember.rateCents/rateUnit/guaranteeHours/
+overtime`. Everything is optional; older projects need no migration.
 
 ## 4. Engine (`src/lib/budget/`)
 
@@ -168,8 +158,9 @@ each other directly.
 | `rates.ts` | Manual FX sync: Frankfurter (keyless ECB) fetch, reciprocal `rateToBase`, `applyRatesToCurrencies`, stamp formatting |
 | `formulaBook.ts` | ONE registry for formula autocomplete + the book (system/project globals + safe functions, fragment/insert helpers) |
 | `statusTones.ts` | ONE status→tone map for Glide status cells (expense + PO lifecycles) |
+| `overtime.ts` | **`computeDayOvertime`** — policy resolution (project → day → dept → person), actual hours, guarantees, tiers, 6th/7th day, crew/cast/department rows, post-to-expenses builder |
 
-Not built yet: `overtime.ts` (phase 3), binary/MMB import.
+Not built yet: binary/MMB import.
 
 ### Line maths (exact)
 
@@ -344,6 +335,11 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
   (status cells tinted by the shared tone map), footer totals and the shared
   ExpenseModal. The Day Manager → Expenses card is the same `ExpensesGrid`
   filtered by day, with modal-less quick-add and (i) → the modal.
+- Overtime: the Crew card header button carries the `Xh · $Y` badge; the
+  root-owned `OvertimeModal` has Day/Departments/Crew/Cast tabs (actual times,
+  paid day, tiers, 6/7-day multipliers, per-dept/person overrides), a no-rate
+  warning and **Post to expenses** (actual/payroll, one batch). Day meta owns
+  the settings; `copy-from-day` carries `overtime` with the crew extract.
 - Grid: shared `InlineGlideTable` with painted kit pickers (fringe rows show the
   canonical computed contribution); (i) opens the node/line editor (never a
   quick-add), the trash column deletes, right-click mirrors the actions. The
@@ -377,9 +373,14 @@ Actual/Committed/ETC/EFC/variance, cost collections/fields, `budgetTable` cost
 mode, Cost Report print + expense CSV. Divergences: PO authoring is action/
 bridge-only; no approval workflow.
 
-**3 — Overtime.** Crew + cast rates/guarantees, project/day/dept/person
-overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost,
-post-to-expenses, report fields, version-lock interaction.
+**3 — Overtime — LANDED (2026-10-30).** Crew + cast rates/guarantees,
+project/day/dept/person overrides, `OvertimeModal`, hours/cost, post-to-
+expenses (one batch), report fields (`crewRate/rateUnit/hours/otHours/otCost/
+dayCost`, `dayOvertimeHours/Cost`, `deptOtHours/Cost`, cast rate fields) and
+`overtimeSummary` on the bridge. Divergences: numeric cast rates and the
+project policy preset are data/bridge-editable (Crew Manager exposes crew
+rates; cast details keeps the MMS text rate); no version-lock coupling beyond
+the existing line lock.
 
 **4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty-cash, MMB import/export (no compare UI built).
 
@@ -396,5 +397,4 @@ post-to-expenses, report fields, version-lock interaction.
 
 ## 10. Relations
 `depends on` **315**, **146**+**99** (OT), **157**, **66**, **97**;
-`relates to` **333**, **311/248**, **322**, **202**, **172**, **123**, **308**,
-**230**. No existing budget item; this is new.
+`relates to` **333**, **311/248**, **322**, **202**, **172**, **123**, **308**, **230**.

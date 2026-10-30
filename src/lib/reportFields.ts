@@ -137,6 +137,10 @@ const CAST_FIELDS: ReportFieldDef[] = [
   { key: 'castAddress', label: 'Address', group: 'Cast & Talent', scope: 'cast', defaultWidth: 24, get: (_c, it: ReportElementInfo) => s(it.details?.address || '') },
   { key: 'castRate', label: 'Rate', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.details?.rate || '') },
   { key: 'castPer', label: 'Per', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 7, get: (_c, it: ReportElementInfo) => s(it.details?.per || '') },
+  // Phase 3 — numeric cast pay basis (the free-text rate/per above stay MMS-facing).
+  { key: 'castRateCents', label: 'Rate (numeric)', group: 'Cast & Talent', scope: 'cast', align: 'right', money: true, defaultWidth: 10, get: (ctx, it: ReportElementInfo) => budgetMoney(ctx, it.rateCents) },
+  { key: 'castRateUnit', label: 'Rate Unit', group: 'Cast & Talent', scope: 'cast', defaultWidth: 8, get: (_c, it: ReportElementInfo) => s(it.rateUnit || '') },
+  { key: 'castGuaranteeHours', label: 'Guarantee', group: 'Cast & Talent', scope: 'cast', align: 'right', defaultWidth: 8, get: (_c, it: ReportElementInfo) => String(it.guaranteeHours ?? '') },
   { key: 'castNotes', label: 'Notes', group: 'Cast & Talent', scope: 'cast', defaultWidth: 24, get: (_c, it: ReportElementInfo) => s(it.details?.notes || '') },
 ];
 
@@ -226,6 +230,13 @@ const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'reportTo', label: 'Report To', group: 'Crew', scope: 'crew', defaultWidth: 16, get: (_c, it: ReportCrewItem) => s(it.reportTo || '') },
   { key: 'linkedElements', label: 'Linked Elements', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedElements || '') },
   { key: 'crewLinkedCrew', label: 'Linked Crew', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedCrew || '') },
+  // Phase 3 overtime — every number comes from the engine's crewOfDay item.
+  { key: 'crewRate', label: 'Rate', group: 'Crew', scope: 'crew', align: 'right', money: true, defaultWidth: 10, get: (ctx, it: ReportCrewItem) => budgetMoney(ctx, it.rateCents) },
+  { key: 'crewRateUnit', label: 'Rate Unit', group: 'Crew', scope: 'crew', defaultWidth: 8, get: (_c, it: ReportCrewItem) => s(it.rateUnit || '') },
+  { key: 'crewHours', label: 'Hours', group: 'Crew', scope: 'crew', align: 'right', defaultWidth: 8, get: (_c, it: ReportCrewItem) => String(it.crewHours ?? '') },
+  { key: 'crewOtHours', label: 'OT Hours', group: 'Crew', scope: 'crew', align: 'right', defaultWidth: 8, get: (_c, it: ReportCrewItem) => String(it.otHours ?? '') },
+  { key: 'crewOtCost', label: 'OT Cost', group: 'Crew', scope: 'crew', align: 'right', money: true, defaultWidth: 10, get: (ctx, it: ReportCrewItem) => budgetMoney(ctx, it.otCostCents) },
+  { key: 'crewDayCost', label: 'Day Cost', group: 'Crew', scope: 'crew', align: 'right', money: true, defaultWidth: 10, get: (ctx, it: ReportCrewItem) => budgetMoney(ctx, it.dayCostCents) },
 ];
 
 // ---- day call times (item 99 contextual collections) -------------------------
@@ -250,6 +261,8 @@ const ELEMENT_CALL_FIELDS: ReportFieldDef[] = [
 const DEPARTMENT_CALL_FIELDS: ReportFieldDef[] = [
   { key: 'departmentLabel', label: 'Department', group: 'Call Times', scope: 'departmentCallsOfDay', defaultWidth: 22, get: (_c, it: ReportDepartmentCallItem) => s(it.label) },
   { key: 'departmentCallTime', label: 'Call Time', group: 'Call Times', scope: 'departmentCallsOfDay', align: 'center', defaultWidth: 10, get: (_c, it: ReportDepartmentCallItem) => s(it.callTime || '') },
+  { key: 'deptOtHours', label: 'OT Hours', group: 'Call Times', scope: 'departmentCallsOfDay', align: 'right', defaultWidth: 8, get: (_c, it: ReportDepartmentCallItem) => String(it.otHours ?? '') },
+  { key: 'deptOtCost', label: 'OT Cost', group: 'Call Times', scope: 'departmentCallsOfDay', align: 'right', money: true, defaultWidth: 10, get: (ctx, it: ReportDepartmentCallItem) => budgetMoney(ctx, it.otCostCents) },
 ];
 
 // ---- departments (base collection, roadmap 220) ------------------------------
