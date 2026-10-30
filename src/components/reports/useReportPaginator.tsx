@@ -84,6 +84,10 @@ interface FlatUnit {
   /** Unit must START a new page (a pageBreak exists inside an unsplittable
    *  container — the whole container moves to the next page). */
   breakBefore?: boolean;
+  /** Table rows only: the row is a category/account header that must never be
+   *  the last row on a page — fillPages carries it to the next page with the
+   *  row it introduces (`data-rm-keep-with-next`). */
+  keepWithNext?: boolean;
 }
 
 function marginTopOf(el: HTMLElement): number {
@@ -154,6 +158,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       // head row (local 0, `gridHeaderEl`) renders itself — it pays 0.
       pageStartExtra: (gridHeaderEl && el === gridHeaderEl ? 0 : repeatHeadH) + (titleRepeat ? titleH : 0),
       gridHeaderRepeat: gridHeaderEl ? gridRepeatOn : undefined,
+      keepWithNext: el.getAttribute('data-rm-keep-with-next') === '1' ? true : undefined,
       el,
       local: i,
       blockEl,
@@ -323,10 +328,23 @@ function fillPages(units: FlatUnit[], budget: number): number[][] {
         if (u.h > 0) curHasContent = true;
         return;
       }
-      pages.push(cur);
-      cur = [i];
-      used = u.pageStartExtra + u.h;
-      curHasContent = u.h > 0;
+      // Keep-with-next: a trailing run of category/account header rows moves
+      // to the new page with the row it introduces, so a header never strands
+      // at the bottom of a page. Never carry the whole page (keep at least the
+      // first unit in place — a page may legitimately be all headers).
+      let keepFrom = cur.length;
+      while (keepFrom > 1 && units[cur[keepFrom - 1]].keepWithNext) keepFrom--;
+      const carried = keepFrom < cur.length ? cur.slice(keepFrom) : [];
+      pages.push(cur.slice(0, keepFrom));
+      cur = carried.length > 0 ? [...carried, i] : [i];
+      // The first carried row opens the new page, so it pays that page's
+      // repeated-header budget (pageStartExtra) — same as any row that starts
+      // a continuation page.
+      const carriedStartExtra = carried.length > 0 ? units[carried[0]].pageStartExtra : 0;
+      used = carried.reduce((sum, idx) => sum + units[idx].gapBefore + units[idx].h, 0)
+        + carriedStartExtra
+        + (carried.length > 0 ? u.gapBefore + u.h : u.pageStartExtra + u.h);
+      curHasContent = u.h > 0 || carried.some(idx => units[idx].h > 0);
       return;
     }
     used += (cur.length === 0 ? u.pageStartExtra : u.gapBefore) + u.h;

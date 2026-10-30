@@ -4,7 +4,7 @@ import { ReportCollection } from '../../types';
 import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
-import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward, Clock, Users, Timer } from 'lucide-react';
+import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward, Clock, Users, Timer, Wallet } from 'lucide-react';
 
 export interface PaletteDropPayload {
   kind: 'block' | 'field';
@@ -40,7 +40,12 @@ const CALL_SHEET_BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: R
   { type: { kind: 'block', type: 'precalls' }, label: 'Precalls', icon: <Timer className="w-3.5 h-3.5" /> },
 ];
 
-const ALL_BLOCK_ITEMS = [...BLOCK_ITEMS, ...CALL_SHEET_BLOCK_ITEMS];
+/** Budget print blocks (roadmap 334) — their own family, like Call Sheet. */
+const BUDGET_BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactNode }[] = [
+  { type: { kind: 'block', type: 'budgetTable' }, label: 'Budget Table', icon: <Wallet className="w-3.5 h-3.5" /> },
+];
+
+const ALL_BLOCK_ITEMS = [...BLOCK_ITEMS, ...CALL_SHEET_BLOCK_ITEMS, ...BUDGET_BLOCK_ITEMS];
 
 interface ReportPaletteProps {
   project: Project;
@@ -81,6 +86,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     ? ALL_BLOCK_ITEMS.filter(i => i.label.toLowerCase().includes(q) || (i.type.type || '').toLowerCase().includes(q))
     : BLOCK_ITEMS;
   const matchedCallSheetBlocks = searching ? [] : CALL_SHEET_BLOCK_ITEMS;
+  const matchedBudgetBlocks = searching ? [] : BUDGET_BLOCK_ITEMS;
 
   const startDrag = (e: React.DragEvent, payload: PaletteDropPayload) => {
     e.dataTransfer.setData(DROP_MIME, JSON.stringify(payload));
@@ -171,6 +177,16 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
             <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-2">Call Sheet</div>
             <div className="space-y-0.5">
               {matchedCallSheetBlocks.map(item => blockButton(item))}
+            </div>
+          </>
+        )}
+
+        {matchedBudgetBlocks.length > 0 && (
+          <>
+            <div className="border-t border-[color:var(--ui-border)] my-3" />
+            <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-2">Budget</div>
+            <div className="space-y-0.5">
+              {matchedBudgetBlocks.map(item => blockButton(item))}
             </div>
           </>
         )}

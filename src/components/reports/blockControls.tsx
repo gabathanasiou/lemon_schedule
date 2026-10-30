@@ -17,7 +17,7 @@ import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
@@ -27,6 +27,7 @@ import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import BudgetBlockControls from './BudgetBlockControls';
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -45,6 +46,7 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   callTimes: { label: 'Call Times', icon: <Clock className="w-3 h-3" /> },
   crewTable: { label: 'Crew Table', icon: <Users className="w-3 h-3" /> },
   precalls: { label: 'Precalls', icon: <Timer className="w-3 h-3" /> },
+  budgetTable: { label: 'Budget Table', icon: <Wallet className="w-3 h-3" /> },
 };
 
 
@@ -1141,6 +1143,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         />
       </ContentRow>,
       titleSection,
+    );
+  } else if (block.type === 'budgetTable') {
+    push(null,
+      <BudgetBlockControls key="budget" block={block} project={project} readOnly={disabled} onPatch={onPatch} panel={panel} title={titleSection} />,
     );
   }
 

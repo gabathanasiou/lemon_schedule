@@ -321,6 +321,8 @@ export function fieldScopeFor(collection: string | null | undefined): string | u
     case 'locationsOfType': case 'locationsOfDay': return 'locations';
     case 'dayTypesOfElement': return 'dayTypes';
     case 'crewOfDay': return 'crew';
+    // Budget report collections (roadmap 334) — one field family.
+    case 'budgetCategories': case 'budgetAccounts': case 'budgetLines': case 'budgetLinesOfAccount': return 'budget';
     default: return collection ?? undefined;
   }
 }
@@ -344,6 +346,10 @@ export function fieldsForScope(
   const scopeSet = new Set(['production', 'project', 'document', 'smart']);
   const mapped = fieldScopeFor(scope);
   if (mapped) scopeSet.add(mapped);
+  // Budget fields (roadmap 334) are document-wide: the summary fields render in
+  // cover/exec text at top level, and the per-item fields resolve inside a
+  // budget collection repeat/table (where `mapped` is already 'budget').
+  if (!scope) scopeSet.add('budget');
   // Cast items are elements with identity extras — both families apply.
   if (mapped === 'cast') scopeSet.add('elements');
   // Cast identity fields belong to element contexts too: Elements → Cast

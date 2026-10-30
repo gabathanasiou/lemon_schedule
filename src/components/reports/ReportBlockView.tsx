@@ -12,6 +12,7 @@ import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
 import ReportGridBlock from './ReportGridBlock';
+import ReportBudgetTable from './ReportBudgetTable';
 import ReportBlockTitle from './ReportBlockTitle';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
@@ -353,6 +354,11 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       case 'crewTable':
       case 'precalls': {
         return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} mode={mode} showKeys={showKeys} rowRange={rowRange} repeatTableHeader={repeatTableHeader} onPatchBlock={onPatchBlock} showUnresolved={showUnresolved} parentCollection={parentCollection} title={renderTitle(block, showBlockTitle)} />;
+      }
+      case 'budgetTable': {
+        // Project-wide budget table (roadmap 334). Rows/columns/totals come
+        // from ctx.budget (computeBudget) via the lib/reportBudget read model.
+        return <ReportBudgetTable block={block} ctx={ctx} hint={hint} showKeys={showKeys} rowRange={rowRange} repeatTableHeader={repeatTableHeader} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'callSheetEdit': {
         // The per-day editable region of a call-sheet template. A host scoped

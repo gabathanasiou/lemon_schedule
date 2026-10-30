@@ -75,7 +75,7 @@ export function ribbonTimeOverrides(blocks: ReportBlock[] | undefined): Record<s
  *  enumerate it (the agent/MCP registry read). */
 export const REPORT_BLOCK_TYPES: ReportBlock['type'][] = [
   'text', 'field', 'repeat', 'table', 'columns', 'ribbon', 'pageBreak', 'spacer',
-  'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable', 'precalls',
+  'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable', 'precalls', 'budgetTable',
 ];
 
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {  const base: ReportBlock = { id: blockId(), type };
@@ -103,6 +103,15 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
       base.collection = partial.collection ?? 'departmentCallsOfDay';
       base.precallsAll = partial.precallsAll ?? false;
       base.precallsLayout = partial.precallsLayout ?? 'horizontal';
+      break;
+    // Budget report table (roadmap 334): leaf block over the budget read
+    // model. Phase 1 defaults — a top sheet with fringes and % of grand.
+    case 'budgetTable':
+      base.budgetMode = partial.budgetMode ?? 'topsheet';
+      base.showZero = partial.showZero ?? false;
+      base.showFringes = partial.showFringes ?? true;
+      base.showNotes = partial.showNotes ?? false;
+      base.showPercent = partial.showPercent ?? true;
       break;
     default: break;
   }
@@ -536,9 +545,14 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elementCallsOfDay: 'Element Calls (of this day)',
   departmentCallsOfDay: 'Department Calls (of this day)',
   locationsOfDay: 'Locations (of this day)',
+  // Budget report collections (roadmap 334).
+  budgetCategories: 'Budget Categories',
+  budgetAccounts: 'Budget Accounts',
+  budgetLines: 'Budget Lines',
+  budgetLinesOfAccount: 'Budget Lines (of this account)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'budgetLinesOfAccount', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -549,6 +563,7 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
     if (c === 'elementsOfScene') return parentCollection === 'scenes';
     if (c === 'locationsOfType') return parentCollection === 'locationTypes';
     if (c === 'dayTypesOfElement') return parentCollection === 'elements' || parentCollection === 'cast';
+    if (c === 'budgetLinesOfAccount') return parentCollection === 'budgetAccounts';
     return true;
   });
 }
@@ -563,6 +578,7 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
 export const TYPED_PARENT_COLLECTIONS: { parent: ReportCollection; child: ReportCollection }[] = [
   { parent: 'categories', child: 'elementsOfCategory' },
   { parent: 'locationTypes', child: 'locationsOfType' },
+  { parent: 'budgetAccounts', child: 'budgetLinesOfAccount' },
 ];
 
 /**
@@ -597,6 +613,10 @@ export function isSelfRepeat(
   // typed parents: repeating the type collection inside itself is nonsense
   if (collection === 'locationTypes') return parent === 'locationTypes';
   if (collection === 'dayTypes') return parent === 'dayTypes' || parent === 'dayTypesOfElement';
+  // budget database (roadmap 334): one level per collection, no self repeats
+  if (collection === 'budgetCategories') return parent === 'budgetCategories';
+  if (collection === 'budgetAccounts') return parent === 'budgetAccounts';
+  if (collection === 'budgetLines') return parent === 'budgetLines' || parent === 'budgetLinesOfAccount';
   // Elements submenu: the parent's own category under element/cast-item parents
   if (collection === 'elements') {
     if ((parent === 'elements' || parent === 'elementsOfCategory') && category !== undefined && category === parentCategory) return true;
@@ -672,12 +692,12 @@ export function selfRepeatDisabledCategories(
   return categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key);
 }
 
-export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
+export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement', 'budgetLinesOfAccount']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
  *  is hidden for them and ancestor scoping is a no-op. Crew is scopable since
  *  roadmap 11 (position → categories: "only crew in this day"). */
-export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'departments', 'locationsOfDay']);
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'departments', 'locationsOfDay', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'budgetLinesOfAccount']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -701,6 +721,9 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'locations': case 'locationsOfType': return 'location';
     case 'locationTypes': return 'location type';
     case 'dayTypes': case 'dayTypesOfElement': return 'day type';
+    case 'budgetCategories': return 'category';
+    case 'budgetAccounts': return 'account';
+    case 'budgetLines': case 'budgetLinesOfAccount': return 'budget line';
     default: return 'item';
   }
 }
@@ -754,7 +777,7 @@ export function tableOverLabel(parentCollection?: ReportCollection): string {
 
 /** Blocks that support the optional title (item 140): table-shaped blocks,
  *  the repeat (section heading) and image/map (caption below). */
-const TITLED_BLOCK_TYPES = new Set(['table', 'callTimes', 'crewTable', 'precalls', 'repeat', 'image', 'map']);
+const TITLED_BLOCK_TYPES = new Set(['table', 'callTimes', 'crewTable', 'precalls', 'budgetTable', 'repeat', 'image', 'map']);
 export function supportsTitle(type: ReportBlock['type']): boolean {
   return TITLED_BLOCK_TYPES.has(type);
 }
@@ -762,7 +785,7 @@ export function supportsTitle(type: ReportBlock['type']): boolean {
 /** Block types whose title can repeat on every pagination fragment — only
  *  blocks that actually split across pages (a caption never does). */
 export function titleRepeatable(type: ReportBlock['type']): boolean {
-  return type === 'table' || type === 'callTimes' || type === 'crewTable' || type === 'precalls' || type === 'repeat';
+  return type === 'table' || type === 'callTimes' || type === 'crewTable' || type === 'precalls' || type === 'budgetTable' || type === 'repeat';
 }
 
 /** The default title text a block seeds with (item 140): grid blocks use their
@@ -772,6 +795,7 @@ export function reportTitleAutoLabel(block: ReportBlock, parentCollection?: Repo
   if (block.type === 'callTimes') return 'Call Times';
   if (block.type === 'crewTable') return 'Crew Table';
   if (block.type === 'precalls') return 'Precalls';
+  if (block.type === 'budgetTable') return 'Budget';
   if (block.type === 'image' || block.type === 'map') return '';
   if (block.type === 'repeat') return scopedCollectionLabel(block.collection || 'scenes', parentCollection, block.scopedToParent !== false);
   if (parentCollection) {
@@ -797,6 +821,9 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'locationsOfDay': return 'locationName';
     case 'violationTypes': return 'violationType';
     case 'dayTypes': case 'dayTypesOfElement': return 'dayTypeLabel';
+    case 'budgetCategories': return 'budgetCategoryName';
+    case 'budgetAccounts': return 'budgetAccountName';
+    case 'budgetLines': case 'budgetLinesOfAccount': return 'budgetDescription';
     default: return 'title';
   }
 }
@@ -922,9 +949,11 @@ export function blockAllowedIn(
   // Day-scoped grids (items 111/112/159) only make sense inside a days repeat —
   // any day context (days, daysOfCast) through the ONE collection→scope map.
   if (isDayGridBlock(type) && fieldScopeFor(insertScope) !== 'days') return false;
+  // The budget table is project-wide (phase 1 modes), never per-day.
+  if (type === 'budgetTable' && fieldScopeFor(insertScope) === 'days') return false;
   if (opts?.callSheetZone) {
-    // The zone is day-scoped content: a grid block there would render read-only.
-    if (isDayGridBlock(type)) return false;
+    // The zone is day-scoped content: a grid/budget block there would render read-only.
+    if (isDayGridBlock(type) || type === 'budgetTable') return false;
     // One zone per design — nesting another would duplicate the day's page.
     if (type === 'callSheetEdit') return false;
   }
@@ -938,10 +967,14 @@ export function blockPlacementHint(type: ReportBlock['type'], opts?: BlockPlacem
   if (opts?.callSheetZone && isDayGridBlock(type)) {
     return 'This block only works as a template block — add it in Design → Reports Designer, inside the Days repeat. In the per-day edit zone it would render read-only.';
   }
+  if (opts?.callSheetZone && type === 'budgetTable') {
+    return 'The Budget Table prints the project budget, not a day — add it in Design → Reports Designer at template level.';
+  }
   if (opts?.callSheetZone && type === 'callSheetEdit') {
     return 'A call sheet has one edit zone — edit the existing zone’s blocks instead.';
   }
   if (isDayGridBlock(type)) return 'This block only works inside a Repeat over Days.';
+  if (type === 'budgetTable') return 'The Budget Table prints the project budget — it can’t sit inside a Days repeat.';
   return 'This block isn’t allowed here.';
 }
 

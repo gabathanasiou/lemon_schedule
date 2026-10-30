@@ -1,4 +1,5 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory } from '../types';
+import { computeBudget, flatBudgetLines, type BudgetModel, type ComputedBudgetAccount, type ComputedBudgetCategory, type ComputedBudgetLine } from './budget/calc';
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, elementLabelForLink, CrewLinkWarning } from './crewLinks';
 import { crewIdsForDepartment } from './linkTargets';
@@ -343,6 +344,22 @@ export interface ReportCategoryInfo {
   items: string[]; // display names of every element, for the Items attribute
 }
 
+/**
+ * Budget report collection items (roadmap 334, `budgetCategories` /
+ * `budgetAccounts` / `budgetLines` / `budgetLinesOfAccount`). The totals stay
+ * the canonical `computeBudget` objects — reports never re-derive money.
+ */
+export interface ReportBudgetCategoryItem {
+  category: BudgetCategory;
+  totals: ComputedBudgetCategory;
+}
+
+export interface ReportBudgetAccountItem {
+  category: BudgetCategory;
+  account: BudgetAccount;
+  totals: ComputedBudgetAccount;
+}
+
 /** One rule type, as a repeat/table item of the 'violationTypes' collection. */
 export interface ReportViolationTypeInfo {
   type: string;
@@ -436,6 +453,9 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
     case 'elementCallsOfDay': return (item as ReportElementCallItem).id;
     case 'departmentCallsOfDay': return (item as ReportDepartmentCallItem).key;
     case 'departments': return (item as ReportDepartmentInfo).key;
+    case 'budgetCategories': return (item as ReportBudgetCategoryItem).category.id;
+    case 'budgetAccounts': return (item as ReportBudgetAccountItem).account.id;
+    case 'budgetLines': case 'budgetLinesOfAccount': return (item as ComputedBudgetLine).line.id;
     default: return 0;
   }
 }
@@ -482,6 +502,15 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'locations': case 'locationsOfType': case 'locationsOfDay': return (it as ReportLocationInfo).name;
     case 'locationTypes': return (it as ReportLocationTypeInfo).label;
     case 'dayTypes': case 'dayTypesOfElement': return (it as ReportDayTypeInfo).label;
+    case 'budgetCategories': {
+      const c = it as ReportBudgetCategoryItem;
+      return `${c.category.number} ${c.category.name}`.trim();
+    }
+    case 'budgetAccounts': {
+      const a = it as ReportBudgetAccountItem;
+      return `${a.account.number} ${a.account.name}`.trim();
+    }
+    case 'budgetLines': case 'budgetLinesOfAccount': return (it as ComputedBudgetLine).line.description || (it as ComputedBudgetLine).line.id;
     default: return '';
   }
 }
@@ -611,6 +640,9 @@ export interface ReportCtx {
   /** Canonical computed rows by raw row id (call times, daybreak halves,
    *  elapsed captions) — for static note/break/daybreak rendering. */
   computedByRowId: Map<string, ComputedRow>;
+  /** The project's budget read model (roadmap 334), computed ONCE here from
+   *  `computeBudget` — budget report blocks/fields never do budget arithmetic. */
+  budget?: BudgetModel;
 }
 
 export function todayIso(): string {
@@ -851,6 +883,8 @@ export function buildReportCtx(
     totalViolations,
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
     computedByRowId,
+    // ONE budget computation per report context (`computeBudget` is pure).
+    budget: computeBudget(project) ?? undefined,
   };
 }
 
@@ -1011,7 +1045,10 @@ export type ReportCollectionItem =
   | ReportViolationTypeInfo
   | ReportLocationInfo
   | ReportLocationTypeInfo
-  | ReportDayTypeInfo;
+  | ReportDayTypeInfo
+  | ReportBudgetCategoryItem
+  | ReportBudgetAccountItem
+  | ComputedBudgetLine;
 
 /** The DAY item behind a repeat/table parent, when one is in scope — the same
  *  shape check the renderer uses for `aux.dayDate` (a day item carries a
@@ -1257,6 +1294,25 @@ export function resolveCollection(
         }
       }
       return Array.from(byType.values());
+    }
+    case 'budgetCategories': {
+      const model = ctx.budget;
+      if (!model) return [];
+      return model.categories.map(totals => ({ category: totals.category, totals }));
+    }
+    case 'budgetAccounts': {
+      const model = ctx.budget;
+      if (!model) return [];
+      return model.categories.flatMap(c => c.accounts.map(totals => ({
+        category: totals.category,
+        account: totals.account,
+        totals,
+      })));
+    }
+    case 'budgetLines': return ctx.budget ? flatBudgetLines(ctx.budget) : [];
+    case 'budgetLinesOfAccount': {
+      const account = parentItem as ReportBudgetAccountItem | undefined;
+      return account?.totals?.lines ?? [];
     }
     default: return [];
   }
