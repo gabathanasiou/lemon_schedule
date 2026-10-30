@@ -1367,39 +1367,3 @@ action/bridge-only; numeric cast rates are data/bridge-editable).
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
 **Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
-
-## 348. Budget — “X updates from the schedule” review / sync (`[ ]`)
-
-**Asked 2026-10-30 (user):** a button saying “X updates from the schedule” that
-opens a modal listing the changes, grouped by category → department, so each
-can be kept or updated.
-
-**Industry pattern:** modern schedule-driven tools use a manual review sync, not
-continuous auto-write. Storiara’s Sync shows “12 added, 3 updated, 2 removed, 1
-edited kept, 2 to check”, before/after totals and per-line account pickers; it
-never touches the chart, fringes, globals or user-edited lines. Picture’s Up
-updates quantities and adds missing lines while rates stay. Saturation and
-Movie Magic use a reviewed import/transfer, not a live link.
-
-**Work:**
-- Pure `computeScheduleBudgetDiff(project, versionId)` grouped
-  **category → account → department (crew) → line**, with `add | update |
-  remove | keep | check`:
-  - `add` — a working crew/cast/location/shoot-day source with no line yet
-    (rate 0 in its existing mapped account; never create accounts).
-  - `update` — a linked line’s schedule quantity changed.
-  - `remove` — source quantity is now 0 / target gone (default off; explicit).
-  - `keep` — pinned lines and lines typed/edited by hand; sync never silently
-    changes them.
-  - `check` — missing account mapping or a stale target.
-- Toolbar button **“N updates from the schedule”** (or “Up to date” at 0). The
-  modal shows summary counts, before/after grand total, group select-all and
-  per-row keep/apply. Apply is ONE batch/one undo and only changes linked
-  quantities + requested adds; no rates, chart/library, fringes/globals or
-  manual lines. Read-only and locked versions refuse; no cross-version writes.
-
-**Verify:** Vitest for the pure diff (states/grouping/manual-line protection);
-fold a bridge/From-schedule case into `e2e/budget.spec.ts` within the caps;
-manual modal pass. Docs: `BUDGETING.md` workflow + `BUDGETING-SURFACES.md`.
-**Relations:** `relates to` **334**, **346**; follows the Storiara/Picture’s Up
-review model.
