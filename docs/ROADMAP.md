@@ -1426,3 +1426,28 @@ create a new line as well — both without opening the line editor.
 undo, Shift+Enter adds and focuses a row, read-only no-op; manual quick-add
 pass. **Relations:** `relates to` **334**, **335** (quick-add / (i) semantics),
 **326** (canvas native controls).
+
+## 338. Budget — fringe pickers show what each fringe adds (`[ ]`)
+
+**Asked 2026-10-30 (user):** the fringes dropdown should carry a subtitle per
+fringe showing how much that fringe adds to the line.
+
+**Work:**
+- Source the subtitle from the canonical computed line (`computeBudget` →
+  `computedLine.fringes[].cents`) — never re-derive fringe maths in the UI.
+  Show the contribution for the current line (e.g. `+ $1,200`, local/base as
+  the grid displays totals); keep the library definition (%/flat/per-unit) as
+  a muted second hint where space allows.
+- **Grid:** the painted entity multi-picker needs a per-row `getEditor` config
+  (not the static `editors` map) so each row's fringe list carries its own
+  computed amounts; a newly added/group-applied fringe shows its computed
+  amount, and a fringe not yet applied shows `—/0`.
+- **Line modal:** the Fringes checklist’s `secondary` becomes the computed
+  contribution for this line instead of only the definition (`10%`).
+- Recompute live as Qty/Rate/X change; no modal, no extra store writes.
+- Update `docs/BUDGETING-SURFACES.md` §2 (fringe picker) if the recipe changes.
+
+**Verify:** manual visual pass on a percent + a flat/per-unit fringe (amounts
+match the line total delta). Existing Vitest fringe maths is the arithmetic
+gate; no new e2e unless the computed subtitle can silently drift.
+**Relations:** `relates to` **334**.
