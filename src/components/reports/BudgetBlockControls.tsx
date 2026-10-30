@@ -4,6 +4,7 @@ import type { Project, ReportBlock } from '../../types';
 import { budgetReportColumnDefs, budgetReportMode } from '../../lib/reportBudget';
 import { ContentRow, EditorCheckbox, EditorGroup } from './reportEditorLayout';
 import Checklist from '../Checklist';
+import DateField from '../DateField';
 
 /**
  * Budget block inspector (`budgetTable`, roadmap 334). Extracted from
@@ -86,12 +87,43 @@ const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, projec
             { v: 'topsheet', l: 'Top Sheet' },
             { v: 'accounts', l: 'Accounts' },
             { v: 'lines', l: 'Lines' },
+            { v: 'costReport', l: 'Cost Report' },
           ]}
-          onChange={v => onPatch({ budgetMode: v as 'topsheet' | 'accounts' | 'lines' })}
+          onChange={v => onPatch({ budgetMode: v as 'topsheet' | 'accounts' | 'lines' | 'costReport' })}
           disabled={readOnly}
           stretch={panel}
         />
       </ContentRow>
+
+      {mode === 'costReport' && (
+        <>
+          <ContentRow key="asOf" label="As of">
+            <DateField
+              value={block.costAsOf ? [block.costAsOf] : []}
+              onChange={dates => onPatch({ costAsOf: dates[dates.length - 1] })}
+              placeholder="Print date"
+              initialView={block.costAsOf}
+            />
+          </ContentRow>
+          <ContentRow key="period" label="Period">
+            <div className="flex items-center gap-1.5">
+              <DateField
+                value={block.costPeriod?.from ? [block.costPeriod.from] : []}
+                onChange={dates => onPatch({ costPeriod: { from: dates[dates.length - 1] || '', to: block.costPeriod?.to || '' } })}
+                placeholder="From"
+                initialView={block.costPeriod?.from || block.costAsOf}
+              />
+              <span className="text-[10px] text-[color:var(--ui-text-faint)]">–</span>
+              <DateField
+                value={block.costPeriod?.to ? [block.costPeriod.to] : []}
+                onChange={dates => onPatch({ costPeriod: { from: block.costPeriod?.from || '', to: dates[dates.length - 1] || '' } })}
+                placeholder="To"
+                initialView={block.costPeriod?.to || block.costAsOf}
+              />
+            </div>
+          </ContentRow>
+        </>
+      )}
 
       <ContentRow key="categories" label="Categories" tall>
         <Checklist
@@ -138,9 +170,13 @@ const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, projec
       <ContentRow key="display" label="Show">
         <EditorGroup className={panel ? 'w-full flex-wrap' : 'flex-wrap'}>
           <EditorCheckbox checked={block.showZero === true} disabled={readOnly} onChange={on => onPatch({ showZero: on })} label="Zero rows" />
-          <EditorCheckbox checked={block.showFringes !== false} disabled={readOnly} onChange={on => onPatch({ showFringes: on })} label="Fringes" />
-          <EditorCheckbox checked={block.showPercent !== false} disabled={readOnly} onChange={on => onPatch({ showPercent: on })} label="% of total" />
-          <EditorCheckbox checked={block.showNotes === true} disabled={readOnly} onChange={on => onPatch({ showNotes: on })} label="Notes" />
+          {mode !== 'costReport' && (
+            <EditorCheckbox checked={block.showFringes !== false} disabled={readOnly} onChange={on => onPatch({ showFringes: on })} label="Fringes" />
+          )}
+          <EditorCheckbox checked={block.showPercent !== false} disabled={readOnly} onChange={on => onPatch({ showPercent: on })} label={mode === 'costReport' ? '% used' : '% of total'} />
+          {mode !== 'costReport' && (
+            <EditorCheckbox checked={block.showNotes === true} disabled={readOnly} onChange={on => onPatch({ showNotes: on })} label="Notes" />
+          )}
         </EditorGroup>
       </ContentRow>
 

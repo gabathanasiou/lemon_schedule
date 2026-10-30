@@ -1,5 +1,6 @@
-import type { BudgetSettings, MoneyCents, ReportBlock } from '../types';
+import type { BudgetSettings, MoneyCents, Project, ReportBlock } from '../types';
 import type { BudgetModel, ComputedBudgetAccount, ComputedBudgetCategory, ComputedBudgetLine } from './budget/calc';
+import { computeCostReport, type CostRow } from './budget/costReport';
 
 /**
  * `reportBudget.ts` — the ONE read model for budget report tables
@@ -7,17 +8,16 @@ import type { BudgetModel, ComputedBudgetAccount, ComputedBudgetCategory, Comput
  * (`lib/budget/calc.ts`); this module never re-derives line/account totals,
  * it only shapes rows and columns for print.
  *
- * Phase 1 implements the three authoring modes:
- *   topsheet → one row per category + subtotal/markups/grand total
- *   accounts → category headers + one row per account + grand total
- *   lines    → category/account headers + line rows + account subtotals
+ * Phase 2 adds the `costReport` mode, built on `computeCostReport`:
+ * Budget/Actual/Committed/ETC/EFC/Variance/% used/Reason per category,
+ * account and line (plus Unallocated rows).
  *
- * The remaining `ReportBlock.budgetMode` values (`costReport`, `hotCost`,
- * `cashflow`, `comparison`) belong to later phases; until their engines land
- * they fall back to `topsheet` rather than rendering a lying table.
+ * The remaining `ReportBlock.budgetMode` values (`hotCost`, `cashflow`,
+ * `comparison`) belong to later phases; until their engines land they fall
+ * back to `topsheet` rather than rendering a lying table.
  */
 
-export type BudgetReportMode = 'topsheet' | 'accounts' | 'lines';
+export type BudgetReportMode = 'topsheet' | 'accounts' | 'lines' | 'costReport';
 
 export type BudgetReportRowKind = 'category' | 'account' | 'line' | 'subtotal' | 'markup' | 'grand';
 
@@ -83,11 +83,13 @@ const MODE_TITLES: Record<BudgetReportMode, string> = {
   topsheet: 'Budget — Top Sheet',
   accounts: 'Budget — Accounts',
   lines: 'Budget — Line Detail',
+  costReport: 'Cost Report — Budget vs Actual',
 };
 
-/** Phase-1 mode gate (see the module comment). */
+/** Mode gate (see the module comment). */
 export function budgetReportMode(mode: ReportBlock['budgetMode'] | undefined): BudgetReportMode {
-  return mode === 'accounts' || mode === 'lines' ? mode : 'topsheet';
+  if (mode === 'accounts' || mode === 'lines' || mode === 'costReport') return mode;
+  return 'topsheet';
 }
 
 const COLUMN_DEFS: Record<BudgetReportMode, BudgetReportColumn[]> = {
@@ -120,6 +122,18 @@ const COLUMN_DEFS: Record<BudgetReportMode, BudgetReportColumn[]> = {
     { key: 'percent', label: '%', width: 6, align: 'right', percent: true },
     { key: 'notes', label: 'Notes', width: 12, align: 'left' },
     { key: 'total', label: 'Total (base)', width: 9, align: 'right', money: true },
+  ],
+  costReport: [
+    { key: 'number', label: 'Account', width: 7, align: 'center' },
+    { key: 'name', label: 'Account / Description', width: 24, align: 'left' },
+    { key: 'budget', label: 'Budget', width: 9, align: 'right', money: true },
+    { key: 'actual', label: 'Actual', width: 9, align: 'right', money: true },
+    { key: 'committed', label: 'Committed', width: 9, align: 'right', money: true },
+    { key: 'etc', label: 'ETC', width: 8, align: 'right', money: true },
+    { key: 'efc', label: 'EFC', width: 9, align: 'right', money: true },
+    { key: 'variance', label: 'Variance', width: 9, align: 'right', money: true },
+    { key: 'percent', label: '% Used', width: 6, align: 'right', percent: true },
+    { key: 'reason', label: 'Reason', width: 10, align: 'left' },
   ],
 };
 
@@ -339,5 +353,115 @@ export function buildBudgetReport(
       grandTotalCents: model.totals.grandTotalCents,
     },
     settings: model.settings,
+  };
+}
+
+// ---- cost report mode (roadmap 334 phase 2) ---------------------------------
+
+export interface CostReportOptions {
+  asOf?: string;
+  from?: string;
+  to?: string;
+  /** Selected category ids; unset = all, an empty array selects none. */
+  categories?: string[];
+  /** Selected account ids; unset = all, an empty array selects none. */
+  accounts?: string[];
+  /** Subset of the mode's column keys; unset/empty = the mode's defaults. */
+  columns?: string[];
+  showZero?: boolean;
+  showPercent?: boolean;
+}
+
+function costRowOf(row: CostRow): BudgetReportRow {
+  return {
+    key: row.key,
+    kind: row.kind === 'category' ? 'category' : row.kind === 'account' ? 'account' : 'line',
+    depth: row.depth,
+    bold: row.kind === 'category' || row.kind === 'account',
+    keepWithNext: row.kind === 'category' || row.kind === 'account',
+    cells: {
+      number: row.number,
+      name: row.name,
+      description: row.name,
+      budget: row.budgetCents,
+      actual: row.actualCents,
+      actualAsOf: row.actualAsOfCents,
+      committed: row.committedCents,
+      etc: row.etcCents,
+      efc: row.efcCents,
+      variance: row.varianceCents,
+      percent: row.percentUsed,
+      reason: row.etcReason || '',
+      notes: row.etcReason || '',
+    },
+  };
+}
+
+/**
+ * The `costReport` print table: Budget/Actual/Committed/ETC/EFC/Variance/% used/
+ * Reason, one row per category/account/line (plus account + project
+ * "Unallocated" rows). Built on `computeCostReport` — never re-derived here.
+ */
+export function buildCostReportReport(
+  project: Project,
+  budget: BudgetModel | null | undefined,
+  options: CostReportOptions = {},
+): BudgetReportModel | null {
+  if (!budget) return null;
+  const cost = computeCostReport(project, {
+    asOf: options.asOf,
+    from: options.from,
+    to: options.to,
+    budget,
+  });
+  if (!cost) return null;
+
+  const columns = budgetReportColumns({
+    mode: 'costReport',
+    columns: options.columns,
+    showPercent: options.showPercent,
+  });
+  const categoryFilter = options.categories ? new Set(options.categories) : null;
+  const accountFilter = options.accounts ? new Set(options.accounts) : null;
+  const visible = (row: CostRow) => options.showZero === true
+    || [row.budgetCents, row.actualCents, row.committedCents, row.etcCents, row.efcCents].some(v => v !== 0);
+  const rows: BudgetReportRow[] = [];
+
+  for (const cat of cost.categories) {
+    if (categoryFilter && !categoryFilter.has(cat.categoryId)) continue;
+    const accounts = cat.accounts.filter(a => !accountFilter || accountFilter.has(a.accountId));
+    const accountRows = accounts.map(account => {
+      const lines = account.lines.filter(visible);
+      const unallocatedVisible = !!account.unallocated && visible(account.unallocated);
+      return { account, lines, unallocatedVisible };
+    }).filter(a => visible(a.account.row) || a.lines.length > 0 || a.unallocatedVisible);
+    if (accountRows.length === 0 && !visible(cat.row)) continue;
+
+    rows.push(costRowOf(cat.row));
+    for (const { account, lines, unallocatedVisible } of accountRows) {
+      rows.push(costRowOf(account.row));
+      for (const line of lines) rows.push(costRowOf(line));
+      if (unallocatedVisible && account.unallocated) rows.push(costRowOf(account.unallocated));
+    }
+  }
+
+  // Project-level expenses with no valid account — never inside a category
+  // filter (it is not part of the chart).
+  if (!categoryFilter && cost.unallocated && (options.showZero === true || visible(cost.unallocated))) {
+    rows.push(costRowOf(cost.unallocated));
+  }
+
+  return {
+    mode: 'costReport',
+    title: MODE_TITLES.costReport,
+    columns,
+    rows,
+    totals: {
+      baseCents: cost.totals.actualAsOfCents,
+      fringeCents: cost.totals.committedCents,
+      markupCents: cost.totals.etcCents,
+      grandTotalCents: cost.totals.efcCents,
+    },
+    settings: cost.settings,
   };
 }

@@ -1,5 +1,6 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory, Expense, PurchaseOrder } from '../types';
 import { computeBudget, flatBudgetLines, type BudgetModel, type ComputedBudgetAccount, type ComputedBudgetCategory, type ComputedBudgetLine } from './budget/calc';
+import { computeCostReport, expensesOfDay as expensesForDay, flatCostRows, type CostReportModel, type CostRow } from './budget/costReport';
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, elementLabelForLink, CrewLinkWarning } from './crewLinks';
 import { crewIdsForDepartment } from './linkTargets';
@@ -456,6 +457,9 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
     case 'budgetCategories': return (item as ReportBudgetCategoryItem).category.id;
     case 'budgetAccounts': return (item as ReportBudgetAccountItem).account.id;
     case 'budgetLines': case 'budgetLinesOfAccount': return (item as ComputedBudgetLine).line.id;
+    case 'costReport': return (item as CostRow).key;
+    case 'expenses': case 'expensesOfDay': return (item as Expense).id;
+    case 'purchaseOrders': return (item as PurchaseOrder).id;
     default: return 0;
   }
 }
@@ -511,6 +515,18 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
       return `${a.account.number} ${a.account.name}`.trim();
     }
     case 'budgetLines': case 'budgetLinesOfAccount': return (it as ComputedBudgetLine).line.description || (it as ComputedBudgetLine).line.id;
+    case 'costReport': {
+      const row = it as CostRow;
+      return `${row.number} ${row.name}`.trim();
+    }
+    case 'expenses': case 'expensesOfDay': {
+      const expense = it as Expense;
+      return `${expense.date} · ${expense.description}`;
+    }
+    case 'purchaseOrders': {
+      const po = it as PurchaseOrder;
+      return `${po.number}${po.vendor ? ` · ${po.vendor}` : ''}`;
+    }
     default: return '';
   }
 }
@@ -643,6 +659,9 @@ export interface ReportCtx {
   /** The project's budget read model (roadmap 334), computed ONCE here from
    *  `computeBudget` — budget report blocks/fields never do budget arithmetic. */
   budget?: BudgetModel;
+  /** The cost read model (roadmap 334 phase 2), computed ONCE from
+   *  `computeCostReport` — cost report collections/fields read these numbers. */
+  costReport?: CostReportModel;
 }
 
 export function todayIso(): string {
@@ -863,6 +882,9 @@ export function buildReportCtx(
   };
 
   const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
+  // ONE budget computation per report context (`computeBudget` is pure); the
+  // cost model reuses it instead of re-deriving the chart.
+  const budget = computeBudget(project) ?? undefined;
 
   return {
     project,
@@ -883,8 +905,9 @@ export function buildReportCtx(
     totalViolations,
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
     computedByRowId,
-    // ONE budget computation per report context (`computeBudget` is pure).
-    budget: computeBudget(project) ?? undefined,
+    budget,
+    // ONE cost computation, reused by every cost report block/field.
+    costReport: computeCostReport(project, { budget: budget ?? null }) ?? undefined,
   };
 }
 
@@ -1048,7 +1071,10 @@ export type ReportCollectionItem =
   | ReportDayTypeInfo
   | ReportBudgetCategoryItem
   | ReportBudgetAccountItem
-  | ComputedBudgetLine;
+  | ComputedBudgetLine
+  | CostRow
+  | Expense
+  | PurchaseOrder;
 
 /** The DAY item behind a repeat/table parent, when one is in scope — the same
  *  shape check the renderer uses for `aux.dayDate` (a day item carries a
@@ -1314,6 +1340,14 @@ export function resolveCollection(
       const account = parentItem as ReportBudgetAccountItem | undefined;
       return account?.totals?.lines ?? [];
     }
+    case 'costReport': return ctx.costReport ? flatCostRows(ctx.costReport) : [];
+    case 'expenses': return ctx.project.expenses || [];
+    case 'expensesOfDay': {
+      const day = dayItemOf(parentItem);
+      if (!day) return [];
+      return expensesForDay(ctx.project, { date: day.date, chronoDay: day.chronoDay });
+    }
+    case 'purchaseOrders': return ctx.project.purchaseOrders || [];
     default: return [];
   }
 }

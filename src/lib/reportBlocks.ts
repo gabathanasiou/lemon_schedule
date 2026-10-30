@@ -550,13 +550,18 @@ export const COLLECTION_LABELS: Record<string, string> = {
   budgetAccounts: 'Budget Accounts',
   budgetLines: 'Budget Lines',
   budgetLinesOfAccount: 'Budget Lines (of this account)',
+  // Cost tracking (roadmap 334 phase 2).
+  costReport: 'Cost Report',
+  expenses: 'Expenses',
+  expensesOfDay: 'Expenses (of this day)',
+  purchaseOrders: 'Purchase Orders',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'budgetLinesOfAccount', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'costReport', 'expenses', 'purchaseOrders', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'expensesOfDay', 'budgetLinesOfAccount', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
-    if (c === 'scenesOfDay' || c === 'crewOfDay' || c === 'elementCallsOfDay' || c === 'departmentCallsOfDay' || c === 'locationsOfDay') return parentCollection === 'days';
+    if (c === 'scenesOfDay' || c === 'crewOfDay' || c === 'elementCallsOfDay' || c === 'departmentCallsOfDay' || c === 'locationsOfDay' || c === 'expensesOfDay') return parentCollection === 'days';
     if (c === 'scenesOfElement') return parentCollection === 'elements' || parentCollection === 'elementsOfCategory';
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
     if (c === 'elementsOfCategory') return parentCollection === 'categories';
@@ -617,6 +622,10 @@ export function isSelfRepeat(
   if (collection === 'budgetCategories') return parent === 'budgetCategories';
   if (collection === 'budgetAccounts') return parent === 'budgetAccounts';
   if (collection === 'budgetLines') return parent === 'budgetLines' || parent === 'budgetLinesOfAccount';
+  // cost tracking (roadmap 334 phase 2)
+  if (collection === 'expenses') return parent === 'expenses' || parent === 'expensesOfDay';
+  if (collection === 'costReport') return parent === 'costReport';
+  if (collection === 'purchaseOrders') return parent === 'purchaseOrders';
   // Elements submenu: the parent's own category under element/cast-item parents
   if (collection === 'elements') {
     if ((parent === 'elements' || parent === 'elementsOfCategory') && category !== undefined && category === parentCategory) return true;
@@ -629,7 +638,7 @@ export function isSelfRepeat(
 export function contextualCollectionsFor(parentCollection?: ReportCollection): ReportCollection[] {
   const typed = TYPED_PARENT_COLLECTIONS.find(t => t.parent === parentCollection);
   if (typed) return [typed.child];
-  if (parentCollection === 'days') return ['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay'];
+  if (parentCollection === 'days') return ['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'expensesOfDay'];
   if (parentCollection === 'elements') return ['scenesOfElement', 'dayTypesOfElement'];
   if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast', 'dayTypesOfElement'];
   if (parentCollection === 'scenes') return ['elementsOfScene'];
@@ -692,12 +701,12 @@ export function selfRepeatDisabledCategories(
   return categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key);
 }
 
-export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement', 'budgetLinesOfAccount']);
+export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'expensesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement', 'budgetLinesOfAccount']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
  *  is hidden for them and ancestor scoping is a no-op. Crew is scopable since
  *  roadmap 11 (position → categories: "only crew in this day"). */
-export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'departments', 'locationsOfDay', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'budgetLinesOfAccount']);
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'departments', 'locationsOfDay', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'budgetLinesOfAccount', 'costReport', 'expenses', 'expensesOfDay', 'purchaseOrders']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -824,6 +833,9 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'budgetCategories': return 'budgetCategoryName';
     case 'budgetAccounts': return 'budgetAccountName';
     case 'budgetLines': case 'budgetLinesOfAccount': return 'budgetDescription';
+    case 'costReport': return 'crName';
+    case 'expenses': case 'expensesOfDay': return 'expenseDescription';
+    case 'purchaseOrders': return 'poNumber';
     default: return 'title';
   }
 }

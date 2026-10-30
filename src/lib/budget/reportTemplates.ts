@@ -99,7 +99,31 @@ export function budgetHealthDesign(): ReportDesign {
   };
 }
 
+/** 4. Cost Report — Budget vs Actual (landscape, roadmap 334 phase 2): the
+ *  live cost table plus a KPI line. Actual is as-of the print date until the
+ *  block/design sets `costAsOf`; EFC/variance always stay as-of. */
+export function costReportDesign(): ReportDesign {
+  return {
+    id: cid(),
+    name: 'Cost Report — Budget vs Actual',
+    createdAt: Date.now(),
+    page: 'landscape',
+    blocks: [
+      textBlock('{{title}} — Cost Report', { fontSize: 16, bold: true, align: 'center' }),
+      textBlock('As of {{crAsOf}} · Budget {{crBudgetTotal}} · Actual {{crActualTotal}} · Committed {{crCommittedTotal}}', { fontSize: 9, align: 'center', paddingV: 2 }),
+      textBlock('EFC {{crEfcTotal}} · Variance {{crVarianceTotal}} · {{crPercentUsedTotal}} used · Printed {{printDate}}', { fontSize: 9, align: 'center', paddingV: 2 }),
+      budgetTable({
+        budgetMode: 'costReport',
+        showZero: false,
+        showPercent: true,
+        showNotes: false,
+      }),
+    ],
+    footer: pageFooter(),
+  };
+}
+
 /** All built-in budget prints, in menu order. */
 export function budgetReportDesigns(): ReportDesign[] {
-  return [budgetTopSheetDesign(), budgetAccountDetailDesign(), budgetHealthDesign()];
+  return [budgetTopSheetDesign(), budgetAccountDetailDesign(), budgetHealthDesign(), costReportDesign()];
 }

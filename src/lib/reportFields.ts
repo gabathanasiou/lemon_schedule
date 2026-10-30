@@ -1,4 +1,4 @@
-import { Project, ReportBlock, RuleViolation, DayMeta } from '../types';
+import { Project, ReportBlock, RuleViolation, DayMeta, Expense, PurchaseOrder } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from './dayTypes';
@@ -10,6 +10,7 @@ import {
   ReportBudgetAccountItem, ReportBudgetCategoryItem,
 } from './reportData';
 import type { ComputedBudgetLine } from './budget/calc';
+import { expenseAccountLabel, summarizeExpenses, expensesOfDay as expensesForDay, type CostRow } from './budget/costReport';
 import { formatMoney, formatPercent } from './budget/format';
 import { crewPeopleById, dayDepartments, deptPrecallExpr, groupSlotsByDept, roleLabelOf, rolesForDept, slotsForDay } from './dayCrew';
 import { getCallTimeSettings } from './callTimes';
@@ -28,7 +29,7 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'departments' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes' | 'elementCallsOfDay' | 'departmentCallsOfDay' | 'budget';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'departments' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes' | 'elementCallsOfDay' | 'departmentCallsOfDay' | 'budget' | 'costReport' | 'expenses' | 'purchaseOrders';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
@@ -778,6 +779,113 @@ const BUDGET_FIELDS: ReportFieldDef[] = [
   } },
 ];
 
+// ---- cost tracking (roadmap 334 phase 2) ------------------------------------
+
+/** Type guards: the collections resolve to raw project objects, so the field
+ *  family checks shape rather than trusting the item's source block. */
+function costRowItem(it: any): CostRow | undefined {
+  return it && typeof it.key === 'string' && typeof it.efcCents === 'number' ? it as CostRow : undefined;
+}
+
+function expenseItem(it: any): Expense | undefined {
+  return it && typeof it.date === 'string' && typeof it.amountCents === 'number' && typeof it.status === 'string' ? it as Expense : undefined;
+}
+
+function purchaseOrderItem(it: any): PurchaseOrder | undefined {
+  return it && typeof it.number === 'string' && typeof it.amountCents === 'number' && typeof it.status === 'string' ? it as PurchaseOrder : undefined;
+}
+
+function poAccountLabel(ctx: ReportCtx, po: PurchaseOrder): string {
+  const account = (ctx.project.budget?.accounts || []).find(a => a.id === po.accountId);
+  return account ? `${account.number} ${account.name}`.trim() : '';
+}
+
+const COST_FIELDS: ReportFieldDef[] = [
+  // Cost report document totals (cover / summary text).
+  { key: 'crBudgetTotal', label: 'Cost Report Budget', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 12, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.budgetCents) },
+  { key: 'crActualTotal', label: 'Actual', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 12, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.actualCents) },
+  { key: 'crCommittedTotal', label: 'Committed', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 12, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.committedCents) },
+  { key: 'crEtcTotal', label: 'ETC', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 10, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.etcCents) },
+  { key: 'crEfcTotal', label: 'EFC', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 12, separator: true, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.efcCents) },
+  { key: 'crVarianceTotal', label: 'Variance', group: 'Cost Report', scope: 'costReport', align: 'right', money: true, defaultWidth: 12, get: ctx => budgetMoney(ctx, ctx.costReport?.totals.varianceCents) },
+  { key: 'crPercentUsedTotal', label: '% Used', group: 'Cost Report', scope: 'costReport', align: 'right', defaultWidth: 8, get: ctx => ctx.costReport ? formatPercent(ctx.costReport.totals.percentUsed, 1) : '' },
+  { key: 'crAsOf', label: 'As Of', group: 'Cost Report', scope: 'costReport', defaultWidth: 10, get: ctx => s(ctx.costReport?.asOf) },
+  // Cost report rows (category / account / line / Unallocated).
+  { key: 'crNumber', label: 'Account #', group: 'Cost Report Items', scope: 'costReport', align: 'center', defaultWidth: 8, get: (_c, it) => s(costRowItem(it)?.number) },
+  { key: 'crName', label: 'Account / Description', group: 'Cost Report Items', scope: 'costReport', defaultWidth: 26, get: (_c, it) => s(costRowItem(it)?.name) },
+  { key: 'crKind', label: 'Row Type', group: 'Cost Report Items', scope: 'costReport', defaultWidth: 10, get: (_c, it) => s(costRowItem(it)?.kind) },
+  { key: 'crBudget', label: 'Budget', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.budgetCents) },
+  { key: 'crActual', label: 'Actual', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.actualCents) },
+  { key: 'crActualAsOf', label: 'Actual (as of)', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.actualAsOfCents) },
+  { key: 'crCommitted', label: 'Committed', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.committedCents) },
+  { key: 'crEtc', label: 'ETC', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 10, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.etcCents) },
+  { key: 'crEfc', label: 'EFC', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.efcCents) },
+  { key: 'crVariance', label: 'Variance', group: 'Cost Report Items', scope: 'costReport', align: 'right', money: true, defaultWidth: 11, separator: true, get: (ctx, it) => budgetMoney(ctx, costRowItem(it)?.varianceCents) },
+  { key: 'crPercentUsed', label: '% Used', group: 'Cost Report Items', scope: 'costReport', align: 'right', defaultWidth: 8, get: (_c, it) => {
+    const row = costRowItem(it);
+    return row ? formatPercent(row.percentUsed, 1) : '';
+  } },
+  { key: 'crReason', label: 'ETC Reason', group: 'Cost Report Items', scope: 'costReport', defaultWidth: 22, get: (_c, it) => s(costRowItem(it)?.etcReason) },
+
+  // Expenses.
+  { key: 'expenseDate', label: 'Date', group: 'Expenses', scope: 'expenses', defaultWidth: 10, get: (_c, it) => s(expenseItem(it)?.date) },
+  { key: 'expenseDescription', label: 'Description', group: 'Expenses', scope: 'expenses', defaultWidth: 26, get: (_c, it) => s(expenseItem(it)?.description) },
+  { key: 'expenseAccount', label: 'Account', group: 'Expenses', scope: 'expenses', defaultWidth: 20, get: (ctx, it) => {
+    const expense = expenseItem(it);
+    return expense ? expenseAccountLabel(ctx.project, expense) : '';
+  } },
+  { key: 'expenseVendor', label: 'Vendor', group: 'Expenses', scope: 'expenses', defaultWidth: 18, get: (_c, it) => s(expenseItem(it)?.vendor) },
+  { key: 'expenseAmount', label: 'Amount', group: 'Expenses', scope: 'expenses', align: 'right', money: true, defaultWidth: 11, separator: true, get: (ctx, it) => budgetMoney(ctx, expenseItem(it)?.amountCents) },
+  { key: 'expenseStatus', label: 'Status', group: 'Expenses', scope: 'expenses', defaultWidth: 10, get: (_c, it) => s(expenseItem(it)?.status) },
+  { key: 'expenseMethod', label: 'Method', group: 'Expenses', scope: 'expenses', defaultWidth: 10, get: (_c, it) => s(expenseItem(it)?.method) },
+  { key: 'expensePo', label: 'PO', group: 'Expenses', scope: 'expenses', defaultWidth: 10, get: (ctx, it) => {
+    const expense = expenseItem(it);
+    const po = expense?.poId ? (ctx.project.purchaseOrders || []).find(p => p.id === expense.poId) : undefined;
+    return s(po?.number);
+  } },
+  { key: 'expenseCurrency', label: 'Currency', group: 'Expenses', scope: 'expenses', defaultWidth: 8, get: (_c, it) => s(expenseItem(it)?.currency) },
+  { key: 'expenseDay', label: 'Day', group: 'Expenses', scope: 'expenses', defaultWidth: 8, get: (_c, it) => {
+    const expense = expenseItem(it);
+    if (!expense) return '';
+    return expense.dayNumber != null ? String(expense.dayNumber) : s(expense.dayDate);
+  } },
+  { key: 'expenseNotes', label: 'Notes', group: 'Expenses', scope: 'expenses', defaultWidth: 22, get: (_c, it) => s(expenseItem(it)?.notes) },
+  { key: 'expenseReceiptUrl', label: 'Receipt', group: 'Expenses', scope: 'expenses', defaultWidth: 18, link: true, linkKind: 'url', get: (_c, it) => s(expenseItem(it)?.receiptUrl) },
+
+  // Purchase orders.
+  { key: 'poNumber', label: 'PO #', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 10, get: (_c, it) => s(purchaseOrderItem(it)?.number) },
+  { key: 'poVendor', label: 'Vendor', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 18, get: (_c, it) => s(purchaseOrderItem(it)?.vendor) },
+  { key: 'poDescription', label: 'Description', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 24, get: (_c, it) => s(purchaseOrderItem(it)?.description) },
+  { key: 'poIssuedDate', label: 'Issued', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 10, get: (_c, it) => s(purchaseOrderItem(it)?.issuedDate) },
+  { key: 'poAccount', label: 'Account', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 20, get: (ctx, it) => {
+    const po = purchaseOrderItem(it);
+    return po ? poAccountLabel(ctx, po) : '';
+  } },
+  { key: 'poAmount', label: 'Amount', group: 'Purchase Orders', scope: 'purchaseOrders', align: 'right', money: true, defaultWidth: 11, separator: true, get: (ctx, it) => budgetMoney(ctx, purchaseOrderItem(it)?.amountCents) },
+  { key: 'poStatus', label: 'Status', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 10, get: (_c, it) => s(purchaseOrderItem(it)?.status) },
+  { key: 'poNotes', label: 'Notes', group: 'Purchase Orders', scope: 'purchaseOrders', defaultWidth: 22, get: (_c, it) => s(purchaseOrderItem(it)?.notes) },
+
+  // Day rollups (inside a days repeat / table).
+  { key: 'dayExpenseTotal', label: 'Expenses', group: 'Day Costs', scope: 'days', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => {
+    const day = it as ReportDayInfo;
+    if (!day || typeof day.date !== 'string') return '';
+    const summary = summarizeExpenses(expensesForDay(ctx.project, { date: day.date, chronoDay: day.chronoDay }));
+    return budgetMoney(ctx, summary.plannedCents + summary.committedCents + summary.actualCents);
+  } },
+  { key: 'dayActualTotal', label: 'Actual', group: 'Day Costs', scope: 'days', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => {
+    const day = it as ReportDayInfo;
+    if (!day || typeof day.date !== 'string') return '';
+    const summary = summarizeExpenses(expensesForDay(ctx.project, { date: day.date, chronoDay: day.chronoDay }));
+    return budgetMoney(ctx, summary.actualCents);
+  } },
+  { key: 'dayCommittedTotal', label: 'Committed', group: 'Day Costs', scope: 'days', align: 'right', money: true, defaultWidth: 11, get: (ctx, it) => {
+    const day = it as ReportDayInfo;
+    if (!day || typeof day.date !== 'string') return '';
+    const summary = summarizeExpenses(expensesForDay(ctx.project, { date: day.date, chronoDay: day.chronoDay }));
+    return budgetMoney(ctx, summary.committedCents);
+  } },
+];
+
 // ---- registry ----------------------------------------------------------------
 
 function buildCategorySceneFields(project: Project): ReportFieldDef[] {
@@ -868,6 +976,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...PRODUCTION_FIELDS,
     ...PROJECT_FIELDS,
     ...BUDGET_FIELDS,
+    ...COST_FIELDS,
     ...SMART_FIELDS,
   ];
   const existing = new Set(base.map(f => f.key));

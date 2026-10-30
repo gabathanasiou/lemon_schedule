@@ -1,18 +1,18 @@
 import React, { useMemo } from 'react';
 import type { ReportBlock } from '../../types';
 import type { ReportCtx } from '../../lib/reportData';
-import { buildBudgetReport, type BudgetReportColumn, type BudgetReportRow } from '../../lib/reportBudget';
+import { budgetReportMode, buildBudgetReport, buildCostReportReport, type BudgetReportColumn, type BudgetReportRow } from '../../lib/reportBudget';
 import { formatMoney, formatPercent } from '../../lib/budget/format';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { getReportBlockBaseStyle } from './reportStyle';
 
 /**
  * Static renderer for the `budgetTable` block (`docs/BUDGETING-SURFACES.md`
- * §8). Rows/columns/totals all come from `lib/reportBudget.ts` (built on
- * `computeBudget`) — this component only formats money and lays the rows out
- * with the shared `.report-table-cols` / `.rm-row` recipe, so the measured
- * paginator splits between rows and repeats the column header (data-rm-header)
- * on continuation pages.
+ * §5). Rows/columns/totals all come from `lib/reportBudget.ts` (built on
+ * `computeBudget` / `computeCostReport`) — this component only formats money
+ * and lays the rows out with the shared `.report-table-cols` / `.rm-row`
+ * recipe, so the measured paginator splits between rows and repeats the
+ * column header (data-rm-header) on continuation pages.
  */
 interface ReportBudgetTableProps {
   block: ReportBlock;
@@ -33,16 +33,28 @@ type FlatRow = { kind: 'header' } | { kind: 'row'; row: BudgetReportRow };
 const depthPadding = (row: BudgetReportRow): number => (row.kind === 'line' ? 16 : row.kind === 'category' ? 0 : 6);
 
 const ReportBudgetTable: React.FC<ReportBudgetTableProps> = ({ block, ctx, hint, showKeys, rowRange, repeatTableHeader, title }) => {
-  const model = useMemo(() => buildBudgetReport(ctx.budget, {
-    mode: block.budgetMode,
-    categories: block.budgetCategories,
-    accounts: block.budgetAccounts,
-    columns: block.budgetColumns,
-    showZero: block.showZero === true,
-    showFringes: block.showFringes !== false,
-    showNotes: block.showNotes === true,
-    showPercent: block.showPercent !== false,
-  }), [ctx.budget, block.budgetMode, block.budgetCategories, block.budgetAccounts, block.budgetColumns, block.showZero, block.showFringes, block.showNotes, block.showPercent]);
+  const mode = budgetReportMode(block.budgetMode);
+  const model = useMemo(() => mode === 'costReport'
+    ? buildCostReportReport(ctx.project, ctx.budget, {
+      asOf: block.costAsOf,
+      from: block.costPeriod?.from,
+      to: block.costPeriod?.to,
+      categories: block.budgetCategories,
+      accounts: block.budgetAccounts,
+      columns: block.budgetColumns,
+      showZero: block.showZero === true,
+      showPercent: block.showPercent !== false,
+    })
+    : buildBudgetReport(ctx.budget, {
+      mode: block.budgetMode,
+      categories: block.budgetCategories,
+      accounts: block.budgetAccounts,
+      columns: block.budgetColumns,
+      showZero: block.showZero === true,
+      showFringes: block.showFringes !== false,
+      showNotes: block.showNotes === true,
+      showPercent: block.showPercent !== false,
+    }), [ctx.project, ctx.budget, mode, block.budgetMode, block.budgetCategories, block.budgetAccounts, block.budgetColumns, block.costAsOf, block.costPeriod, block.showZero, block.showFringes, block.showNotes, block.showPercent]);
 
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };

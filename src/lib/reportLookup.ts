@@ -323,6 +323,10 @@ export function fieldScopeFor(collection: string | null | undefined): string | u
     case 'crewOfDay': return 'crew';
     // Budget report collections (roadmap 334) — one field family.
     case 'budgetCategories': case 'budgetAccounts': case 'budgetLines': case 'budgetLinesOfAccount': return 'budget';
+    // Cost tracking (roadmap 334 phase 2) — its own field families.
+    case 'costReport': return 'costReport';
+    case 'expenses': case 'expensesOfDay': return 'expenses';
+    case 'purchaseOrders': return 'purchaseOrders';
     default: return collection ?? undefined;
   }
 }
