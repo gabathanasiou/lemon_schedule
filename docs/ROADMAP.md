@@ -1485,3 +1485,35 @@ synthetic glyph lanes.
 **Verify:** manual pass on a multi-account category — collapse hides children
 but totals hold; expand restores; read-only still allows collapsing because it
 is view-only state. **Relations:** `relates to` **334**, **326**, **337**.
+
+## 341. Budget Library — currency polish: derived symbol, common set, rate sync (`[ ]`)
+
+**Asked 2026-10-30 (user):** the master currency control is good, but the extra
+symbol control is unnecessary; add all the common currencies; and add a button
+that syncs exchange rates (check for a suitable API).
+
+**Work:**
+- **Derived symbol.** Remove the editable symbol field from Budget settings;
+  show the chosen currency’s symbol read-only (from the currency row, falling
+  back to its code). Keep `BudgetSettings.currencySymbol` as the formatting
+  value for saved/imported budgets, populated from the currency on change —
+  never a second source of truth.
+- **Common set.** Seed the default currency table with the common production
+  currencies (~30: USD, EUR, GBP, CAD, AUD, NZD, JPY, CNY, HKD, SGD, INR, KRW,
+  CHF, SEK, NOK, DKK, PLN, CZK, TRY, BRL, MXN, ZAR, AED, SAR, ILS, THB, MYR,
+  IDR, PHP, TWD, …) with symbols and **blank rates** until synced (missing rate
+  stays a warning, never a silent 1:1).
+- **Rate sync.** Add a **Sync rates** button in the Currencies library that
+  fetches daily rates and writes `rateToBase` in ONE `SET_BUDGET_LIBRARY`
+  batch; manual only, base currency = 1, show the last-synced timestamp and
+  inline errors (offline/failure leaves rates untouched). Evaluate a no-key,
+  CORS-friendly provider (e.g. Frankfurter/ECB) first; a keyed provider needs a
+  `VITE_*` env var and a CSP `connect-src` entry in `src/lib/csp.ts` in the
+  same commit. No key or token in project state.
+- Keep rates editable by hand; syncing never overwrites a blank base row and
+  never touches per-line `fxRate` overrides.
+
+**Verify:** Vitest for currency/symbol mapping and rate application; fetch
+mocked in the unit test; manual pass for the button success/failure and CSP.
+Run the security-review relevance check (network origin + CSP).
+**Relations:** `relates to` **334**; `touches` **285** (CSP), **security-review**.

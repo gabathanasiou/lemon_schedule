@@ -296,22 +296,21 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Open phase-2 follow-ups (roadmap 335-340)
+### Open phase-2 follow-ups (roadmap 335-341)
 Phase-2 refinements; each keeps the canonical seams (no second engine/table/grid).
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target
   (category/account → node modal, line → line modal), not context-menu-first.
-- **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline
-  commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the
-  day filter, summary, CTA and read-only rules.
+- **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the day filter, summary, CTA and read-only rules.
 - **337** Budget Glide bulk entry: context-menu "Add line…" count → N lines in
   one batch; Shift+Enter adds/focuses a row via the shared keyboard hook.
 - **338** Fringe pickers show each fringe's computed line contribution
   (`computeBudget` → `computedLine.fringes[].cents`), never re-derived.
 - **339/340** Category navigation: rail context menu + trailing "+ New category"
-  (kit `ContextMenu`, no second editor); Glide category bands get a disclosure
-  chevron that collapses children as view-only state.
-Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual
-checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
+  (kit `ContextMenu`, no second editor); Glide category bands get a disclosure chevron that collapses children as view-only state.
+- **341** Currency library: derive the symbol from the chosen currency (remove
+  the symbol input), seed common currencies, add manual "Sync rates" (no-key
+  provider + CSP, base = 1, one batch, last-synced stamp).
+Verify silent-break cases in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual. Update `BUDGETING-SURFACES.md` + roadmap per item.
 
 ---
 
