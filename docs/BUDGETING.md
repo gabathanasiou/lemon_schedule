@@ -382,7 +382,7 @@ expenses (one batch), report fields and `overtimeSummary`. Divergences: numeric
 cast rates/project presets are data/bridge-editable (cast details keeps the MMS
 text rate); no extra version-lock coupling.
 
-**4 — Advanced.** Version compare/Original-Variance, cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty-cash, MMB import/export (no compare UI built).
+**4 — Advanced (each own branch).** Version compare LANDED (`budgetTable` `comparison`, `budgetForVersion`); remaining: cashflow, incentives/credits, currency report, AICP/episodic, approvals/petty cash, MMB import/export.
 
 ## 9. Verification & docs
 - `npm run lint` + `npm run test:unit` (budget/reportBudget/costReport/
