@@ -871,6 +871,11 @@ export interface ReportBlock {
   budgetCategories?: string[];   // selected category ids; unset = all
   budgetAccounts?: string[];     // selected account ids; unset = all
   budgetColumns?: string[];      // subset of the mode's columns
+  /** comparison mode: the two budget versions to compare (read-only). Unset
+   *  primary = the active version. Block-level so a saved design prints the
+   *  same pair; never changes `activeVersionId`. */
+  budgetVersionId?: string;
+  budgetCompareVersionId?: string;
   showZero?: boolean;
   showFringes?: boolean;
   showNotes?: boolean;

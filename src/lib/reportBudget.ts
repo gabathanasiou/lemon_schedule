@@ -12,12 +12,16 @@ import { computeCostReport, type CostRow } from './budget/costReport';
  * Budget/Actual/Committed/ETC/EFC/Variance/% used/Reason per category,
  * account and line (plus Unallocated rows).
  *
- * The remaining `ReportBlock.budgetMode` values (`hotCost`, `cashflow`,
- * `comparison`) belong to later phases; until their engines land they fall
- * back to `topsheet` rather than rendering a lying table.
+ * The remaining `ReportBlock.budgetMode` values (`hotCost`, `cashflow`) belong
+ * to later phases; until their engines land they fall back to `topsheet`
+ * rather than rendering a lying table.
+ *
+ * Phase 4 adds `comparison`: the same account rows, read from two versions and
+ * shaped as Original / Budget / Variance / Var %. Read-only: the block names
+ * the versions, the active budget version never changes.
  */
 
-export type BudgetReportMode = 'topsheet' | 'accounts' | 'lines' | 'costReport';
+export type BudgetReportMode = 'topsheet' | 'accounts' | 'lines' | 'costReport' | 'comparison';
 
 export type BudgetReportRowKind = 'category' | 'account' | 'line' | 'subtotal' | 'markup' | 'grand';
 
@@ -84,11 +88,12 @@ const MODE_TITLES: Record<BudgetReportMode, string> = {
   accounts: 'Budget — Accounts',
   lines: 'Budget — Line Detail',
   costReport: 'Cost Report — Budget vs Actual',
+  comparison: 'Budget — Version Comparison',
 };
 
 /** Mode gate (see the module comment). */
 export function budgetReportMode(mode: ReportBlock['budgetMode'] | undefined): BudgetReportMode {
-  if (mode === 'accounts' || mode === 'lines' || mode === 'costReport') return mode;
+  if (mode === 'accounts' || mode === 'lines' || mode === 'costReport' || mode === 'comparison') return mode;
   return 'topsheet';
 }
 
@@ -134,6 +139,14 @@ const COLUMN_DEFS: Record<BudgetReportMode, BudgetReportColumn[]> = {
     { key: 'variance', label: 'Variance', width: 9, align: 'right', money: true },
     { key: 'percent', label: '% Used', width: 6, align: 'right', percent: true },
     { key: 'reason', label: 'Reason', width: 10, align: 'left' },
+  ],
+  comparison: [
+    { key: 'number', label: '#', width: 7, align: 'center' },
+    { key: 'name', label: 'Account', width: 35, align: 'left' },
+    { key: 'original', label: 'Original', width: 16, align: 'right', money: true },
+    { key: 'budget', label: 'Budget', width: 16, align: 'right', money: true },
+    { key: 'variance', label: 'Variance', width: 16, align: 'right', money: true },
+    { key: 'percent', label: 'Var %', width: 10, align: 'right', percent: true },
   ],
 };
 
@@ -463,5 +476,156 @@ export function buildCostReportReport(
       grandTotalCents: cost.totals.efcCents,
     },
     settings: cost.settings,
+  };
+}
+
+// ---- version comparison mode (roadmap 334 phase 4) --------------------------
+
+/** Account identity across two versions. The chart is shared, so numbers are
+ *  labels and ids are stable; the number pair is the display/matching label
+ *  with the stable id as the fallback for a blank number. No reference is ever
+ *  stored from this key. */
+function categoryKey(cat: ComputedBudgetCategory): string {
+  return cat.category.number || cat.category.id;
+}
+
+function accountKey(cat: ComputedBudgetCategory, account: ComputedBudgetAccount): string {
+  return `${categoryKey(cat)}/${account.account.number || account.account.id}`;
+}
+
+function comparisonCells(originalCents: MoneyCents, budgetCents: MoneyCents): Record<string, number | undefined> {
+  const variance = budgetCents - originalCents;
+  return {
+    original: originalCents,
+    budget: budgetCents,
+    variance,
+    percent: originalCents === 0 ? undefined : (variance / originalCents) * 100,
+  };
+}
+
+/**
+ * The comparison print: category/account rows from TWO `computeBudget` models,
+ * read-only. `budget` is the primary (current) version, `original` is the
+ * baseline. Variance is signed `budget − original`; Var % is blank when the
+ * original is 0 (never a divide-by-zero lie). Money stays integer cents.
+ */
+export function buildComparisonReport(
+  budget: BudgetModel | null | undefined,
+  original: BudgetModel | null | undefined,
+  options: BudgetReportOptions = {},
+): BudgetReportModel | null {
+  if (!budget || !original) return null;
+  const columns = budgetReportColumns({
+    mode: 'comparison',
+    columns: options.columns,
+    showPercent: options.showPercent,
+  });
+  const categoryFilter = options.categories ? new Set(options.categories) : null;
+  const accountFilter = options.accounts ? new Set(options.accounts) : null;
+  const visible = (originalCents: MoneyCents, budgetCents: MoneyCents) =>
+    options.showZero === true || originalCents !== 0 || budgetCents !== 0;
+
+  const originalCategoriesById = new Map(original.categories.map(cat => [cat.category.id, cat]));
+  const originalCategoriesByNumber = new Map(original.categories.map(cat => [categoryKey(cat), cat]));
+  const originalAccountsById = new Map<string, ComputedBudgetAccount>();
+  const originalAccountsByNumber = new Map<string, ComputedBudgetAccount>();
+  for (const cat of original.categories) {
+    for (const account of cat.accounts) {
+      originalAccountsById.set(account.account.id, account);
+      originalAccountsByNumber.set(accountKey(cat, account), account);
+    }
+  }
+
+  const rows: BudgetReportRow[] = [];
+  for (const cat of budget.categories) {
+    if (categoryFilter && !categoryFilter.has(cat.category.id)) continue;
+    // The chart is shared, so the id always matches; the number pair is the
+    // documented fallback (numbers are labels, never stored references).
+    const originalCategory = originalCategoriesById.get(cat.category.id)
+      || originalCategoriesByNumber.get(categoryKey(cat));
+    const accounts: { account: ComputedBudgetAccount; original?: ComputedBudgetAccount }[] = [];
+    for (const account of cat.accounts) {
+      if (accountFilter && !accountFilter.has(account.account.id)) continue;
+      const originalAccount = originalAccountsById.get(account.account.id)
+        || originalAccountsByNumber.get(accountKey(cat, account));
+      if (!visible(originalAccount?.totalCents ?? 0, account.totalCents)) continue;
+      accounts.push({ account, original: originalAccount });
+    }
+    if (accounts.length === 0) continue;
+
+    rows.push({
+      key: `category:${cat.category.id}`,
+      kind: 'category',
+      depth: 0,
+      bold: true,
+      keepWithNext: true,
+      cells: {
+        number: cat.category.number,
+        name: cat.category.name,
+        description: cat.category.name,
+        ...comparisonCells(originalCategory?.totalCents ?? 0, cat.totalCents),
+        notes: cat.category.notes,
+      },
+    });
+
+    for (const { account, original: originalAccount } of accounts) {
+      rows.push({
+        key: `account:${account.account.id}`,
+        kind: 'account',
+        depth: 1,
+        bold: true,
+        cells: {
+          number: account.account.number,
+          name: account.account.name,
+          description: account.account.name,
+          ...comparisonCells(originalAccount?.totalCents ?? 0, account.totalCents),
+          notes: account.account.notes,
+        },
+      });
+    }
+  }
+
+  if (rows.length > 0) {
+    const budgetSubtotal = budget.totals.baseCents + budget.totals.fringeCents;
+    const originalSubtotal = original.totals.baseCents + original.totals.fringeCents;
+    if (budget.totals.markupCents !== 0 || original.totals.markupCents !== 0) {
+      rows.push({
+        key: 'subtotal',
+        kind: 'subtotal',
+        depth: 2,
+        bold: true,
+        cells: { name: 'Subtotal', ...comparisonCells(originalSubtotal, budgetSubtotal) },
+      });
+      rows.push({
+        key: 'markups',
+        kind: 'markup',
+        depth: 2,
+        cells: { name: 'Markups & credits', ...comparisonCells(original.totals.markupCents, budget.totals.markupCents) },
+      });
+    }
+    rows.push({
+      key: 'grand',
+      kind: 'grand',
+      depth: 2,
+      bold: true,
+      cells: {
+        name: 'Grand total',
+        ...comparisonCells(original.totals.grandTotalCents, budget.totals.grandTotalCents),
+      },
+    });
+  }
+
+  return {
+    mode: 'comparison',
+    title: `Budget — ${budget.version.name} vs ${original.version.name}`,
+    columns,
+    rows,
+    totals: {
+      baseCents: budget.totals.baseCents,
+      fringeCents: budget.totals.fringeCents,
+      markupCents: budget.totals.markupCents,
+      grandTotalCents: budget.totals.grandTotalCents,
+    },
+    settings: budget.settings,
   };
 }

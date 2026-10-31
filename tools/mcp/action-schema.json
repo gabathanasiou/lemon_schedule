@@ -1675,6 +1675,16 @@
           "type": "string[]"
         },
         {
+          "name": "budgetVersionId",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "budgetCompareVersionId",
+          "optional": true,
+          "type": "string"
+        },
+        {
           "name": "showZero",
           "optional": true,
           "type": "boolean"

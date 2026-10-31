@@ -355,8 +355,8 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
 - Grid/library/versions: shared `InlineGlideTable` (painted pickers, (i) opens
   the editor, trash deletes, display-only filter); ~30 currencies, derived
   symbol, **Sync rates**, `ItemManagerDropdown` + trash; `FormulaField` book.
-- Reports: `budgetTable` leaf (four modes), budget/cost collections/fields,
-  four transient prints + Save as design.
+- Reports: `budgetTable` leaf (five modes incl. Cost Report + Comparison),
+  budget/cost collections/fields, transient prints + Save as design.
 
 ## 8. Phases
 

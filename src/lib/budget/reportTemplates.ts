@@ -1,4 +1,4 @@
-import type { ReportBlock, ReportDesign } from '../../types';
+import type { Budget, BudgetVersion, ReportBlock, ReportDesign } from '../../types';
 import { cid } from '../ribbonUtils';
 import { makeReportBlock } from '../reportBlocks';
 
@@ -123,7 +123,41 @@ export function costReportDesign(): ReportDesign {
   };
 }
 
-/** All built-in budget prints, in menu order. */
-export function budgetReportDesigns(): ReportDesign[] {
-  return [budgetTopSheetDesign(), budgetAccountDetailDesign(), budgetHealthDesign(), costReportDesign()];
+/** 5. Budget — Version Comparison (landscape, phase 4): account-level
+ *  Original / Budget / Variance / Var % between two chosen versions. The block
+ *  carries both version ids; the active budget version is never changed. */
+export function budgetComparisonDesign(primary: BudgetVersion, original: BudgetVersion): ReportDesign {
+  return {
+    id: cid(),
+    name: 'Budget — Version Comparison',
+    createdAt: Date.now(),
+    page: 'landscape',
+    blocks: [
+      textBlock('{{title}} — Budget Comparison', { fontSize: 16, bold: true, align: 'center' }),
+      textBlock(`${primary.name} vs ${original.name} · Printed {{printDate}}`, { fontSize: 9, align: 'center', paddingV: 2 }),
+      budgetTable({
+        budgetMode: 'comparison',
+        budgetVersionId: primary.id,
+        budgetCompareVersionId: original.id,
+        showZero: false,
+        showPercent: true,
+      }),
+    ],
+    footer: pageFooter(),
+  };
+}
+
+/** All built-in budget prints, in menu order. The comparison design exists
+ *  only when there is a second version to compare against. */
+export function budgetReportDesigns(budget?: Budget): ReportDesign[] {
+  const designs = [budgetTopSheetDesign(), budgetAccountDetailDesign(), budgetHealthDesign(), costReportDesign()];
+  const activeIndex = budget ? budget.versions.findIndex(v => v.id === budget.activeVersionId) : -1;
+  if (budget && activeIndex >= 0) {
+    const primary = budget.versions[activeIndex];
+    const original = activeIndex > 0
+      ? budget.versions[activeIndex - 1]
+      : budget.versions.find(v => v.id !== primary.id);
+    if (original) designs.push(budgetComparisonDesign(primary, original));
+  }
+  return designs;
 }
