@@ -180,7 +180,10 @@ export function BudgetGrid({
     return map;
   }, [model]);
   const getEditorCfg = React.useCallback((rowIndex: number, colKey: string) => {
-    if (colKey !== 'fringes') return undefined;
+    // The per-row hook exists for the fringe contribution detail. Everything
+    // else must fall back to the shared column editors (unit/currency/groups) —
+    // returning undefined here would make Glide open its stock text editor.
+    if (colKey !== 'fringes') return editors[colKey as keyof typeof editors];
     const row = rowMeta.get(rowIndex);
     if (!row || row.kind !== 'line') return undefined;
     const centsById = new Map((computedByLineId.get(row.id)?.fringes || []).map(f => [f.id, f.cents]));
@@ -198,7 +201,7 @@ export function BudgetGrid({
         return { id: f.id, name: f.name, detail: `${cents != null ? `+ ${formatMoney(cents, settings)}` : '—'} · ${def}` };
       }),
     };
-  }, [rowMeta, computedByLineId, fringes, settings]);
+  }, [rowMeta, computedByLineId, fringes, settings, editors]);
 
   /** The (i) action + the same actions as right-click items. */
   const actionsFor = React.useCallback((row: BudgetGridRow): { label: string; run: () => void; danger?: boolean }[] => {
@@ -266,27 +269,8 @@ export function BudgetGrid({
     return id ? `line:${id}` : null;
   }, [rowMeta, accountByLineId, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine]);
 
-  /** Left/Right on a band's disclosure (or its name cell) collapses/expands
-   *  that band (roadmap 340) — view-only state, also live in read-only. */
-  const cellKeyDown = React.useCallback((rowIndex: number, colKey: string, key: string): boolean => {
-    if (key !== 'ArrowLeft' && key !== 'ArrowRight') return false;
-    if (colKey !== 'disclosure' && colKey !== 'item') return false;
-    const row = rowMeta.get(rowIndex);
-    if (!row || row.hasChildren !== '1') return false;
-    if (row.kind === 'category') {
-      const collapsed = COLLAPSED_CATEGORIES.has(row.id);
-      if (key === 'ArrowRight' && collapsed) toggleCategory(row.id);
-      else if (key === 'ArrowLeft' && !collapsed) toggleCategory(row.id);
-      return true;
-    }
-    if (row.kind === 'account') {
-      const collapsed = COLLAPSED_ACCOUNTS.has(row.id);
-      if (key === 'ArrowRight' && collapsed) toggleAccount(row.id);
-      else if (key === 'ArrowLeft' && !collapsed) toggleAccount(row.id);
-      return true;
-    }
-    return false;
-  }, [rowMeta, toggleCategory, toggleAccount]);
+  /** Glyph cells are keyboard-activatable through `InlineGlideTable`'s
+   *  `onCellActivated` (Enter/Space on the disclosure) — no arrow-key shortcut. */
 
   const rowTheme = React.useCallback((rowIndex: number) => {
     const row = rowMeta.get(rowIndex);
@@ -405,7 +389,6 @@ export function BudgetGrid({
         heightMode="fill"
         rowMenuItems={rowMenuItems}
         onAddRow={addRowFrom}
-        onCellKeyDown={cellKeyDown}
         editors={editors}
         getEditor={getEditorCfg}
         baseRowHeight={26}
