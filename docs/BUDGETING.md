@@ -320,7 +320,7 @@ ADD/UPDATE/DELETE_PURCHASE_ORDER    // UPDATE { id, updates }
   summary, Print/Export/Import), footer totals. Category rows carry a **+**
   quick-add; Shift+Enter quick-adds in context; right-click **Add line…** asks
   a count and batches N lines. Bands collapse via the disclosure glyph
-  (Left/Right, view-only) and paint their colour across every cell + both
+  (click or Enter, view-only) and paint their colour across every cell + both
   trailing lanes; the sheet's column header is pinned (`heightMode="fill"`).
 - Cost Report view: as-of + period, KPI strip (Budget/Actual/Committed/EFC/
   Variance/%Used), expandable category → account → line rows, inline ETC +

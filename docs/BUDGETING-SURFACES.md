@@ -108,17 +108,17 @@ the budget/cost report fields/collections or the print templates.
   quick-adds in the focused row's context (`InlineGlideTable.onAddRow`), or
   appends when nothing is focused; the selection lands on the new row.
   Right-click **Add line…** asks a count (1–100) and creates N lines in ONE
-  batch (`BUDGET_START`/`BATCH_COMMIT`) in the row's account. Both are
+  batch (`BATCH_START`/`BATCH_COMMIT`) in the row's account. Both are
   disabled by `readOnly || version.locked`. The trash column (`rowActions`)
   deletes category/account/line/markup after a confirm. Right-click
   (`rowMenuItems`) lists the same actions above the generic copy/paste items.
   Markup rows have trash only.
 - **Collapse/expand (roadmap 340):** a leading canvas disclosure glyph
   (`disclosureGlyphCell`) folds a category's accounts+lines or an account's
-  lines; totals stay. It is drawn ONLY when the band has child rows (childless
-  bands keep a blank lane; Left/Right navigates normally). Left/Right toggles a
-  band — view-only, survives tab switches, works read-only. **Picking a category
-  in the rail (or All / adding one) unfolds every band.** Copy/cut skip it.
+  lines; totals stay. It is drawn ONLY when the band has child rows. Click the
+  glyph or press Enter on it to toggle — view-only, survives tab switches, works
+  read-only; arrow keys keep navigating normally. **Picking a category in the
+  rail (or All / adding one) unfolds every band.** Copy/cut skip it.
 - **Bands & header (roadmap 343):** `rowThemeOverride` paints EVERY cell of a
   category/account band — data and the trailing info/actions lanes — with the
   band colour; hover never punches a grey hole. The sheet runs
