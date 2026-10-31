@@ -116,6 +116,96 @@ export function scheduleQtyFor(source: BudgetLineSource | undefined, q: Schedule
   }
 }
 
+/**
+ * Identity of a schedule source inside one budget version. Two lines with the
+ * same key point at the same schedule fact, so a version holds at most one
+ * (the review diff in `diff.ts` uses this to find missing/fresh sources).
+ */
+export function scheduleSourceKey(source: BudgetLineSource | undefined): string {
+  if (!source) return '';
+  switch (source.kind) {
+    case 'shootDays': return 'shootDays';
+    case 'perDay': return 'perDay';
+    case 'cast': return `cast:${source.castId}`;
+    case 'crewRole': return source.personId ? `crew:${source.roleKey}:${source.personId}` : `role:${source.roleKey}`;
+    case 'location': return `loc:${source.locationId}`;
+    case 'element': return `el:${source.category}:${source.key}`;
+    default: return '';
+  }
+}
+
+/** Why a linked line no longer resolves — `null` when the target is healthy.
+ *  Shared by `calc.ts` (line warning) and the review diff (check state). */
+export function scheduleSourceIssue(project: Project, source: BudgetLineSource | undefined): string | null {
+  if (!source) return null;
+  switch (source.kind) {
+    case 'shootDays':
+    case 'perDay':
+      return null;
+    case 'crewRole': {
+      const role = project.crewRoles?.find(r => r.key === source.roleKey);
+      if (!role) return `Crew role "${source.roleKey}" no longer exists`;
+      if (source.personId) {
+        const people = project.crew?.[source.roleKey] || [];
+        if (!people.some(p => p.id === source.personId)) return 'Linked crew member no longer exists';
+      }
+      return null;
+    }
+    case 'cast':
+      return (project.castMembers || []).some(c => c.id === source.castId) ? null : 'Linked cast member no longer exists';
+    case 'location':
+      return (project.locations || []).some(l => l.id === source.locationId) ? null : 'Linked location no longer exists';
+    case 'element': {
+      const list = source.category === 'cast'
+        ? (project.castMembers || []).map(c => ({ id: c.id, name: c.name }))
+        : project.breakdownElements?.[source.category] || [];
+      return list.some(e => (e.id === source.key) || (e.name === source.key)) ? null : 'Linked element no longer exists';
+    }
+    default:
+      return null;
+  }
+}
+
+/** The chart account a generated schedule line belongs in (never creates one —
+ *  a missing number is a `check` row in the review diff). Shared with
+ *  `templates/fromSchedule.ts` so both paths map sources identically. */
+export const SCHEDULE_SOURCE_ACCOUNT: Record<BudgetLineSource['kind'], string> = {
+  shootDays: '2400',
+  perDay: '2400',
+  crewRole: '2100',
+  cast: '1400',
+  location: '3200',
+  element: '2400',
+};
+
+/** Generated schedule lines are day quantities. */
+export const SCHEDULE_SOURCE_UNIT = 'unit-day';
+
+/** Human description for a generated line — one implementation for the
+ *  From-schedule template and the review diff's `add` rows. */
+export function scheduleSourceDescription(project: Project, source: BudgetLineSource): string {
+  switch (source.kind) {
+    case 'shootDays': return 'Production days — set operations';
+    case 'perDay': return 'Production days';
+    case 'crewRole': {
+      const role = project.crewRoles?.find(r => r.key === source.roleKey);
+      if (!source.personId) return `${role?.label || source.roleKey} — any person`;
+      const person = (project.crew?.[source.roleKey] || []).find(p => p.id === source.personId);
+      return `${role?.label || source.roleKey} — ${person?.name || source.personId}`;
+    }
+    case 'cast': {
+      const member = (project.castMembers || []).find(c => c.id === source.castId);
+      return member ? `${member.id}. ${member.name}` : `Cast ${source.castId}`;
+    }
+    case 'location': {
+      const location = (project.locations || []).find(l => l.id === source.locationId);
+      return location?.name || 'Location';
+    }
+    case 'element': return `${source.category} — ${source.key}`;
+    default: return 'Schedule line';
+  }
+}
+
 /** Read-only system globals (recomputed at read time, never stored stale). */
 export function computeSystemGlobals(project: Project, q: ScheduleQuantities): Record<string, number> {
   const calendar = project.calendarVersions.find(c => c.id === project.activeCalendarVersionId)

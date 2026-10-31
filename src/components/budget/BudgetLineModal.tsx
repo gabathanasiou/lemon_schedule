@@ -9,24 +9,12 @@ import Button from '../Button';
 import { BudgetInput, MoneyField, NumberField } from './fields';
 import { FormulaField } from './FormulaField';
 import { buildFormulaBook } from '../../lib/budget/formulaBook';
+import { scheduleSourceKey } from '../../lib/budget/scheduleSync';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { formatMoney } from '../../lib/budget/format';
 
 type LinkOption = { id: string; label: string; group: string; source: BudgetLineSource };
-
-function sourceKey(source: BudgetLineSource | undefined): string {
-  if (!source) return '';
-  switch (source.kind) {
-    case 'shootDays': return 'shootDays';
-    case 'perDay': return 'perDay';
-    case 'cast': return `cast:${source.castId}`;
-    case 'crewRole': return source.personId ? `crew:${source.roleKey}:${source.personId}` : `role:${source.roleKey}`;
-    case 'location': return `loc:${source.locationId}`;
-    case 'element': return `el:${source.category}:${source.key}`;
-    default: return '';
-  }
-}
 
 function linkOptionsOf(project: Project): LinkOption[] {
   const out: LinkOption[] = [
@@ -102,7 +90,7 @@ export function BudgetLineModal({
   const [unitOpen, setUnitOpen] = React.useState(false);
   const [currencyOpen, setCurrencyOpen] = React.useState(false);
   const [linkOpen, setLinkOpen] = React.useState(false);
-  const currentLink = sourceKey(line.source);
+  const currentLink = scheduleSourceKey(line.source);
 
   const unitItems: PickerItem[] = units.map(u => ({ id: u.id, label: `${u.name}${u.hours ? ` (${u.hours}h)` : ''}` }));
   const currencyItems: PickerItem[] = currencies.map(c => ({ id: c.code, label: c.symbol ? `${c.symbol} ${c.code}` : c.code }));

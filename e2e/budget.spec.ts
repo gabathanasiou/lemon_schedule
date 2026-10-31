@@ -184,6 +184,31 @@ test.describe('Budget', () => {
     });
     expect(second.totals.baseCents).toBe(q1 + 50000);
 
+    await test.step('the schedule review applies drifted quantities as one undo entry', async () => {
+      const pastBefore = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+      const storedQty = async () => page.evaluate(() => {
+        const p = (window as any).__lemonSchedule.getProject();
+        return p.budget.versions.find((v: any) => v.id === p.budget.activeVersionId).lines[0].qty;
+      });
+      expect(await storedQty()).toBe(0);
+
+      // The toolbar advertises the drift; the modal reviews it before writing.
+      await page.getByRole('button', { name: /1 update from the schedule/ }).click();
+      await expect(page.getByRole('heading', { name: 'Updates from the schedule' })).toBeVisible();
+      await expect(page.getByText('No cost change')).toBeVisible();
+      await page.getByRole('button', { name: 'Apply 1 change' }).click();
+
+      await expect.poll(storedQty).toBe(2);
+      expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(pastBefore + 1);
+      // The review cleared; the live quantity is unchanged.
+      await expect(page.getByRole('button', { name: 'Up to date' })).toBeVisible();
+      expect((await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary())).totals.baseCents).toBe(q1 + 50000);
+
+      // One batch = one undo entry; the stored snapshot returns to 0.
+      await page.evaluate(() => (window as any).__lemonSchedule.undo());
+      await expect.poll(storedQty).toBe(0);
+    });
+
     // Pin the current quantity, then move the schedule again: the line holds.
     await page.evaluate(({ lineId, qty }) => {
       const b = (window as any).__lemonSchedule;

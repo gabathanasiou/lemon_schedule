@@ -162,7 +162,7 @@ document, never window-mount the reading surface.
 `tools/mcp/` exposes the open project to MCP clients (opencode / Claude Desktop / Cursor) over loopback (`127.0.0.1:3939`, stdio MCP, Origin+Host checked) — the app connects OUT when the user enables **File → Connect agent bridge** (the toggle is the consent). Writes are refused when `readOnly` (or viewer `canEdit === false`); schemas are DERIVED (`tools/mcp/actionSchema.mjs`) — never hand-maintain one tool per action. **Local-only for now** — the ship path is a desktop app hosting the UI + MCP server (roadmap 145). Tool inventory, wire protocol, security model: `docs/API.md` — read it before changing the surface.
 
 ## Budget & Cost Tracking
-`docs/BUDGETING.md` (surfaces: `BUDGETING-SURFACES.md`). Money is cents; ONE read model per concern (`computeBudget`/`computeCostReport`/`computeDayOvertime`); live schedule links (no sync); overtime is editable policy (project → day → dept → person); `locked = readOnly || !canEdit` + version lock. Never component arithmetic, a second grid, or hardcoded OT rules.
+`docs/BUDGETING.md` (surfaces: `BUDGETING-SURFACES.md`). Money is cents; ONE read model per concern (`computeBudget`/`computeCostReport`/`computeDayOvertime`); live links + reviewed sync; overtime is editable policy (project → day → dept → person); `locked = readOnly || !canEdit` + version lock. Never component arithmetic, a second grid, or hardcoded OT rules.
 
 ## Help Modal
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).

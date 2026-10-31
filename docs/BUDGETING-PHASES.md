@@ -214,7 +214,7 @@ modals), `BudgetGrid`, `BudgetVersionMenu`, `BudgetEmptyState`,
 6. Schedule link: a line linked to shoot days changes when the production-day
    count changes; editing Qty pins it; Pin/Unpin in the line modal; locking a
    version pins every live-linked quantity and unlock does not unpin; manual
-   lines never change. No sync button exists.
+   lines never change. No automatic sync exists (348 reviews the diff).
 7. Blank budget stays manual; a line can be linked later; From schedule shows
    preview counts (not a line-by-line wizard) and creates linked lines.
 8. Top Sheet/Account Detail/Budget Health print with correct totals, repeated
@@ -296,23 +296,22 @@ CSV; viewer/bridge refusal; 500 expenses perf. Vitest cost-report maths; e2e
 expense/day/print. Docs: `BUDGETING*.md`, `REPORTS-DESIGNER.md` (collections/
 fields), `API.md`, roadmap.
 
-### Phase-2 follow-ups (roadmap 335-347 SHIPPED; 348 open)
+### Phase-2 follow-ups (roadmap 335-348 SHIPPED)
 - **335** Budget sheet `(i)` = inspect/edit only: explicit per-row target (category/account → node modal, line → line modal), never context-menu-first.
 - **336** Day Manager Expenses onto the shared `InlineGlideTable`: inline commit-on-blur edits, (i) → `ExpenseModal`, modal-less quick-add row; keep the day filter, summary, CTA and read-only rules.
 - **337** Budget Glide bulk entry: context-menu "Add line…" count → N lines in one batch; Shift+Enter adds/focuses a row via the shared keyboard hook.
-- **338** Fringe pickers show each fringe's computed line contribution
-  (`computeBudget` → `computedLine.fringes[].cents`), never re-derived.
-- **339/340** Category navigation: rail context menu + trailing "+ New category"
-  (kit `ContextMenu`, no second editor); Glide category bands get a disclosure chevron that collapses children as view-only state.
+- **338** Fringe pickers show each fringe's computed line contribution (`computeBudget` → `computedLine.fringes[].cents`), never re-derived.
+- **339/340** Category navigation: rail context menu + trailing "+ New category" (kit `ContextMenu`, no second editor); Glide category bands get a disclosure chevron that collapses children as view-only state.
 - **341** Currency library: derive the symbol from the chosen currency (remove the symbol input), seed common currencies, add manual "Sync rates" (no-key provider + CSP, base = 1, one batch, last-synced stamp).
-- **342** Budget quick filter: shared `GlideFilter`/`MorphSearchField`,
-  display-only AND tags over category/account/line text; totals stay whole.
+- **342** Budget quick filter: shared `GlideFilter`/`MorphSearchField`, display-only AND tags over category/account/line text; totals stay whole.
 - **343** Budget Glide visuals: band colour every cell + sticky header.
-- **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions for grouped catalogues; reuse `CardSection`/`DaySectionCard`, `DayPicker`, `SearchMenu` — no bespoke rewrites.
+- **344** UI control-face/reuse audit: morph/transform search + action fields over always-inline search; category accordions; reuse `CardSection`, `SearchMenu` — no bespoke rewrites.
 - **345** Glide status cells: one shared status→tone map painting `bgCell` + text (expenses first), label always visible; editable tint is the explicit white-cell exception.
-- **346** Formula book/autocomplete: plain-text `FormulaField` (not RichTextEditor), shared symbol/function registry, searchable book + caret insert; safe v1 functions; no cross-line refs.
+- **346** Formula book/autocomplete: plain-text `FormulaField`, shared symbol/function registry, searchable book + caret insert; safe v1 functions, no cross-line refs.
 - **347** Glide open-editor geometry: picker overlays use Glide's cell padding so every popout matches the cell's margins/size (shared `createGlideCellEditor`).
-- **348** Schedule review sync: pure diff (add/update/remove/keep/check) grouped category → account → department; “X updates” modal with before/after totals and per-row apply, one batch; never rates/chart/manual lines; locked/read-only refuse.
+- **348** Schedule review sync — SHIPPED: `lib/budget/diff.ts` (add/update/remove/
+  keep/check, category → account → department) + `ScheduleReviewModal` (“X updates”,
+  before/after, one-batch apply); locked/read-only/non-active refuse.
 Silent-break cases live in `e2e/budget.spec.ts` within the 71/292 caps; visual checks are manual.
 ---
 
@@ -390,8 +389,8 @@ Each sub-package gets its own acceptance/tests/docs; no half-built "advanced mod
   no component arithmetic.
 - **Versions:** chart/library shared; lines COW; lock freezes links; trash
   bounded.
-- **Schedule:** no sync button; linked quantities live; pin/unpin; locked
-  versions frozen; missing source is a warning not a crash.
+- **Schedule:** live links + reviewed sync (348); pin/unpin; locked versions
+  frozen; missing source is a warning not a crash.
 - **Reports:** one block tree/renderer/paginator; budget fields/collections;
   money formatting; print dialog always.
 - **Kit:** reuse `NumberInput`; add only suffix/MoneyField/PercentField; no

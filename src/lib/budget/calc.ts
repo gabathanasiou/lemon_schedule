@@ -7,7 +7,10 @@ import {
 } from './model';
 import { evaluateFormula, evaluateGlobals } from './formula';
 import { computeLineFringes, fringeRangeBases, roundHalfUp } from './fringes';
-import { computeScheduleQuantities, computeSystemGlobals, scheduleQtyFor, ScheduleQuantities } from './scheduleSync';
+import {
+  computeScheduleQuantities, computeSystemGlobals, scheduleQtyFor, scheduleSourceIssue,
+  ScheduleQuantities,
+} from './scheduleSync';
 import { currencySymbolOf } from './format';
 
 /**
@@ -89,6 +92,8 @@ export interface ComputedBudgetMarkup {
 export interface BudgetModel {
   budget: Budget;
   version: BudgetVersion;
+  /** The schedule read the quantities came from (reused by the review diff). */
+  quantities: ScheduleQuantities;
   settings: BudgetSettings;
   categories: ComputedBudgetCategory[];
   markups: ComputedBudgetMarkup[];
@@ -111,37 +116,6 @@ export interface BudgetModel {
 
 function roundToCents(value: number): MoneyCents {
   return roundHalfUp(value);
-}
-
-function lineSourceMissing(project: Project, line: BudgetLine): string | null {
-  const source = line.source;
-  if (!source) return null;
-  switch (source.kind) {
-    case 'shootDays':
-    case 'perDay':
-      return null;
-    case 'crewRole': {
-      const role = project.crewRoles?.find(r => r.key === source.roleKey);
-      if (!role) return `Crew role "${source.roleKey}" no longer exists`;
-      if (source.personId) {
-        const people = project.crew?.[source.roleKey] || [];
-        if (!people.some(p => p.id === source.personId)) return 'Linked crew member no longer exists';
-      }
-      return null;
-    }
-    case 'cast':
-      return (project.castMembers || []).some(c => c.id === source.castId) ? null : 'Linked cast member no longer exists';
-    case 'location':
-      return (project.locations || []).some(l => l.id === source.locationId) ? null : 'Linked location no longer exists';
-    case 'element': {
-      const list = source.category === 'cast'
-        ? (project.castMembers || []).map(c => ({ id: c.id, name: c.name }))
-        : project.breakdownElements?.[source.category] || [];
-      return list.some(e => (e.id === source.key) || (e.name === source.key)) ? null : 'Linked element no longer exists';
-    }
-    default:
-      return null;
-  }
 }
 
 function markupQualifies(
@@ -310,7 +284,7 @@ export function computeBudget(project: Project, options: ComputeBudgetOptions = 
       for (const line of accountLines) {
         const math = mathById.get(line.id)!;
         const lineErrors = [...math.errors];
-        const missing = lineSourceMissing(project, line);
+        const missing = scheduleSourceIssue(project, line.source);
         if (missing) lineErrors.push(missing);
         const scheduleQty = line.source ? scheduleQtyFor(line.source, quantities) : undefined;
         const { qty, rateCents, multiplier, localBaseCents } = math;
@@ -431,6 +405,7 @@ export function computeBudget(project: Project, options: ComputeBudgetOptions = 
   return {
     budget,
     version,
+    quantities,
     settings,
     categories,
     markups,
