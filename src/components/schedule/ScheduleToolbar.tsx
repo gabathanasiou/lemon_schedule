@@ -339,13 +339,14 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       <Button
         variant="subtle"
         iconOnly
-        icon={<CircleHelp className="w-4 h-4" />}
         onClick={onShowHelp}
         data-presence-anchor="toolbar:schedule:help"
         className="rounded-full!"
         title="Keyboard Shortcuts & Help"
         aria-label="Keyboard Shortcuts & Help"
-      />
+      >
+        <CircleHelp className="w-4 h-4" />
+      </Button>
       <ToolbarDivider />
       {versionPicker}
     </>

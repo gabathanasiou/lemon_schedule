@@ -370,7 +370,8 @@ test.describe('Schedule tab with REAL motion', () => {
     await noClickTap(edit, 30);
     await expect(edit).not.toHaveAttribute('data-active', 'true');
 
-    // The help button (a kit Button) opens on the tap alone.
+    // The help button (a kit Button) renders its icon and opens on the tap alone.
+    await expect(help.locator('svg')).toHaveCount(1);
     await noClickTap(help);
     await expect(page.getByText('Stripboard Controls')).toBeVisible();
     await page.keyboard.press('Escape');
