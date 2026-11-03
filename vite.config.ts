@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -36,8 +37,35 @@ const hubStorageBridge = () => ({
   },
 });
 
-// Dev-only: the local S4 room worker (roadmap 246). Brings `wrangler dev` up
-// AFTER the dev server listens — through the ONE launcher (tools/rooms-dev.mjs,
+// TEMPORARY on-device diagnostics: the menuTrace recorder (src/lib/menuTrace.ts,
+// opt-in via ?menutrace=1) POSTs its event trace here; append it to one log the
+// agent reads from the Mac. Remove with the recorder + the main.tsx call.
+const menuTraceIngest = (): Plugin => ({
+  name: 'menu-trace-ingest',
+  apply: 'serve',
+  configureServer(server: ViteDevServer) {
+    const file = path.join(process.env.TMPDIR || '/tmp', 'opencode', 'lemon-menu-trace.log');
+    server.middlewares.use('/__menu-trace', (req, res) => {
+      if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          mkdirSync(path.dirname(file), { recursive: true });
+          appendFileSync(file, `${body}\n`);
+          const parsed = JSON.parse(body) as { recs?: unknown[] };
+          server.config.logger.info(`[menu-trace] ${parsed.recs?.length ?? 0} records -> ${file}`);
+        } catch (error) {
+          server.config.logger.warn(`[menu-trace] bad payload: ${String(error)}`);
+        }
+        res.statusCode = 204;
+        res.end();
+      });
+    });
+  },
+});
+
+// Dev-only: the local S4 room worker (roadmap 246). Brings `wrangler dev` up// AFTER the dev server listens — through the ONE launcher (tools/rooms-dev.mjs,
 // which reuses a healthy worker so parallel dev servers share one) — and
 // serves the on-demand `GET /__rooms-dev/ensure` the app calls before a collab
 // session connects: a browser cannot spawn processes, the dev server owns the
@@ -94,7 +122,7 @@ const cacheDir = argvPort ? `node_modules/.vite-${argvPort}` : 'node_modules/.vi
 export default defineConfig(() => {
   return {
     base: '/lemon_schedule/',
-    plugins: [csp(), react(), tailwindcss(), hubStorageBridge(), roomsDev()],
+    plugins: [csp(), react(), tailwindcss(), hubStorageBridge(), menuTraceIngest(), roomsDev()],
     define: {
       // Build-time app version for the boot-screen lockup (roadmap 80).
       __APP_VERSION__: JSON.stringify(pkg.version),

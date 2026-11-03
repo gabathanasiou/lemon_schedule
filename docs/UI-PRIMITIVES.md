@@ -353,8 +353,7 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   formula input + caret autocomplete (`useDropdownPosition` + overlay morph) and a
   searchable book; ONE registry (`lib/budget/formulaBook.ts`) feeds both. Commits on
   blur/Enter; never the rich-text editor. Used by the line/global modals.
-- **Control-face audit (roadmap 344)**: the budget adopt/keep decisions live in
-  `docs/DESIGN-LANGUAGE.md` §Control faces — update that table when a face changes.
+- **Control-face audit (roadmap 344)**: budget adopt/keep decisions live in `docs/DESIGN-LANGUAGE.md` §Control faces — update that table when a face changes.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values
@@ -387,14 +386,15 @@ Engine mechanics (canvas, `provideEditor`, pagination, fill/paste) live in **`do
 
 ## Hover & Tap Feedback
 
-- **Hover styles are UNGATED by design** (`index.css @custom-variant hover` — no media query; kit
-  `tokens.css` header): iOS Safari's native tap-to-hover needs a real `:hover` rule on the tapped
-  element — first tap applies `:hover` (sticky highlight/reveal), the click defers to the second tap.
-  `(hover: hover)` is false on iPadOS and `(any-hover: hover)` is false when no hovering pointer is
-  attached — either gate kills the native behavior on touch. Every hover is still a Tailwind `hover:`
-  variant or `.group:hover`/`.group:focus-within`.
-- `.hover-reveal`: hidden until hover/tap (`opacity: 0`), revealed by `.group:hover` +
-  `.group:focus-within`. iOS sticky hover (tap → `:hover` sticks) IS the tap feedback — no
-  JS flash/pulse workarounds; they double with it and read as delays.
-- Pen = finger = touch: Apple Pencil is `pointerType 'pen'` (`isTouchLike()` in device.ts). Safari
-  doesn't synthesize clicks for pen in overlays (device.ts shim) and never fires `:active` for pen.
+- **Hover styles are UNGATED** (`index.css @custom-variant hover`; kit `tokens.css` header): iOS's
+  tap-to-hover needs a real `:hover` rule — tap 1 applies it (sticky), tap 2 clicks. `(hover: hover)` /
+  `(any-hover: hover)` are false on iPadOS and with no hovering pointer — either gate kills it. Hover
+  is always a Tailwind `hover:` or `.group:hover`/`.group:focus-within`; sticky hover IS the feedback;
+  `.hover-reveal` (opacity 0 until `.group:hover`/`:focus-within`/`:active`) is the reveal idiom.
+- **Touch audit (331/335/337/338)**: **every kit `Button` and menu row acts on pointerup**
+  (`coarseItemTap`, 14px tap slop) — never on a click iOS may swallow. `TabFace` hover geometry is
+  `fine:`-only; `Button` opts into the touch morph (`touchReveal`, 200ms). Coarse submenus are ONE
+  in-place card (335): parent stays in layout, child FLIPs, Back morphs it back. **A click only acts
+  for its own gesture** (338, `isGhostClick`): a late click runs the row that replaced the tapped one
+  — the menu "dismisses itself"; reopen during a close ends at the natural state, not `opacity:0`.
+  Never cancel `pointerdown`; tooltips clear on outside pointerdown; morph fields focus inside the tap.

@@ -141,6 +141,22 @@ a plain click.
 
 **2026-10-16 — refined and extracted to the shared helper.** The select-first recipe was necessary but not sufficient. Glide treats ANY second pointerup <500 ms after the previous one as a double-click (`data-grid.tsx` `onPointerUp` timing, not the browser's dblclick event), so the pre-click made the dblclick's **first** click activate too — the second click then landed on the freshly opened editor (text overlays remount; entity dropdowns close and the commit is lost: observed as "attached then detached"). Two additions complete the recipe: **pace the dblclick ≥650 ms past the 500 ms window** (only the second click then activates) and **hand back a focused editor** (Glide's canvas/a11y focus churn can steal focus right after open — the app's own text editor reclaims it for trailing add rows, `glideEditor.tsx`). All of it now lives in `e2e/helpers.ts` — `glideCellId`, `waitForGlideCellSelected`, `selectGlideCell`, `openGlideCellEditor` — and every Glide editor open in the suite goes through it.
 
+## F. Crew Glide — role category multi-select drops the typed tick (2026-11-03, flaky)
+
+**Symptom:** `e2e/crew-glide.spec.ts` "add via add-row…" fails ~1/5–1/3 runs at
+`expect.poll(roleCats).toEqual(['sound'])` — the poll sees the role's existing
+`cast`/`set` categories, i.e. the typed "Sound" tick in the role Category
+multi-select never committed.
+
+**Evidence:** reproduced on the merge tree (1/3 at `--repeat-each=3`) and on a
+clean `main` HEAD baseline (`npm run test:baseline -- e2e/crew-glide.spec.ts -g
+"add via add-row" --repeat-each=5` → 1 failed / 4 passed). Pre-existing timing
+flake in the picker commit path, not caused by the budget merge.
+
+**Triage:** retries absorb it today. If it recurs at ≥1/2, fix the picker commit
+(the typed draft must commit on the pointerup/blur the spec clicks through)
+rather than lengthening the poll timeout.
+
 ## Takeaway for future runs
 
 If the full suite goes red, check whether it is one of these drift patterns
@@ -346,3 +362,16 @@ with `--workers=1` (24s), and the changes in 305 touch no overlay code.
 **Rule:** never run the unit suite alongside the e2e suite; both are
 wall-clock sensitive. Re-run the spec alone before treating a zero-sample
 morph as a regression.
+
+## M. iPad suite — Add Events chip input locator (2026-10-30, pre-existing)
+
+**Symptom:** under `playwright.ipad.config.ts` (project `ipad`), two cases fail:
+`ipad-touch-scroll.spec.ts:73` and `:93`, both timing out at
+`openAdderEntityDropdown` → `adder.locator('input.cursor-pointer')`.
+
+**Evidence:** reproduced on clean `main` with kit v0.2.2 and again on the
+331/182 branch with kit v0.2.8; the Add Events modal opens and shows the cast
+chip field, but the chip input no longer carries `cursor-pointer`. The spec's
+helper should target the shared chip input (e.g. `[data-picker-field] input`)
+or a stable data hook instead of that class. Not caused by the touch audit;
+left for the iPad-spec owner (the two other iPad touch cases pass).

@@ -196,7 +196,11 @@ if (fragileTotal) {
 // When this trips, do ONE of: merge the new cases into an existing spec; move
 // pure logic down to a unit test (`npm run test:unit`); or consciously raise a
 // cap here with a one-line reason. Never just append a spec.
-const E2E_SPEC_CAP = 71;
+// 70 → 71: roadmap 331/182 — the iPhone WebKit touch spec (phone shell,
+// the File menu's accordion submenu, tooltip dismissal, landscape day modal).
+// 71 → 72: roadmap 334 — budgeting phase 1 (`e2e/budget.spec.ts`: template
+// creation/persistence + the schedule-link → lock loop).
+const E2E_SPEC_CAP = 72;
 // 260 → 267: roadmap 38 script-diff acceptance (split/merge badges + in-app edit
 // conflict), 132 Part D duplicate modes and Part F tag remap — behavior needs
 // real DOM/file-chooser coverage, not unit-only.
@@ -258,7 +262,22 @@ const E2E_SPEC_CAP = 71;
 // letter and opens on the wrong row.
 // 290 → 292: roadmap 334 — budgeting phase 1 (template creation/persistence and
 // the schedule-link → lock loop; a drift or lost budget is silent data loss).
-const E2E_TEST_CAP = 292;
+// 292 → 295: roadmap 331/182 — the three iPhone touch cases above.
+// 295 → 296: roadmaps 335-337 — the Schedule tab's view/cell-border/ribbon
+// submenus + nested File → Print → Custom Reports + version picker, all on a
+// landscape iPhone (first-tap rows; a swallowed click is silent failure for a
+// settings change).
+// 296 → 298: roadmap 338 — a deferred (ghost) click from the tap that opened
+// a nested card must not run the row that replaced it, and a reopen inside the
+// close morph must leave a painted, interactive menu (both were silent
+// "the menu dismissed itself / nothing opened" failures).
+// 298 → 299: roadmap 338b — a swallowed trigger click must not replay on the
+// next menu-row pointerup (PageToolbar's stale gesture toggled the menu shut).
+// 299 → 300: roadmap 338c — a header icon tab must switch on the FIRST tap
+// (iOS drops the click on the label reflow) while a drag stays a scroll.
+// 300 → 301: roadmap 338d — every kit Button (Edit / help / Print) must act on
+// the TAP: iOS drops clicks on toolbar controls with no movement at all.
+const E2E_TEST_CAP = 301;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

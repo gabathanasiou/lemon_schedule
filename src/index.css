@@ -178,6 +178,15 @@ html[data-phone-device] #root {
   &:hover { @slot; }
 }
 
+/* Geometry-changing hover (layout that moves under the finger) is desktop
+   only: iOS suppresses a tap's click when the page reflows during its
+   synthetic mousemove (roadmap 337). Colour/opacity feedback stays un-gated. */
+@custom-variant fine {
+  @media (pointer: fine) {
+    @slot;
+  }
+}
+
 html {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -233,12 +242,15 @@ input, textarea, [contenteditable] {
 /* Reveal-on-hover chrome (row/card action buttons). Ungated: desktop shows
    them on hover; iOS shows them on tap (sticky :hover) so the first tap
    reveals, the second tap activates. :focus-within keeps them reachable by
-   keyboard. */
+   keyboard. :active = press-to-reveal on touch (roadmap 331): resting a finger
+   on the row shows its actions immediately, and releasing still fires the
+   row's click — the affordance appears without stealing the action. */
 .hover-reveal {
   opacity: 0;
 }
 .group:hover .hover-reveal,
-.group:focus-within .hover-reveal {
+.group:focus-within .hover-reveal,
+.group:active .hover-reveal {
   opacity: 1;
 }
 

@@ -145,6 +145,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
   two probes (`workers/rooms/test/room-probe.ts` + `room-client-probe.ts`, no Supabase needed);
   future real-account UI specs belong here, not in `e2e/`.
 - iPad touch/keyboard specs are gated to `playwright.ipad.config.ts` (webkit iPad project).
+- iPhone portrait touch specs are gated to `playwright.iphone.config.ts` (webkit iPhone 14 Pro
+  project, `testMatch` = `e2e/iphone-touch.spec.ts`; the phone shell replaces the desktop suite).
+  The kit's mirror is the playground `#touch` page + its `iphone` project. Playwright's WebKit is
+  not iOS Safari: it does NOT emulate the native "first tap applies `:hover`, the click defers to
+  the second tap" model, so those specs assert one-tap behavior + the hover preconditions; the
+  deferral itself stays a device check.
 
 ## Rules (MUST NOT)
 
@@ -245,3 +251,31 @@ Mechanics for any new spec:
    unique archive ids, **no orphan specs**).
 2. The touched spec(s) + the two canaries: `npx playwright test e2e/<spec>.spec.ts`.
 3. Full suite before done for logic/store changes (`npx playwright test` or `npm run test:smart`).
+
+## On-device debugging (real iPhone / iPad)
+
+Playwright's WebKit cannot reproduce iOS's tap-to-hover click deferral, its
+native gesture slop, or dropped clicks. When a bug only happens on hardware,
+record it instead of guessing:
+
+1. Open the dev server **on the device** (same Wi-Fi):
+   `http://<mac-ip>:3000/lemon_schedule/?menutrace=1` — the query is the consent,
+   per visit (`localStorage.LEMON_MENU_TRACE='1'` also enables it). A purple
+   `menu trace ●` badge means it is recording.
+2. Reproduce the failure at your normal speed; tap the thing a few times.
+3. The agent reads `${TMPDIR}opencode/lemon-menu-trace.log` (JSONL; the Vite
+   plugin appends each batch). Records include every pointer/click/focus with
+   its target (`role`, text, `data-presence-anchor`), `elementFromPoint`, the
+   Edit button's state, `body` pointer-events, **long tasks** and **frame gaps**
+   — enough to tell a dropped click from a blocked main thread.
+
+Implementation: `src/lib/menuTrace.ts` (dev-only recorder, no product code) and
+the `menuTraceIngest` plugin in `vite.config.ts` (POST `/__menu-trace`). Keep
+both when adding touch features — this is what found the roadmap-338 class
+(ghost clicks, stale toolbar gestures, dropped clicks with no reflow).
+
+**Vite cache is PER PORT** (`node_modules/.vite-<port>`): after changing a
+file-installed kit (or anything under `node_modules`), clear **every** cache —
+`rm -rf node_modules/.vite node_modules/.vite-*` — and restart the server. The
+symptom of a stale one is precise: the fix exists in `node_modules` but the page
+still runs the old bundle (a class list or an import that should be there isn't).

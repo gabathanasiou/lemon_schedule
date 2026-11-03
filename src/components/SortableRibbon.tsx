@@ -10,6 +10,7 @@ import { CellBorders } from '../lib/persist';
 import { isMultiValue } from '../lib/categories';
 import { boardIdOf } from '../lib/elements';
 import { usePortalTarget } from '../lib/popoutTarget';
+import { useHoverTip } from '../lib/useHoverTip';
 import { CellInput } from './CellInput';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 import { Flag } from 'lucide-react';
@@ -164,15 +165,14 @@ const SortableRowContent: React.FC<{
   const noteBreakPadPx = `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px ${cellPaddingH ?? 6}px`;
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
-  const [showViolationTip, setShowViolationTip] = useState(false);
+  const violationTip = useHoverTip<HTMLSpanElement>();
   const [showViolationModal, setShowViolationModal] = useState(false);
-  const violationRef = useRef<HTMLSpanElement>(null);
   const violationTipPos = useRef({ x: 0, y: 0 });
   const sceneTipRef = useRef<HTMLDivElement>(null);
   const [sceneTipOffset, setSceneTipOffset] = useState(0);
 
   useLayoutEffect(() => {
-    if (showViolationTip && sceneTipRef.current) {
+    if (violationTip.show && sceneTipRef.current) {
       const r = sceneTipRef.current.getBoundingClientRect();
       const vw = window.innerWidth;
       let offset = 0;
@@ -182,18 +182,17 @@ const SortableRowContent: React.FC<{
     } else {
       setSceneTipOffset(0);
     }
-  }, [showViolationTip]);
+  }, [violationTip.show]);
 
   const hasNextViolations = nextSectionViolations && nextSectionViolations.length > 0;
-  const [showNextViolationTip, setShowNextViolationTip] = useState(false);
+  const nextViolationTip = useHoverTip<HTMLSpanElement>();
   const [showNextViolationModal, setShowNextViolationModal] = useState(false);
-  const nextViolationRef = useRef<HTMLSpanElement>(null);
   const nextViolationTipPos = useRef({ x: 0, y: 0 });
   const nextTipRef = useRef<HTMLDivElement>(null);
   const [nextTipOffset, setNextTipOffset] = useState(0);
 
   useLayoutEffect(() => {
-    if (showNextViolationTip && nextTipRef.current) {
+    if (nextViolationTip.show && nextTipRef.current) {
       const r = nextTipRef.current.getBoundingClientRect();
       const vw = window.innerWidth;
       let offset = 0;
@@ -203,27 +202,28 @@ const SortableRowContent: React.FC<{
     } else {
       setNextTipOffset(0);
     }
-  }, [showNextViolationTip]);
+  }, [nextViolationTip.show]);
   const violationBadge = hasViolations ? (
     <>
       <span
-        ref={violationRef}
+        ref={violationTip.ref}
+        data-testid="scene-violation-flag"
         className="absolute text-red-500 z-10 cursor-help block"
         style={{ top: 1, left: 2, lineHeight: 0 }}
         onMouseEnter={() => {
-          if (violationRef.current) {
-            const r = violationRef.current.getBoundingClientRect();
+          if (violationTip.ref.current) {
+            const r = violationTip.ref.current.getBoundingClientRect();
             violationTipPos.current = { x: r.left + r.width / 2, y: r.top };
           }
-          setShowViolationTip(true);
+          violationTip.showTip();
         }}
-        onMouseLeave={() => setShowViolationTip(false)}
+        onMouseLeave={violationTip.hideTip}
         onClick={() => setShowViolationModal(true)}
       >
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
-      {showViolationTip && createPortal(
-        <div ref={sceneTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: `translate(calc(-50% + ${sceneTipOffset}px), -100%)`, zIndex: 99999 }}>
+      {violationTip.show && createPortal(
+        <div ref={sceneTipRef} data-testid="violation-tooltip" className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: `translate(calc(-50% + ${sceneTipOffset}px), -100%)`, zIndex: 99999 }}>
           <ViolationContent compact violations={sceneViolations} castMembers={castMembers ?? []} />
           <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${sceneTipOffset}px)` }} />
         </div>,
@@ -243,23 +243,24 @@ const SortableRowContent: React.FC<{
   const nextViolationBadge = hasNextViolations ? (
     <>
       <span
-        ref={nextViolationRef}
+        ref={nextViolationTip.ref}
+        data-testid="section-violation-flag"
         style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 2 }}
         onMouseEnter={() => {
-          if (nextViolationRef.current) {
-            const r = nextViolationRef.current.getBoundingClientRect();
+          if (nextViolationTip.ref.current) {
+            const r = nextViolationTip.ref.current.getBoundingClientRect();
             nextViolationTipPos.current = { x: r.left + r.width / 2, y: r.top };
           }
-          setShowNextViolationTip(true);
+          nextViolationTip.showTip();
         }}
-        onMouseLeave={() => setShowNextViolationTip(false)}
+        onMouseLeave={nextViolationTip.hideTip}
         onClick={() => setShowNextViolationModal(true)}
       >
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
         <span style={{ fontSize: '8pt', fontWeight: 700, color: '#ef4444' }}>{nextSectionViolations!.length}</span>
       </span>
-      {showNextViolationTip && createPortal(
-        <div ref={nextTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: `translate(calc(-50% + ${nextTipOffset}px), -100%)`, zIndex: 99999 }}>
+      {nextViolationTip.show && createPortal(
+        <div ref={nextTipRef} data-testid="next-violation-tooltip" className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: `translate(calc(-50% + ${nextTipOffset}px), -100%)`, zIndex: 99999 }}>
           <ViolationContent compact violations={nextSectionViolations!} castMembers={castMembers ?? []} />
           <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${nextTipOffset}px)` }} />
         </div>,
