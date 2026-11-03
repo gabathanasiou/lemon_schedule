@@ -97,7 +97,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
     return () => ro.disconnect();
   }, [syncTabsDock, tabs?.length]);
 
-  const dragRef = React.useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const dragRef = React.useRef<{ x: number; y: number; moved: boolean; trigger: HTMLElement | null } | null>(null);
   const replayRef = React.useRef(false);
   const isInsideToolbar = React.useCallback((target: EventTarget | null) => {
     // React dispatches via the fiber tree, so events on portaled content
@@ -105,45 +105,53 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
     // only handle touches that physically start inside the toolbar DOM.
     return target instanceof Node && !!scrollRef.current?.contains(target);
   }, []);
+  /* Horizontal toolbar: a touch drag scrolls it, a still tap activates the
+     control. Dropdown triggers must not open mid-scroll (Radix opens on
+     pointerdown), so the opening pointerdown is held back — but it is
+     REPLAYED ON POINTERUP, never on click. On iOS a tap's click can be
+     swallowed (a hover/active reflow, a moving host toolbar), which used to
+     leave dropdowns needing several taps. pointerup still fires. */
   const onPointerDownCapture = React.useCallback((e: React.PointerEvent) => {
     if (!isTouchLike(e.pointerType)) return;
     if (!isInsideToolbar(e.target)) return;
     if (replayRef.current) { replayRef.current = false; return; }
-    dragRef.current = { x: e.clientX, y: e.clientY, moved: false };
-    if ((e.target as HTMLElement).closest('[aria-haspopup]')) {
-      // Radix opens menus on pointerdown; delay the open until the tap is confirmed (no drag)
-      e.stopPropagation();
-    }
+    const trigger = (e.target as HTMLElement).closest('[aria-haspopup]') as HTMLElement | null;
+    dragRef.current = { x: e.clientX, y: e.clientY, moved: false, trigger };
+    if (trigger) e.stopPropagation();
   }, [isInsideToolbar]);
   const onPointerMoveCapture = React.useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d || d.moved) return;
-    if (!isInsideToolbar(e.target)) return;
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) d.moved = true;
-  }, [isInsideToolbar]);
+  }, []);
+  const onPointerUpCapture = React.useCallback((e: React.PointerEvent) => {
+    if (!isTouchLike(e.pointerType)) return;
+    const d = dragRef.current;
+    if (!d || d.moved || !d.trigger) return;
+    // The tap is confirmed: open the menu NOW, without waiting for the click.
+    replayRef.current = true;
+    d.trigger.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      buttons: 1,
+      isPrimary: true,
+      pointerType: 'touch',
+      clientX: d.x,
+      clientY: d.y,
+    }));
+  }, []);
+  const onPointerCancelCapture = React.useCallback(() => { dragRef.current = null; }, []);
   const onClickCapture = React.useCallback((e: React.MouseEvent) => {
     const d = dragRef.current;
     dragRef.current = null;
     if (!d) return;
     if (!isInsideToolbar(e.target)) return;
-    if (d.moved) {
+    /* A drag is a scroll, never an action. A trigger tap was already opened
+       on pointerup — swallow the click so it cannot toggle it again. */
+    if (d.moved || d.trigger) {
       e.preventDefault();
       e.stopPropagation();
-      return;
-    }
-    const trigger = (e.target as HTMLElement).closest('[aria-haspopup]');
-    if (trigger) {
-      e.preventDefault();
-      e.stopPropagation();
-      replayRef.current = true;
-      trigger.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        pointerType: 'touch',
-        clientX: d.x,
-        clientY: d.y,
-      }));
     }
   }, [isInsideToolbar]);
 
@@ -152,6 +160,8 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
     <div ref={scrollRef} onScroll={checkScroll}
       onPointerDownCapture={onPointerDownCapture}
       onPointerMoveCapture={onPointerMoveCapture}
+      onPointerUpCapture={onPointerUpCapture}
+      onPointerCancelCapture={onPointerCancelCapture}
       onClickCapture={onClickCapture}
       className="overflow-x-auto overscroll-x-contain border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] shrink-0 island-inset-l island-inset-r [&::-webkit-scrollbar]:hidden touch-pan-x"
       style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>

@@ -158,7 +158,7 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
         {presence.peers.length > 0 && (
           /* data-chrome-skip: the bubbles are a deliberately OVERLAPPING stack
              (negative space while at rest) — the chrome audit reads it as-is. */
-          <div data-chrome-skip className="flex items-center -space-x-2.5 hover:space-x-1 focus-within:space-x-1 mr-0.5" data-testid="presence-bubbles">
+          <div data-chrome-skip className="flex items-center -space-x-2.5 fine:hover:space-x-1 fine:focus-within:space-x-1 mr-0.5" data-testid="presence-bubbles">
             {visiblePeers.map(peerBubble)}
             {overflowPeers.length > 0 && (
               <DropdownMenu

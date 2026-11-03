@@ -390,11 +390,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   tap-to-hover needs a real `:hover` rule — tap 1 applies it (sticky), tap 2 clicks. `(hover: hover)` /
   `(any-hover: hover)` are false on iPadOS and with no hovering pointer — either gate kills it. Hover
   is always a Tailwind `hover:` or `.group:hover`/`.group:focus-within`; sticky hover IS the feedback.
-- **Touch audit (331/182)**: plain controls act on tap 1; `.hover-reveal`/`.ui-reveal`/collapsed labels
-  also reveal on `:active` (press = reveal, release = the row action). Coarse submenus default by viewport: phones use
-  the in-place card (child covers the parent, Back row), iPad the inline accordion (tap the header to
-  collapse); `touchPresentation` forces either. Never cancel `pointerdown` to suppress a click (use `mousedown`); controls set
-  `touch-action: manipulation`; tooltips clear on outside `pointerdown`; morph fields focus inside the
-  tap's task (iOS keyboard). Playwright's WebKit canNOT emulate the native two-tap deferral (`:hover`
-  never matches after `tap()`); the specs assert the preconditions + one-tap behavior instead.
-- Pen = finger = touch: `pointerType 'pen'`; Safari doesn't synthesize overlay clicks for pen and never fires `:active`.
+- **Touch audit (331/335/337)**: plain controls act on tap 1; menu rows act on **pointerup**
+  (`coarseItemTap`) — never on a click iOS may swallow. Coarse submenus are ONE in-place card
+  (335): the parent stays in layout but invisible, the child FLIPs out of its box (modal
+  `playRectMorph`), Back morphs the parent back; Back is a normal `DropdownItem` naming the card.
+  Accordion = WIP/playground-only. Never change layout on hover/active (iOS drops the click on
+  reflow; TabFace delays its reveal 200ms); never cancel `pointerdown` (use `mousedown`); tooltips
+  clear on outside pointerdown; morph fields focus inside the tap. WebKit canNOT emulate the native
+  deferral — the motion-on nested case is the gate. Pen = finger.

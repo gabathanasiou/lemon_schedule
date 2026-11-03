@@ -259,7 +259,11 @@ const E2E_SPEC_CAP = 71;
 // `initialValue` (no input event); a picker that ignores it silently drops the
 // letter and opens on the wrong row.
 // 290 → 293: roadmap 331/182 — the three iPhone touch cases above.
-const E2E_TEST_CAP = 293;
+// 293 → 294: roadmaps 335-337 — the Schedule tab's view/cell-border/ribbon
+// submenus + nested File → Print → Custom Reports + version picker, all on a
+// landscape iPhone (first-tap rows; a swallowed click is silent failure for a
+// settings change).
+const E2E_TEST_CAP = 294;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

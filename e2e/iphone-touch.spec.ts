@@ -42,45 +42,70 @@ test('phone shell: Schedule ⇄ Sheet switch on one tap', async ({ page }) => {
   await schedule.tap();
   await expect(schedule).toHaveAttribute('data-active', 'true');
   await expect(page.getByText(/START OF DAY 1/i).first()).toBeVisible();
+
+  /* The version picker keeps its natural size and only opens/closes. */
+  await page.locator('[data-presence-anchor="toolbar:schedule:versions"]').tap();
+  const menu = page.locator('[role="menu"]').first();
+  await expect(menu).toBeVisible();
+  await page.getByRole('button', { name: 'Schedule', exact: true }).tap();
+  await expect(menu).toBeHidden();
 });
 
-test('File → Import: the in-place submenu card covers the parent, stays on screen, and Back returns (182/331)', async ({ page }) => {
+test('File → Print → Custom Reports: ONE nested card, normal Back item, one level back (335)', async ({ page }) => {
   await bootPhone(page);
   await page.locator('[data-presence-anchor="toolbar:header:file"]').tap();
 
   const projectManager = page.getByRole('menuitem', { name: 'Project Manager' });
   await expect(projectManager).toBeVisible();
-  const importRow = page.getByRole('menuitem', { name: 'Import', exact: true });
-  await importRow.tap();
-
-  // iPhone default: the in-place card covers the parent exactly, with a Back
-  // row (the iPad gets the inline accordion instead).
-  const card = page.locator('[data-submenu-presentation="replace"]');
-  await expect(card).toBeVisible();
-  const back = card.locator('[data-submenu-back]');
-  await expect(back).toBeVisible();
-  await expect(page.locator('[data-submenu-panel]')).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: 'New project (.lemon, .msd, .sex, scripts)' })).toBeVisible();
-
-  // The parent card stays mounted behind the child, dimmed.
-  const parentOpacity = await page.locator('[role="menu"]').first().evaluate((el) => Number(getComputedStyle(el).opacity));
-  expect(parentOpacity).toBeLessThan(0.5);
-
-  const parent = page.locator('[role="menu"]').first();
-  const parentBox = (await parent.boundingBox())!;
-  const cardBox = (await card.boundingBox())!;
   const vw = page.viewportSize()!.width;
-  /* Compare with the UNTRANSFORMED parent width: the parent is scaled down
-     behind the card, so its bounding box is slightly narrower. */
-  const parentWidth = await parent.evaluate((el) => (el as HTMLElement).offsetWidth);
-  expect(Math.abs(cardBox.width - parentWidth)).toBeLessThanOrEqual(2);
-  expect(Math.abs(cardBox.x - parentBox.x)).toBeLessThanOrEqual(12);
-  expect(cardBox.x).toBeGreaterThanOrEqual(0);
-  expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(vw + 1);
+  const root = page.locator('[role="menu"]').first();
+  const rootBox = (await root.boundingBox())!;
 
-  // Back closes the child and the File rows come back.
+  await page.getByRole('menuitem', { name: 'Print', exact: true }).tap();
+  const printCard = page.locator('[data-submenu-presentation="replace"]');
+  await expect(printCard).toBeVisible();
+  await expect(page.locator('[data-submenu-panel]')).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Custom Reports', exact: true }).tap();
+
+  /* ONE painted dropdown at every depth: the ancestors keep layout (their
+     rects feed the FLIP) but are fully transparent — no dimmed stack, no
+     second shadow. */
+  expect(await page.locator('[role="menu"]').evaluateAll(els =>
+    els.filter(el => Number(getComputedStyle(el).opacity) > 0).length)).toBe(1);
+  const paintedBacks = await page.locator('[data-submenu-back]').evaluateAll(els => els.filter(el => {
+    let p: HTMLElement | null = el as HTMLElement;
+    while (p) {
+      if (Number(getComputedStyle(p).opacity) === 0) return false;
+      p = p.parentElement;
+    }
+    return true;
+  }).length);
+  expect(paintedBacks).toBe(1);
+
+  // The nested card covers the parent File card's width; height stays natural.
+  const deepCard = page.locator('[data-submenu-presentation="replace"]').last();
+  const deepBox = (await deepCard.boundingBox())!;
+  expect(Math.abs(deepBox.width - rootBox.width)).toBeLessThanOrEqual(2);
+  expect(deepBox.x).toBeGreaterThanOrEqual(0);
+  expect(deepBox.x + deepBox.width).toBeLessThanOrEqual(vw + 1);
+
+  // Back is a NORMAL item (same height as a menu row), labelled with the card
+  // it returns from, with the divider + chevron.
+  const back = page.locator('[data-submenu-back]').filter({ hasText: 'Custom Reports' });
+  await expect(back).toBeVisible();
+  const backBox = (await back.boundingBox())!;
+  const reportRow = page.getByRole('menuitem', { name: 'One-Liner' });
+  if (await reportRow.count()) {
+    const rowBox = (await reportRow.first().boundingBox())!;
+    expect(Math.abs(backBox.height - rowBox.height)).toBeLessThanOrEqual(3);
+  }
+
+  // One level at a time: Custom Reports → Print → File root.
   await back.tap();
-  await expect(card).toHaveCount(0);
+  const printBack = page.locator('[data-submenu-back]').filter({ hasText: 'Print' });
+  await expect(printBack).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Schedule...' })).toBeVisible();
+  await printBack.tap();
   await expect(projectManager).toBeVisible();
 
   // Tap outside the card closes the whole menu.
@@ -88,10 +113,95 @@ test('File → Import: the in-place submenu card covers the parent, stays on scr
   await expect(projectManager).toBeHidden();
 });
 
+test.describe('Schedule tab with REAL motion', () => {
+  /* The nested-card bug only existed with motion ON (the parent card's
+     pointer-events flip during the morph dismissed the menu) — the rest of
+     this file runs reduced-motion for stability, so this case opts back in. */
+  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
+  test('Schedule tab (landscape): views, cell borders and nested menus act on the first tap', async ({ page }) => {
+  await bootPhone(page);
+  await page.setViewportSize({ width: 852, height: 393 });
+  await page.getByRole('button', { name: 'Calendar', exact: true }).waitFor();
+
+  const waitMenusClosed = async () => { await expect(page.locator('[role="menu"]')).toHaveCount(0); };
+  const openView = async () => {
+    /* DELIBERATELY no "wait for the previous menu to close": a user picks a
+       view and immediately reopens the menu while the close morph is still
+       playing. That fast path used to leave the menu stuck invisible. */
+    await page.locator('[data-presence-anchor="toolbar:schedule:view"]').tap();
+    await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+  };
+
+  // Stripboard View → A4 Landscape (nested submenu; pref persists in the
+  // full landscape chrome).
+  await openView();
+  await page.getByRole('menuitem', { name: 'Stripboard View' }).tap();
+  await page.getByRole('menuitem', { name: 'A4 Landscape' }).tap();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('lemon_schedule_view_mode'))).toBe('landscape');
+
+  // Cell Borders → Both.
+  await openView();
+  await page.getByRole('menuitem', { name: 'Cell Borders' }).tap();
+  await page.getByRole('menuitem', { name: 'Both', exact: true }).tap();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('lemon_schedule_cell_borders'))).toBe('both');
+
+  // Ribbon Layout → Default (a third submenu in the same View menu).
+  await openView();
+  await page.getByRole('menuitem', { name: 'Ribbon Layout' }).tap();
+  await page.getByRole('menuitem', { name: 'Default', exact: true }).tap();
+  await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeHidden();
+
+  // File → Print → Custom Reports: nested card + Back one level at a time.
+  await page.locator('[data-presence-anchor="toolbar:header:file"]').tap();
+  await page.getByRole('menuitem', { name: 'Print', exact: true }).tap();
+  await page.getByRole('menuitem', { name: 'Custom Reports', exact: true }).tap();
+  await expect(page.getByRole('menuitem', { name: 'One-Liner' })).toBeVisible();
+  await page.locator('[data-submenu-back]').filter({ hasText: 'Custom Reports' }).tap();
+  await expect(page.getByRole('menuitem', { name: 'Schedule...' })).toBeVisible();
+  await page.locator('[data-submenu-back]').filter({ hasText: 'Print' }).tap();
+  await expect(page.getByRole('menuitem', { name: 'Project Manager' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await waitMenusClosed();
+
+  // Version picker: selecting a version closes it.
+  await page.locator('[data-presence-anchor="toolbar:schedule:versions"]').tap();
+  const versionMenu = page.locator('[role="menu"]').first();
+  await expect(versionMenu).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Actor Scenario' }).tap();
+  await expect(versionMenu).toBeHidden();
+  });
+});
+
 test('landscape: the full chrome returns and a calendar day modal opens', async ({ page }) => {
   await bootPhone(page);
   await page.setViewportSize({ width: 852, height: 393 });
   await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+
+  /* Roadmap 337: a toolbar dropdown must open from the TAP ITSELF, not from a
+     click iOS may swallow (a hover reflow or the host toolbar moving). Drive
+     pointerdown + pointerup with NO click and expect the menu open. */
+  const viewTrigger = page.locator('[data-presence-anchor="toolbar:schedule:view"]');
+  await expect(viewTrigger).toBeVisible();
+  const vb = (await viewTrigger.boundingBox())!;
+  await viewTrigger.evaluate((el, pt) => {
+    for (const type of ['pointerdown', 'pointerup']) {
+      el.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'touch',
+        pointerId: 1,
+        isPrimary: true,
+        button: 0,
+        buttons: type === 'pointerdown' ? 1 : 0,
+        clientX: pt.x,
+        clientY: pt.y,
+      }));
+    }
+  }, { x: vb.x + vb.width / 2, y: vb.y + vb.height / 2 });
+  await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeHidden();
+
   await expect(page.getByRole('button', { name: 'Sheet', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Calendar', exact: true }).tap();
   const days = await seedDayDates(page);

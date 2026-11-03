@@ -178,6 +178,15 @@ html[data-phone-device] #root {
   &:hover { @slot; }
 }
 
+/* Geometry-changing hover (layout that moves under the finger) is desktop
+   only: iOS suppresses a tap's click when the page reflows during its
+   synthetic mousemove (roadmap 337). Colour/opacity feedback stays un-gated. */
+@custom-variant fine {
+  @media (pointer: fine) {
+    @slot;
+  }
+}
+
 html {
   -webkit-touch-callout: none;
   -webkit-user-select: none;

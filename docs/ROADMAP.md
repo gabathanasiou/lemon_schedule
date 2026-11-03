@@ -1289,6 +1289,8 @@ Auto-ID.
 
 **Decided 2026-10-30:** top-level Budget tab; estimate-first but complete authoring (versions + schedule links + reports); crew **and** cast OT; project-level budget visibility (online view permissions later); no AI in the app; Feature + Blank templates; per-line currency from day one; OT 10h/1.5x-after-10/2x-after-12 (cast separate SAG-style preset); ETC = remaining budget; generated lines live-linked.
 
+**User signal (2026-11-01):** likes Saturation's budgeting product (<https://saturation.io/budgeting>) — that page is the UX benchmark (one expandable grid, Estimate/Committed/Actual/Rollup columns, Library of fringes/markups/globals/phases, saved views + share links, PDF builder). Explore before phase-1 design: walk its product + help centre (already catalogued in `docs/BUDGETING-RESEARCH.md` §2–§4 and the source list) and note any gap against the phase-1 slice — additions become phase notes, never a second budget engine. No AI layer (standing decision).
+
 **Only open question:** version compare in phase 4 (recommended; versions ship in phase 1) or pull it into phase 1.
 
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.

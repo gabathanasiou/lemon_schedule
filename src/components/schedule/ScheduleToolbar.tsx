@@ -17,6 +17,7 @@ import { formatDuration, generateUUID } from '../../lib/utils';
 import type { ProjectAccent } from '../../lib/projectTheme';
 import { BoneyardToggle } from '../BoneyardToggle';
 import { revealMenuTrigger } from '../revealMenuTrigger';
+import { IS_COARSE } from '../../lib/device';
 
 interface SelectionSummary {
   count: number;
@@ -213,8 +214,11 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           <Flag className="w-3.5 h-3.5 text-red-500" />
           <span className="flex shrink-0 items-center">
             {shootViolations.length}
-            {/* Hover/active reveal, same 0fr↔1fr mechanic as the tab face. */}
-            <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-150 group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr] motion-reduce:transition-none">
+            {/* Hover/active reveal, same 0fr↔1fr mechanic as the tab face.
+                Coarse pointers hold the layout change for 200ms: iOS swallows
+                the tap's click if the page reflows during its synthetic
+                mousemove (roadmap 337). */}
+            <span className={`grid grid-cols-[0fr] transition-[grid-template-columns] duration-150 group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr] motion-reduce:transition-none ${IS_COARSE ? 'delay-200' : ''}`}>
               <span className="min-w-0 overflow-hidden whitespace-nowrap">&nbsp;Violations</span>
             </span>
           </span>
