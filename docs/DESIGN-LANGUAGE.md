@@ -393,12 +393,17 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
     the page reflows during its synthetic mousemove. Colour/opacity feedback stays un-gated; geometry
     goes behind the `fine:` variant or a coarse delay (`TabFace` holds its label reveal 200ms). Menu
     rows act on pointerup (`coarseItemTap`), so a swallowed click never costs a second tap.
-  - **A row only acts for its OWN gesture** (338): iOS can deliver a tap's click late, and the nested
+  - **Coarse activation is pointerup, never the click** (338): `Button`, tabs, menu rows and
+    toolbar controls act on release (14px tap slop; a drag is a scroll), the native click is
+    swallowed. iOS drops clicks on toolbar controls intermittently — the phone trace showed
+    identical down/up coordinates, no overlay and no long task, just no click. Label geometry on
+    hover/active is therefore `fine:`-only by default; `Button` opts into the **touch morph**
+    (`touchReveal`, 200ms delay) because its activation no longer waits for the click.
+  - **A row only acts for its OWN gesture**: iOS can deliver a tap's click late, and the nested
     card opens over the row you tapped — the late click used to run whichever row replaced it
     (first child item / Back), so the menu looked like it dismissed itself. `isGhostClick` ignores
-    a click that lands at the last press point on a different element. A reopen during the close
-    morph ends at the natural state (`playOverlayOpen` never restores the close's `opacity:0`),
-    and a trigger pointerdown is never an outside dismissal.
+    a click at the last press point on a different element. A reopen during the close morph ends at
+    the natural state, and a trigger pointerdown is never an outside dismissal.
   - Menu **width and height stay natural** (trigger/content matched; never stretched to fill the
     phone). Placement only: every card shares the safe-area-aware engine boundary.
   - Tooltips / hover tips clear on any outside `pointerdown` (app `useHoverTip`, kit `Tooltip`) —

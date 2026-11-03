@@ -4,6 +4,7 @@ import App from './App.tsx';
 import {GoogleAuthProvider} from './lib/googleDriveAuth';
 import {SupabaseAuthProvider} from './lib/supabase/auth';
 import {PHONE_DEVICE_QUERY} from './lib/device';
+import {installMenuTrace} from './lib/menuTrace';
 import './index.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -26,3 +27,6 @@ createRoot(document.getElementById('root')!).render(
     </GoogleAuthProvider>
   </StrictMode>,
 );
+
+// TEMPORARY on-device menu diagnostics (?menutrace=1) — see lib/menuTrace.ts.
+installMenuTrace();

@@ -7,6 +7,9 @@ import Button from './Button';
  * as its panel icon and reveals the label on hover/focus — the same face the
  * menu triggers use. The icon rolls direction-aware when the panel opens or
  * closes. Used by the Schedule toolbar and the Calendar's collapsed sidebar.
+ *
+ * Coarse pointers act on the TAP: the kit `Button` owns pointerup activation
+ * + the drag guard (roadmap 338), so this face stays a plain toggle.
  */
 export function BoneyardToggle({ collapsed, onToggle, label = 'Boneyard' }: {
   collapsed: boolean;

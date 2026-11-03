@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { IS_COARSE } from './device';
-import { scrollableAncestor } from './scrollable';
+import { scrollableAncestor, scrollingAncestor } from './scrollable';
 
 /**
  * The document must never pan (roadmap 273): the frame is a window, and the
@@ -26,8 +26,9 @@ export function useBlockPagePan(): void {
       if (!(target instanceof Element)) return;
       // Text entry / selection gestures belong to the field, never the page.
       if (target.closest('input, textarea, [contenteditable="true"]')) return;
-      // A surface with its own scroller handles the gesture natively.
-      if (scrollableAncestor(target)) return;
+      // A surface with its own scroller handles the gesture natively — EITHER
+      // axis (the PageToolbar mini tab bar is horizontal-only).
+      if (scrollingAncestor(target)) return;
       if (e.cancelable) e.preventDefault();
     };
     document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });

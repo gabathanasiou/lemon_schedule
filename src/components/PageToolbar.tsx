@@ -6,6 +6,7 @@ import { IS_COARSE, isTouchLike } from '../lib/device';
 import { useSlidingPill } from '@gabriel/ui-kit';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import Button from './Button';
+import CoarseTabButton from './CoarseTabButton';
 import { CHROME_BAR_INSET, CHROME_BAR_INSET_PX, CHROME_CLUSTER_GAP, CHROME_CLUSTER_GAP_PX, CHROME_ITEM_GAP, CHROME_TAB_GAP } from '../lib/chromeSpacing';
 import { ProjectChromeScope } from './ProjectChromeScope';
 
@@ -97,8 +98,13 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
     return () => ro.disconnect();
   }, [syncTabsDock, tabs?.length]);
 
-  const dragRef = React.useRef<{ x: number; y: number; moved: boolean; trigger: HTMLElement | null } | null>(null);
+  /* Tap slop: a finger tap drifts. 8px was too strict — a 10px drift read as a
+     scroll and the click was suppressed, so EVERY toolbar control (Edit, help,
+     print…) sometimes needed a second tap. 14px still separates a real swipe. */
+  const TAP_SLOP_PX = 14;
+  const dragRef = React.useRef<{ x: number; y: number; moved: boolean; pointerId: number; trigger: HTMLElement | null } | null>(null);
   const replayRef = React.useRef(false);
+  const staleClearRef = React.useRef(0);
   const isInsideToolbar = React.useCallback((target: EventTarget | null) => {
     // React dispatches via the fiber tree, so events on portaled content
     // (dropdown menus) still pass through this component's ancestors —
@@ -112,22 +118,34 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
      swallowed (a hover/active reflow, a moving host toolbar), which used to
      leave dropdowns needing several taps. pointerup still fires. */
   const onPointerDownCapture = React.useCallback((e: React.PointerEvent) => {
-    if (!isTouchLike(e.pointerType)) return;
-    if (!isInsideToolbar(e.target)) return;
+    window.clearTimeout(staleClearRef.current);
+    /* A gesture that does not start inside the toolbar (including a tap on a
+       portaled menu row, which still bubbles through this React tree) ENDS any
+       pending toolbar gesture. Keeping it was the "second tap dismisses the
+       menu" bug: when iOS swallowed the trigger tap's click, the stale trigger
+       survived and the next menu-row pointerup replayed it — toggling the menu
+       shut. */
+    if (!isInsideToolbar(e.target) || !isTouchLike(e.pointerType)) {
+      dragRef.current = null;
+      return;
+    }
     if (replayRef.current) { replayRef.current = false; return; }
     const trigger = (e.target as HTMLElement).closest('[aria-haspopup]') as HTMLElement | null;
-    dragRef.current = { x: e.clientX, y: e.clientY, moved: false, trigger };
+    dragRef.current = { x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId, trigger };
     if (trigger) e.stopPropagation();
   }, [isInsideToolbar]);
   const onPointerMoveCapture = React.useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
-    if (!d || d.moved) return;
-    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) d.moved = true;
+    // Only the gesture that armed the toolbar may move it.
+    if (!d || d.pointerId !== e.pointerId || d.moved) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP_PX) d.moved = true;
   }, []);
   const onPointerUpCapture = React.useCallback((e: React.PointerEvent) => {
     if (!isTouchLike(e.pointerType)) return;
     const d = dragRef.current;
-    if (!d || d.moved || !d.trigger) return;
+    /* Same gesture only: a pointerup on a menu row belongs to a different
+       pointerId and must never replay a stale toolbar trigger. */
+    if (!d || d.moved || !d.trigger || d.pointerId !== e.pointerId) return;
     // The tap is confirmed: open the menu NOW, without waiting for the click.
     replayRef.current = true;
     d.trigger.dispatchEvent(new PointerEvent('pointerdown', {
@@ -137,13 +155,22 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
       buttons: 1,
       isPrimary: true,
       pointerType: 'touch',
+      pointerId: d.pointerId,
       clientX: d.x,
       clientY: d.y,
     }));
+    /* If the click never arrives (iOS tap-to-hover), drop the record shortly
+       — it must never outlive its gesture. */
+    window.clearTimeout(staleClearRef.current);
+    staleClearRef.current = window.setTimeout(() => { dragRef.current = null; }, 1200);
   }, []);
-  const onPointerCancelCapture = React.useCallback(() => { dragRef.current = null; }, []);
+  const onPointerCancelCapture = React.useCallback(() => {
+    window.clearTimeout(staleClearRef.current);
+    dragRef.current = null;
+  }, []);
   const onClickCapture = React.useCallback((e: React.MouseEvent) => {
     const d = dragRef.current;
+    window.clearTimeout(staleClearRef.current);
     dragRef.current = null;
     if (!d) return;
     if (!isInsideToolbar(e.target)) return;
@@ -174,32 +201,25 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
           {tabs.map((tab, i) => {
             const active = activeTab === tab.id;
             return (
-              <Button
+              <CoarseTabButton
                 key={tab.id}
-                ref={el => { tabRefs.current[i] = el; }}
                 variant="tab"
                 active={active}
                 icon={tab.icon}
-                collapse={tabsDock}
-                iconWithLabel={false}
-                data-presence-anchor={`nav:subtab:${tab.id}`}
-                onClick={(e) => {
-                  // The click's own modifier is the truth — a global Shift flag
-                  // goes stale when focus moves to a popout before the key-up.
-                  if (e.shiftKey && !IS_COARSE && onPopout) {
-                    onPopout(tab.id);
-                  } else {
-                    onChange?.(tab.id);
-                  }
-                }}
+                docked={tabsDock}
+                anchor={`nav:subtab:${tab.id}`}
+                label={tab.label}
+                buttonRef={el => { tabRefs.current[i] = el; }}
+                onSelect={() => onChange?.(tab.id)}
+                // The click's own modifier is the truth — a global Shift flag
+                // goes stale when focus moves to a popout before the key-up.
+                onShiftPopout={onPopout ? () => onPopout(tab.id) : undefined}
                 onContextMenu={onPopout && !IS_COARSE ? (e: React.MouseEvent) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
                 className="shrink-0 relative z-10"
-              >
-                {tab.label}
-              </Button>
+              />
             );
           })}
           </div>

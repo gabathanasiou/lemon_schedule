@@ -267,7 +267,13 @@ const E2E_SPEC_CAP = 71;
 // a nested card must not run the row that replaced it, and a reopen inside the
 // close morph must leave a painted, interactive menu (both were silent
 // "the menu dismissed itself / nothing opened" failures).
-const E2E_TEST_CAP = 296;
+// 296 → 297: roadmap 338b — a swallowed trigger click must not replay on the
+// next menu-row pointerup (PageToolbar's stale gesture toggled the menu shut).
+// 297 → 298: roadmap 338c — a header icon tab must switch on the FIRST tap
+// (iOS drops the click on the label reflow) while a drag stays a scroll.
+// 298 → 299: roadmap 338d — every kit Button (Edit / help / Print) must act on
+// the TAP: iOS drops clicks on toolbar controls with no movement at all.
+const E2E_TEST_CAP = 299;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

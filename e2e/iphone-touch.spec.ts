@@ -124,13 +124,35 @@ test.describe('Schedule tab with REAL motion', () => {
   await page.getByRole('button', { name: 'Calendar', exact: true }).waitFor();
 
   const waitMenusClosed = async () => { await expect(page.locator('[role="menu"]')).toHaveCount(0); };
+  const viewTrigger = page.locator('[data-presence-anchor="toolbar:schedule:view"]');
   const openView = async () => {
     /* DELIBERATELY no "wait for the previous menu to close": a user picks a
        view and immediately reopens the menu while the close morph is still
        playing. That fast path used to leave the menu stuck invisible. */
-    await page.locator('[data-presence-anchor="toolbar:schedule:view"]').tap();
+    await viewTrigger.tap();
     await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
   };
+
+  /* The trigger is the MORPHING icon-first Button (icon alone at rest →
+     icon+label while its menu is OPEN). The reveal is state-driven on touch
+     (hover would reflow under the finger and drop the click): the first tap
+     must open the menu, and only then may the button grow — never before. */
+  const collapsedW = await viewTrigger.evaluate(el => el.getBoundingClientRect().width);
+  expect(collapsedW).toBeLessThan(60);
+  await viewTrigger.tap();
+  await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+  await expect.poll(() => viewTrigger.evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(collapsedW + 20);
+  const [triggerBox, menuBox] = await Promise.all([
+    viewTrigger.evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, w: r.width }; }),
+    page.locator('[role="menu"]').first().evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, w: r.width }; }),
+  ]);
+  // Anchored to the (expanded) trigger's left edge and on screen.
+  expect(Math.abs(menuBox.x - triggerBox.x)).toBeLessThanOrEqual(8);
+  expect(menuBox.x + menuBox.w).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  // …and the trigger STAYED expanded while the menu is open.
+  expect(triggerBox.w).toBeGreaterThan(collapsedW + 20);
+  await page.keyboard.press('Escape');
+  await waitMenusClosed();
 
   // Stripboard View → A4 Landscape (nested submenu; pref persists in the
   // full landscape chrome).
@@ -235,6 +257,124 @@ test.describe('Schedule tab with REAL motion', () => {
     await expect(page.getByRole('menuitem', { name: 'Default', exact: true })).toBeVisible();
     await ghostClick(tap.pt, tap.pressedAt);
     await expect(page.getByRole('menuitem', { name: 'Default', exact: true })).toBeVisible();
+  });
+
+  /* Roadmap 338b — the second-tap killer. iOS sometimes delivers the trigger
+     tap with NO click (tap-to-hover), so PageToolbar's pending gesture was
+     never cleared. The next tap is a menu ROW — portaled inside the toolbar's
+     React tree — whose pointerup replayed that stale trigger pointerdown and
+     toggled the whole menu shut ("open the submenu, tap an option, it's
+     already dismissed"). */
+  test('a swallowed trigger click must not re-fire on the next menu-row tap (338)', async ({ page }) => {
+    await bootPhone(page);
+    await page.setViewportSize({ width: 852, height: 393 });
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+    const trigger = page.locator('[data-presence-anchor="toolbar:schedule:view"]');
+    const b = (await trigger.boundingBox())!;
+    const pt = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    // A tap as the iOS tap-to-hover model delivers it: pointer events, no click.
+    await trigger.evaluate((el, p) => {
+      for (const type of ['pointerdown', 'pointerup']) {
+        el.dispatchEvent(new PointerEvent(type, {
+          bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+          isPrimary: true, button: 0, buttons: type === 'pointerdown' ? 1 : 0,
+          clientX: p.x, clientY: p.y,
+        }));
+      }
+    }, pt);
+    await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+
+    // The next tap is a nested row. Its pointerup must not replay the old
+    // toolbar gesture: the child card must open, not the whole menu close.
+    await page.getByRole('menuitem', { name: 'Stripboard View' }).tap();
+    await expect(page.getByRole('menuitem', { name: 'A4 Portrait' })).toBeVisible();
+    // The Back row is labelled with the parent card: proves the child replaced it.
+    await expect(page.locator('[data-submenu-back]').filter({ hasText: 'Stripboard View' })).toBeVisible();
+  });
+
+  /* Roadmap 338c — header icon tabs. iOS drops the tap's click when the
+     label reveal reflows the tab row, so a click-only tab only expanded its
+     text on tap 1 and switched on tap 2. Coarse tabs now switch on pointerup;
+     a drag is still a scroll, never a switch. */
+  test('header icon tab switches on the FIRST tap; a drag never switches (338)', async ({ page }) => {
+    await bootPhone(page);
+    await page.setViewportSize({ width: 852, height: 393 });
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+    const calendar = page.locator('[data-presence-anchor="nav:tab:calendar"]');
+    const design = page.locator('[data-presence-anchor="nav:tab:design"]');
+    await expect(page.locator('[data-presence-anchor="nav:tab:schedule"]')).toHaveAttribute('data-active', 'true');
+    await expect(calendar).not.toHaveAttribute('data-active', 'true');
+
+    const noClickTap = async (loc: import('@playwright/test').Locator, dx = 0) => {
+      const b = (await loc.boundingBox())!;
+      const p = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      await loc.evaluate((el, q) => {
+        el.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+          isPrimary: true, button: 0, buttons: 1, clientX: q.x, clientY: q.y,
+        }));
+        el.dispatchEvent(new PointerEvent('pointerup', {
+          bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+          isPrimary: true, button: 0, buttons: 0, clientX: q.x + q.dx, clientY: q.y,
+        }));
+      }, { ...p, dx });
+    };
+
+    // A tap as iOS often delivers it: no click at all.
+    await noClickTap(calendar);
+    await expect(calendar).toHaveAttribute('data-active', 'true');
+
+    // A DRAG is a scroll: it must not switch the tab under it.
+    await noClickTap(design, 30);
+    await expect(design).not.toHaveAttribute('data-active', 'true');
+
+    // A normal tap still works.
+    await design.tap();
+    await expect(design).toHaveAttribute('data-active', 'true');
+  });
+
+  /* Roadmap 338d — toolbar buttons that depend on the CLICK still lose taps
+     on iOS (identical coordinates, no overlay, no long task — the trace shows
+     pointerdown/up with no click at all). The kit Button now activates on
+     pointerup for coarse pointers, so Edit / help / Print never wait for a
+     click; a drag stays a scroll. */
+  test('toolbar buttons act on the TAP, not the click (338)', async ({ page }) => {
+    await bootPhone(page);
+    await page.setViewportSize({ width: 852, height: 393 });
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+    const edit = page.locator('[data-presence-anchor="toolbar:schedule:edit"]');
+    const help = page.locator('[data-presence-anchor="toolbar:schedule:help"]');
+
+    const noClickTap = async (loc: import('@playwright/test').Locator, dx = 0) => {
+      const b = (await loc.boundingBox())!;
+      const p = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      await loc.evaluate((el, q) => {
+        el.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+          isPrimary: true, button: 0, buttons: 1, clientX: q.x, clientY: q.y,
+        }));
+        el.dispatchEvent(new PointerEvent('pointerup', {
+          bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+          isPrimary: true, button: 0, buttons: 0, clientX: q.x + q.dx, clientY: q.y,
+        }));
+      }, { ...p, dx });
+    };
+
+    // No click at all: Edit must turn on, then off, on the tap itself.
+    await noClickTap(edit);
+    await expect(edit).toHaveAttribute('data-active', 'true');
+    await noClickTap(edit);
+    await expect(edit).not.toHaveAttribute('data-active', 'true');
+
+    // A dragged tap is a scroll, never a toggle.
+    await noClickTap(edit, 30);
+    await expect(edit).not.toHaveAttribute('data-active', 'true');
+
+    // The help button (a kit Button) opens on the tap alone.
+    await noClickTap(help);
+    await expect(page.getByText('Stripboard Controls')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Stripboard Controls')).toBeHidden();
   });
 
   /* Roadmap 338 — rapid trigger taps. An open landing inside a close morph

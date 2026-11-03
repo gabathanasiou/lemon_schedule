@@ -10,6 +10,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import Button from './Button';
+import CoarseTabButton from './CoarseTabButton';
 import { SaveIndicator } from './SaveIndicator';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { RoomNote } from './RoomNote';
@@ -368,21 +369,20 @@ export default function AppHeader(props: AppHeaderProps) {
               <span aria-hidden className={`absolute top-0 bottom-0 rounded pointer-events-none ${tabPillFill} ${tabPill.motionClass}`} style={tabPill.style} />
             )}
             {headerTabs.map((tab, i) => (
-              <Button
+              <CoarseTabButton
                 key={tab.key}
-                ref={el => { tabButtonRefs.current[i] = el; }}
                 variant="tab-header"
                 active={tab.active}
                 icon={tab.icon}
-                collapse={tabDock}
-                iconWithLabel={false}
-                data-presence-anchor={`nav:tab:${tab.id}`}
-                onClick={(e) => { if (e.shiftKey && !IS_COARSE) { togglePopout(tab.id); } else { tab.select(); } }}
+                docked={tabDock}
+                anchor={`nav:tab:${tab.id}`}
+                label={tab.label}
+                buttonRef={el => { tabButtonRefs.current[i] = el; }}
+                onSelect={tab.select}
+                onShiftPopout={() => togglePopout(tab.id)}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tab.id); }}
                 className={`shrink-0 relative z-10 ${tab.active ? 'text-[color:var(--ui-accent-header-bg)]!' : ''}`}
-              >
-                {tab.label}
-              </Button>
+              />
             ))}
           </div>
         </div>
