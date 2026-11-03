@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { BudgetLine } from '../../types';
 import { makeBlankProject } from '../../store/reducer';
 import { computeBudget } from '../budget/calc';
-import { buildBudgetRows, collapseBudgetRows, filterBudgetRows } from '../budget/gridRows';
+import { buildBudgetRows, buildCostRows, collapseBudgetRows, filterBudgetRows } from '../budget/gridRows';
+import { computeCostReport } from '../budget/costReport';
+import { makeExpense } from '../budget/model';
+import { formatMoney } from '../budget/format';
 import { applyRatesToCurrencies, fetchDailyRates, formatRatesSyncedAt } from '../budget/rates';
 import { currencySymbolFor, DEFAULT_BUDGET_CURRENCIES, makeBudgetLine, mergeDefaultCurrencies, settingsWithCurrency } from '../budget/model';
 import { templateBudget } from '../budget/templates';
@@ -16,7 +19,7 @@ function sampleModel() {
   const account = budget.accounts[0];
   const line: BudgetLine = makeBudgetLine({ accountId: account.id, description: 'Lens rental', qty: 2, rateCents: 5000, unit: 'unit-day', notes: 'From the camera house' });
   budget.versions[0].lines = [line];
-  return { model: computeBudget(p)!, line };
+  return { model: computeBudget(p)!, line, project: p };
 }
 
 afterEach(() => {
@@ -189,5 +192,71 @@ describe('cost report period windows (roadmap 349)', () => {
     expect(periodLabel('custom', '', '')).toBe('Custom range');
     expect(periodLabel('custom', '2026-10-01', '2026-10-31')).toBe('2026-10-01 → 2026-10-31');
     expect(periodRange('month', '')).toEqual({});
+  });
+});
+
+describe('cost report sheet rows (roadmap 349)', () => {
+  function reportFor(spend: boolean) {
+    const { model, line, project } = sampleModel();
+    if (spend) {
+      project.expenses = [
+        makeExpense({ lineId: line.id, accountId: line.accountId, amountCents: 30000, status: 'actual', date: '2026-01-10' }),
+        makeExpense({ accountId: line.accountId, amountCents: 5000, status: 'actual', date: '2026-01-11' }),
+        makeExpense({ amountCents: 7000, status: 'actual', date: '2026-01-12' }),
+      ];
+    }
+    const next = computeBudget(project)!;
+    const report = computeCostReport(project, { asOf: '2026-12-31', budget: next })!;
+    return { model: next, line, project, report, rows: buildCostRows(report, null, next.settings) };
+  }
+
+  it('flattens category → account → line and both Unallocated buckets', () => {
+    const { model, line, report, rows } = reportFor(true);
+    const category = rows.find(r => r.kind === 'category')!;
+    expect(category.hasChildren).toBe('1');
+    expect(category.notInBudget).toBe('');
+
+    const lineRow = rows.find(r => r.kind === 'line' && r.lineId === line.id)!;
+    expect(lineRow.actual).toBe(formatMoney(30000, model.settings));
+    expect(lineRow.etc).toBe('0.00');
+    expect(lineRow.hasEtc).toBe('');
+
+    const accountUnallocated = rows.find(r => r.kind === 'unallocated' && r.item === 'Unallocated')!;
+    expect(accountUnallocated.actual).toBe(formatMoney(5000, model.settings));
+    const projectUnallocated = rows.find(r => r.key === 'unallocated:project')!;
+    expect(projectUnallocated.actual).toBe(formatMoney(7000, model.settings));
+    expect(report.unallocated).not.toBeNull();
+  });
+
+  it('carries an ETC override and reason on the line row', () => {
+    const { line, project } = reportFor(false);
+    line.etcCents = 12345;
+    line.etcReason = 'VFX overage';
+    const model = computeBudget(project)!;
+    const report = computeCostReport(project, { asOf: '2026-12-31', budget: model })!;
+    const rows = buildCostRows(report, null, model.settings);
+    const lineRow = rows.find(r => r.kind === 'line' && r.lineId === line.id)!;
+    expect(lineRow.hasEtc).toBe('1');
+    expect(lineRow.etc).toBe('123.45');
+    expect(lineRow.reason).toBe('VFX overage');
+    expect(lineRow.varianceTone).toBe('bad');
+    expect(lineRow.variance).toContain('over');
+    expect(lineRow.etcDisplay).toBe(formatMoney(12345, model.settings));
+  });
+
+  it('filters and collapses through the shared sheet contract', () => {
+    const { rows, line } = reportFor(true);
+    const filtered = filterBudgetRows(rows, line.description);
+    expect(filtered[0].kind).toBe('category');
+    expect(filtered.some(r => r.kind === 'line' && r.lineId === line.id)).toBe(true);
+
+    const category = rows.find(r => r.kind === 'category')!;
+    const collapsed = collapseBudgetRows(rows, new Set([category.id]), new Set());
+    expect(collapsed.some(r => r.catId === category.id && r.kind !== 'category')).toBe(false);
+
+    const account = rows.find(r => r.kind === 'account')!;
+    const accountCollapsed = collapseBudgetRows(rows, new Set(), new Set([account.id]));
+    expect(accountCollapsed.some(r => r.accId === account.id && (r.kind === 'line' || r.kind === 'unallocated'))).toBe(false);
+    expect(accountCollapsed.some(r => r.kind === 'account' && r.id === account.id)).toBe(true);
   });
 });
