@@ -1374,30 +1374,3 @@ numeric cast rates are data/bridge-editable.
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
 **Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
-
-## 349. Cost Report on the shared Glide grid (`[ ]`)
-
-**Asked 2026-10-31 (user):** the Budget → Cost Report should be formed from Glide
-breakdown cells — the same `InlineGlideTable` recipe as the Budget sheet — not
-the hand-built DOM expandable table.
-
-**Work:**
-- Add a `costReportRows` read model (category → account → line/unallocated,
-  preserving `computeCostReport`'s EFC/variance/% used) feeding the shared
-  `InlineGlideTable`: category/account bands, the disclosure glyph (click/Enter
-  only), pinned header, `heightMode="fill"` and presence scope.
-- Line rows keep the inline ETC (`MoneyField`, commit on blur) and reason
-  (`BudgetInput`) editors, variance colour + text/icon, and read-only gating;
-  keep the as-of/period toolbar, KPI strip, Print and CSV. The printed
-  `budgetTable` cost mode stays a DOM report table (print is never canvas).
-- Never re-derive money: the grid reads `computeCostReport`; no second engine
-  or table recipe.
-
-**Verify:** Vitest for the row model (grouping, Unallocated rows, ETC override
-round-trip); manual grid pass (bands, inline ETC/reason, as-of/period,
-read-only, print unchanged); fold a browser case into `e2e/budget.spec.ts` only
-if a silent break is plausible (caps 71/292). Docs: `BUDGETING-SURFACES.md` §4b,
-`GLIDE-BREAKDOWN.md`.
-**Relations:** `relates to` **334** (Cost Report), **340/343/345/347** (Budget
-Glide follow-ups), **344** (UI reuse), **330** (Element Manager Glide); uses the
-shared `InlineGlideTable` recipe.

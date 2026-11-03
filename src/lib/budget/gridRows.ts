@@ -56,6 +56,8 @@ export interface CostGridRow extends SheetRowBase {
   /** Editable seed for the ETC cell (2dp); '' on bands/unallocated. */
   etc: string;
   etcDisplay: string;
+  /** Resolved ETC in integer cents (the no-op guard for inline edits). */
+  etcCents: string;
   efc: string;
   variance: string;
   varianceTone: '' | 'good' | 'bad';
@@ -157,7 +159,7 @@ export function buildBudgetRows(
   return out;
 }
 
-function varianceLabel(cents: number, settings: BudgetSettings): string {
+export function varianceLabel(cents: number, settings: BudgetSettings): string {
   if (cents === 0) return '—';
   return cents > 0
     ? `↓ ${formatMoney(cents, settings)} under`
@@ -171,6 +173,7 @@ function costAmounts(row: CostRow, settings: BudgetSettings) {
     committed: formatMoney(row.committedCents, settings),
     etc: row.kind === 'line' ? (row.etcCents / 100).toFixed(2) : '',
     etcDisplay: formatMoney(row.etcCents, settings),
+    etcCents: String(row.etcCents),
     efc: formatMoney(row.efcCents, settings),
     variance: varianceLabel(row.varianceCents, settings),
     varianceTone: row.varianceCents > 0 ? 'good' as const : row.varianceCents < 0 ? 'bad' as const : '' as const,

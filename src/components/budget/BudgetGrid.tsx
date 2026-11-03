@@ -9,6 +9,7 @@ import { formatMoney } from '../../lib/budget/format';
 import type { BudgetModel, ComputedBudgetLine } from '../../lib/budget/calc';
 import type { BudgetLine, BudgetSettings } from '../../types';
 import { budgetBandTheme } from './budgetBandTheme';
+import type { GlideViewRestore, GlideViewState } from '../../lib/glideViewState';
 import {
   collapsedAccountIds, collapsedCategoryIds, isAccountCollapsed, isCategoryCollapsed,
   toggleAccountCollapse, toggleCategoryCollapse,
@@ -49,6 +50,7 @@ export function BudgetGrid({
   onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine,
   onBulkAddLines, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
+  viewRestore, onViewChange,
 }: {
   model: BudgetModel;
   readOnly: boolean;
@@ -77,6 +79,8 @@ export function BudgetGrid({
   onDeleteAccount: (id: string) => void;
   onDeleteLine: (id: string) => void;
   onDeleteMarkup: (id: string) => void;
+  viewRestore?: GlideViewRestore | null;
+  onViewChange?: (state: GlideViewState) => void;
 }) {
   const units = model.budget.units || [];
   const currencies = model.budget.currencies || [];
@@ -377,6 +381,8 @@ export function BudgetGrid({
         baseHeaderHeight={30}
         presenceScope="budget:detail"
         presenceRowKey={(row) => row.key}
+        viewRestore={viewRestore}
+        onViewChange={onViewChange}
       />
     </div>
   );

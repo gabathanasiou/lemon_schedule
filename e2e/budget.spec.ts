@@ -135,9 +135,110 @@ test.describe('Budget', () => {
       expect(unallocated.actualCents).toBe(120000);
       expect(cost.totals.efcCents).toBeGreaterThanOrEqual(120000);
 
-      await page.locator('[data-presence-anchor="nav:subtab:cost"]').click();
+      await page.locator('[data-presence-anchor="nav:subtab:budget"]').click();
+      await page.getByRole('button', { name: 'Cost Report', exact: true }).click();
       await expect(page.locator('[data-cost-report]')).toBeVisible({ timeout: 5000 });
       await expect(page.getByText('$1,200', { exact: true }).first()).toBeVisible();
+
+      await test.step('the cost grid edits ETC inline and clears back to auto', async () => {
+        const scroller = page.locator('[data-cost-report] .dvn-scroller').first();
+        // Columns: disclosure 22, item 300, budget/actual/committed/ETC 92 each.
+        const pointFor = (b: { x: number; y: number; width: number }) => ({
+          x: b.x + (22 + 300 + 92 * 3 + 46) / 1144 * b.width,
+          y: b.y + 30 + 2 * 26 + 13,
+        });
+        const box = await scroller.boundingBox();
+        expect(box).toBeTruthy();
+        await page.mouse.click(pointFor(box!).x, pointFor(box!).y);
+        await waitForGlideCellSelected(page, glideCellId(5, 2));
+        // Single click selects; Enter opens the overlay editor. A double-click
+        // would let the focus scroll shift the second click onto the next row.
+        await page.keyboard.press('Enter');
+        const editor = page.locator('#portal textarea, #portal input').first();
+        await expect(editor).toBeVisible({ timeout: 5000 });
+        await expect.poll(
+          async () => {
+            try {
+              return await editor.evaluate((el: HTMLElement) => { el.focus(); return document.activeElement === el; });
+            } catch {
+              return false;
+            }
+          },
+          { timeout: 5000 },
+        ).toBe(true);
+        await page.keyboard.press('ControlOrMeta+A');
+        await page.keyboard.type('6000');
+        await expect(editor).toHaveValue('6000');
+        // Glide's overlay needs a beat to register the last keystroke before
+        // Enter commits (the editor is a React island over the canvas).
+        const typedAt = await page.evaluate(() => Date.now());
+        await page.waitForFunction((t) => Date.now() - t >= 250, typedAt);
+        await page.keyboard.press('Enter');
+        await expect.poll(async () => page.evaluate(() => {
+          const b = (window as any).__lemonSchedule;
+          const p = b.getProject();
+          const v = p.budget.versions.find((x: any) => x.id === p.budget.activeVersionId);
+          return v.lines[0]?.etcCents;
+        })).toBe(600000);
+
+        await page.evaluate(() => {
+          const b = (window as any).__lemonSchedule;
+          const p = b.getProject();
+          const v = p.budget.versions.find((x: any) => x.id === p.budget.activeVersionId);
+          b.dispatch({ type: 'UPDATE_BUDGET_LINE', payload: { id: v.lines[0].id, updates: { etcCents: undefined } } });
+        });
+        await expect.poll(async () => page.evaluate(() => {
+          const b = (window as any).__lemonSchedule;
+          const p = b.getProject();
+          const v = p.budget.versions.find((x: any) => x.id === p.budget.activeVersionId);
+          return v.lines[0]?.etcCents;
+        })).toBeUndefined();
+      });
+
+      await test.step('switching views keeps the record and the scroll', async () => {
+        const budgetView = page.locator('[data-presence-anchor="toolbar:budget:view:budget"]');
+        const costView = page.locator('[data-presence-anchor="toolbar:budget:view:cost"]');
+        const scroller = (selector: string) => page.locator(`${selector} .dvn-scroller`).first();
+        const frame = () => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+
+        await budgetView.click();
+        await expect(page.locator('[data-budget-grid]')).toBeVisible({ timeout: 5000 });
+        const budgetGrid = scroller('[data-budget-grid]');
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-budget-grid] .dvn-scroller') as HTMLElement | null;
+          if (el) el.scrollTop = 0;
+        });
+        const budgetBox = await budgetGrid.boundingBox();
+        expect(budgetBox).toBeTruthy();
+        // Account 1200 is row 3 in Budget; in Cost it moves to row 4 because
+        // the account's Unallocated row is inserted above it.
+        await page.mouse.click(budgetBox!.x + 100, budgetBox!.y + 30 + 3 * 26 + 13);
+        await waitForGlideCellSelected(page, glideCellId(1, 3));
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-budget-grid] .dvn-scroller') as HTMLElement | null;
+          if (el) el.scrollTop = 100;
+        });
+        await frame();
+        await expect.poll(async () => scroller('[data-budget-grid]').evaluate((node) => (node as HTMLElement).scrollTop)).toBe(100);
+
+        await costView.click();
+        await expect(page.locator('[data-cost-report]')).toBeVisible({ timeout: 5000 });
+        await expect.poll(async () => {
+          const el = await scroller('[data-cost-report]').evaluate((node) => (node as HTMLElement).scrollTop);
+          return el;
+        }).toBe(126);
+        await waitForGlideCellSelected(page, glideCellId(1, 4));
+        await expect(page.locator('#glide-cell-1-4')).toContainText('1200');
+
+        await budgetView.click();
+        await expect(page.locator('[data-budget-grid]')).toBeVisible({ timeout: 5000 });
+        await expect.poll(async () => {
+          const el = await scroller('[data-budget-grid]').evaluate((node) => (node as HTMLElement).scrollTop);
+          return el;
+        }).toBe(100);
+        await waitForGlideCellSelected(page, glideCellId(1, 3));
+        await expect(page.locator('#glide-cell-1-3')).toContainText('1200');
+      });
     });
   });
 

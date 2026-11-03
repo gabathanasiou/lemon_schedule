@@ -1,32 +1,46 @@
 import React from 'react';
-import { Download, FileUp, Plus, Printer, RefreshCw, Sparkles } from 'lucide-react';
+import { Seg } from '@gabriel/ui-kit';
+import { Plus } from 'lucide-react';
 import type { BudgetFringe, BudgetGroup, BudgetLine, BudgetMarkup, Project, ReportDesign } from '../../types';
 import type { BudgetModel } from '../../lib/budget/calc';
 import { flatBudgetLines } from '../../lib/budget/calc';
-import { makeBudgetAccount, makeBudgetCategory, makeBudgetFringe, makeBudgetGroup, makeBudgetLine, makeBudgetMarkup } from '../../lib/budget/model';
+import { isoToday, makeBudgetAccount, makeBudgetCategory, makeBudgetFringe, makeBudgetGroup, makeBudgetLine, makeBudgetMarkup } from '../../lib/budget/model';
 import { formatMoney, formatPercent, parseMoney } from '../../lib/budget/format';
 import { budgetFilename, downloadFile, exportBudgetCsv, exportBudgetJson, parseBudgetJson } from '../../lib/budget/export';
+import { computeCostReport } from '../../lib/budget/costReport';
+import { periodRange, type PeriodKey } from '../../lib/budget/period';
+import { varianceLabel } from '../../lib/budget/gridRows';
+import type { GlideViewRestore, GlideViewState } from '../../lib/glideViewState';
 import { useProject } from '../../store';
 import { useDialog } from '../Dialog';
-import Button from '../Button';
-import DropdownMenu from '../DropdownMenu';
-import DropdownItem from '../DropdownItem';
-import DropdownDivider from '../DropdownDivider';
-import DropdownSubmenu from '../DropdownSubmenu';
-import { budgetReportDesigns } from '../../lib/budget/reportTemplates';
+import { budgetReportDesigns, costReportDesign } from '../../lib/budget/reportTemplates';
 import { buildScheduleDiffApply, computeScheduleBudgetDiff } from '../../lib/budget/diff';
 import { BudgetGrid, type BudgetGridCommit } from './BudgetGrid';
 import { BudgetKpis } from './BudgetKpis';
+import { BudgetToolbar } from './BudgetToolbar';
 import { CategoryRail, type CategoryRailItem } from './CategoryRail';
+import { CostReportGrid } from './CostReportGrid';
+import { CostReportToolbar, type CostPeriodState } from './CostReportToolbar';
 import { clearBudgetCollapse } from './sheetCollapse';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
 import { ScheduleReviewModal } from './ScheduleReviewModal';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../ContextMenu';
-import { GlideFilter } from '../GlideFilter';
 
-/** Budget authoring surface: KPI strip, category rail and the editable sheet. */
-export function BudgetView({ model, project, readOnly, onPrintDesign }: { model: BudgetModel; project: Project; readOnly: boolean; onPrintDesign?: (design: ReportDesign) => void }) {
+/** Budget surface (roadmap 334 + 349): one page with a Budget|Cost Report
+ *  switch, one rail, one KPI strip and two thin grids over the shared sheet
+ *  contract. Authoring lives in Budget mode; the Cost Report only edits
+ *  ETC/reason. */
+export function BudgetView({
+  model, project, readOnly, onPrintDesign, mode, onModeChange,
+}: {
+  model: BudgetModel;
+  project: Project;
+  readOnly: boolean;
+  onPrintDesign?: (design: ReportDesign) => void;
+  mode: 'budget' | 'cost';
+  onModeChange: (mode: 'budget' | 'cost') => void;
+}) {
   const { dispatch } = useProject();
   const dialog = useDialog();
   const [focusCategoryId, setFocusCategoryId] = React.useState<string | null>(null);
@@ -42,9 +56,21 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     clearBudgetCollapse();
     setRailEpoch(e => e + 1);
   }, []);
-  const [exportOpen, setExportOpen] = React.useState(false);
-  const [printOpen, setPrintOpen] = React.useState(false);
+  const updateFilterCounts = React.useCallback((shown: number, total: number) => {
+    setFilterCounts(prev => (prev.shown === shown && prev.total === total ? prev : { shown, total }));
+  }, []);
   const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [costPeriod, setCostPeriod] = React.useState<CostPeriodState>(() => ({
+    asOf: isoToday(), period: 'all' as PeriodKey, customFrom: '', customTo: '',
+  }));
+  // Shared sheet anchor (roadmap 349): whichever grid is mounted reports its
+  // top visible row + selected cell; the incoming grid restores both.
+  const sheetViewRef = React.useRef<GlideViewState | null>(null);
+  const restoreSeqRef = React.useRef(0);
+  const [sheetRestore, setSheetRestore] = React.useState<GlideViewRestore | null>(null);
+  const handleViewChange = React.useCallback((state: GlideViewState) => {
+    sheetViewRef.current = state;
+  }, []);
   const budget = model.budget;
   const printDesigns = React.useMemo(() => budgetReportDesigns(budget), [budget]);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -53,6 +79,19 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     () => computeScheduleBudgetDiff(project, model.version.id, { model }),
     [project, model],
   );
+
+  // As-of/period stay mounted here so toggling views never resets them. The
+  // cost read model is only built while the Cost Report view is showing.
+  const costRange = costPeriod.period === 'custom'
+    ? { from: costPeriod.customFrom || undefined, to: costPeriod.customTo || undefined }
+    : periodRange(costPeriod.period, costPeriod.asOf);
+  const costReport = React.useMemo(
+    () => mode === 'cost'
+      ? computeCostReport(project, { asOf: costPeriod.asOf, from: costRange.from, to: costRange.to, budget: model })
+      : null,
+    [mode, project, costPeriod.asOf, costRange.from, costRange.to, model],
+  );
+  const costSettings = costReport?.settings || settings;
 
   /** Roadmap 348 — apply the reviewed selection as ONE undo entry. Only the
    *  linked quantity snapshots, requested adds and explicitly chosen removals
@@ -340,6 +379,30 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
     dispatch({ type: 'UPDATE_BUDGET_LINE', payload: { id, updates } });
   }, [dispatch]);
 
+  /** Cost Report inline edits: one bulk action, one undo entry. */
+  const updateCostLines = React.useCallback((updates: { id: string; updates: Partial<BudgetLine> }[]) => {
+    if (updates.length === 0) return;
+    dispatch({ type: 'BULK_UPDATE_BUDGET_LINES', payload: { updates } });
+  }, [dispatch]);
+
+  const saveCostDesign = React.useCallback(() => {
+    const design = costReportDesign();
+    dispatch({
+      type: 'ADD_REPORT_DESIGN',
+      payload: { name: design.name, blocks: design.blocks, page: design.page, header: design.header, footer: design.footer },
+    });
+  }, [dispatch]);
+
+  const switchMode = React.useCallback((next: 'budget' | 'cost') => {
+    setRailMenu(null);
+    if (next === 'budget' && focusCategoryId && !model.categories.some(c => c.category.id === focusCategoryId)) {
+      setFocusCategoryId(null);
+    }
+    const source = sheetViewRef.current;
+    if (source) setSheetRestore({ ...source, token: ++restoreSeqRef.current });
+    onModeChange(next);
+  }, [focusCategoryId, model.categories, onModeChange]);
+
   const exportCsv = () => downloadFile(exportBudgetCsv(project), budgetFilename(project, 'csv'), 'text/csv');
   const exportJson = () => downloadFile(exportBudgetJson(project), budgetFilename(project, 'json'), 'application/json');
 
@@ -361,156 +424,169 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
 
   const totals = model.totals;
   const categoryTotal = focusCategoryId ? model.categories.find(c => c.category.id === focusCategoryId) : undefined;
-  const railItems: CategoryRailItem[] = model.categories.map(cat => ({
-    id: cat.category.id,
-    number: cat.category.number,
-    name: cat.category.name,
-    meta: formatPercent(cat.percentOfGrand, 1),
-    amountCents: cat.totalCents,
-  }));
+  const costCategoryTotal = mode === 'cost' && focusCategoryId
+    ? costReport?.categories.find(c => c.categoryId === focusCategoryId)
+    : undefined;
+  const railItems: CategoryRailItem[] = mode === 'cost' && costReport
+    ? costReport.categories.map(cat => ({
+        id: cat.categoryId,
+        number: cat.number,
+        name: cat.name,
+        meta: formatPercent(cat.row.percentUsed, 1),
+        amountCents: cat.row.efcCents,
+        detail: cat.row.varianceCents === 0 ? undefined : varianceLabel(cat.row.varianceCents, costSettings),
+        detailTone: cat.row.varianceCents > 0 ? 'good' : cat.row.varianceCents < 0 ? 'bad' : undefined,
+        notInBudget: !cat.inBudget,
+      }))
+    : model.categories.map(cat => ({
+        id: cat.category.id,
+        number: cat.category.number,
+        name: cat.category.name,
+        meta: formatPercent(cat.percentOfGrand, 1),
+        amountCents: cat.totalCents,
+      }));
   const linkedLabel = model.linkedLineCount > 0
     ? `${model.linkedLineCount} line${model.linkedLineCount === 1 ? ' follows' : 's follow'} the schedule`
     : 'No lines linked to the schedule';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--ui-modal-header-base)]">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] shrink-0">
-        <Button theme="light" onClick={addCategory} disabled={readOnly}>
-          <Plus className="w-3.5 h-3.5" /> Category
-        </Button>
-        <Button theme="light" onClick={addMarkup} disabled={readOnly}>
-          <Plus className="w-3.5 h-3.5" /> Markup
-        </Button>
-        <GlideFilter
-          value={rowFilter}
-          onChange={setRowFilter}
-          total={filterCounts.total}
-          shown={filterCounts.shown}
-          placeholder="Filter the budget…"
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] shrink-0 flex-wrap">
+        <Seg
+          variant="track"
+          dense
+          value={mode}
+          options={[
+            { v: 'budget', l: 'Budget', dataProps: { 'data-presence-anchor': 'toolbar:budget:view:budget' } },
+            { v: 'cost', l: 'Cost Report', dataProps: { 'data-presence-anchor': 'toolbar:budget:view:cost' } },
+          ]}
+          onChange={v => switchMode(v as 'budget' | 'cost')}
+          ariaLabel="Budget view"
         />
-        <span className="ml-1 flex items-center gap-1 text-[10px] text-[color:var(--ui-text-faint)]">
-          <Sparkles className="w-3 h-3" /> {linkedLabel}
-        </span>
-        <Button
-          theme="light"
-          onClick={() => setReviewOpen(true)}
-          disabled={!reviewDiff || reviewDiff.totalRows === 0}
-          title="Review what changed in the schedule since this budget version was written"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          {!reviewDiff || reviewDiff.totalRows === 0
-            ? 'Up to date'
-            : reviewDiff.changeCount === 0
-              ? `${reviewDiff.counts.check} to check from the schedule`
-              : `${reviewDiff.totalRows} update${reviewDiff.totalRows === 1 ? '' : 's'} from the schedule`}
-        </Button>
-        <div className="ml-auto flex items-center gap-1">
-          {onPrintDesign && (
-            <DropdownMenu
-              open={printOpen}
-              onOpenChange={setPrintOpen}
-              width="w-56"
-              theme="light"
-              trigger={<Button theme="light"><Printer className="w-3.5 h-3.5" /> Print</Button>}
-            >
-              {printDesigns.map(design => (
-                <DropdownItem
-                  key={`print-${design.id}`}
-                  onClick={() => { setPrintOpen(false); onPrintDesign(design); }}
-                >
-                  Print {design.name.replace('Budget — ', '')}
-                </DropdownItem>
-              ))}
-              <DropdownDivider />
-              <DropdownSubmenu id="save-budget-design" label="Save as design" width="w-56">
-                {printDesigns.map(design => (
-                  <DropdownItem
-                    key={`save-${design.id}`}
-                    onClick={() => {
-                      setPrintOpen(false);
-                      dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: design.name, blocks: design.blocks, page: design.page, header: design.header, footer: design.footer } });
-                    }}
-                  >
-                    {design.name.replace('Budget — ', '')}
-                  </DropdownItem>
-                ))}
-              </DropdownSubmenu>
-            </DropdownMenu>
-          )}
-          <DropdownMenu
-            open={exportOpen}
-            onOpenChange={setExportOpen}
-            width="w-44"
-            theme="light"
-            trigger={<Button theme="light"><Download className="w-3.5 h-3.5" /> Export</Button>}
-          >
-            <DropdownItem onClick={() => { setExportOpen(false); exportCsv(); }}>Export CSV</DropdownItem>
-            <DropdownItem onClick={() => { setExportOpen(false); exportJson(); }}>Export JSON</DropdownItem>
-          </DropdownMenu>
-          <Button theme="light" onClick={() => fileRef.current?.click()} disabled={readOnly}>
-            <FileUp className="w-3.5 h-3.5" /> Import
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void importJson(file);
-              if (fileRef.current) fileRef.current.value = '';
-            }}
+        {mode === 'budget' ? (
+          <BudgetToolbar
+            readOnly={readOnly}
+            reviewDiff={reviewDiff}
+            linkedLabel={linkedLabel}
+            rowFilter={rowFilter}
+            onRowFilterChange={setRowFilter}
+            filterCounts={filterCounts}
+            onAddCategory={addCategory}
+            onAddMarkup={addMarkup}
+            onOpenReview={() => setReviewOpen(true)}
+            printDesigns={printDesigns}
+            onPrintDesign={onPrintDesign}
+            onSaveDesign={(design) => dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: design.name, blocks: design.blocks, page: design.page, header: design.header, footer: design.footer } })}
+            onExportCsv={exportCsv}
+            onExportJson={exportJson}
+            onImport={() => fileRef.current?.click()}
           />
-        </div>
+        ) : (
+          <CostReportToolbar
+            report={costReport}
+            project={project}
+            state={costPeriod}
+            onChange={patch => setCostPeriod(prev => ({ ...prev, ...patch }))}
+            onPrintDesign={onPrintDesign}
+            onSaveDesign={saveCostDesign}
+          />
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void importJson(file);
+            if (fileRef.current) fileRef.current.value = '';
+          }}
+        />
       </div>
 
-      <BudgetKpis mode="budget" model={model} report={null} />
+      <BudgetKpis mode={mode} model={model} report={costReport} />
 
       <div className="flex-1 flex min-h-0">
         <CategoryRail
           items={railItems}
-          settings={settings}
+          settings={mode === 'cost' ? costSettings : settings}
           focusCategoryId={focusCategoryId}
           onFocus={(id) => { unfoldAll(); setFocusCategoryId(id); }}
-          mode="budget"
+          mode={mode}
           readOnly={readOnly}
-          onAddCategory={addCategory}
-          onMenu={(e, categoryId) => setRailMenu({ x: e.clientX, y: e.clientY, categoryId })}
+          onAddCategory={mode === 'budget' ? addCategory : undefined}
+          onMenu={mode === 'budget' ? (e, categoryId) => setRailMenu({ x: e.clientX, y: e.clientY, categoryId }) : undefined}
         />
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <BudgetGrid
-            model={model}
-            readOnly={readOnly}
-            focusCategoryId={focusCategoryId}
-            filter={rowFilter}
-            viewEpoch={railEpoch}
-            onFilterCounts={(shown, total) => setFilterCounts(prev => (prev.shown === shown && prev.total === total ? prev : { shown, total }))}
-            onCommit={commitEdits}
-            onOpenLine={(line) => setEditingLineId(line.id)}
-            onOpenNode={(kind, id) => setEditingNode({ kind, id })}
-            onAddAccount={addAccount}
-            onQuickAddLine={quickAddLine}
-            onQuickAddAccountLine={quickAddAccountLine}
-            onQuickAddLastLine={quickAddLastLine}
-            onBulkAddLines={promptAddLines}
-            onDuplicateLine={duplicateLine}
-            onDeleteCategory={confirmDeleteCategory}
-            onDeleteAccount={confirmDeleteAccount}
-            onDeleteLine={confirmDeleteLine}
-            onDeleteMarkup={confirmDeleteMarkup}
-          />
-          <div className="flex items-center gap-3 px-3 py-1.5 border-t border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-[10px] text-[color:var(--ui-text-muted)] shrink-0">
-            <span>Fringes <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.fringeCents, settings)}</strong></span>
-            <span>Contingency <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.markupCents, settings)}</strong></span>
-            {rowFilter.trim() && (
-              <span data-budget-filtered className="rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">Filtered</span>
-            )}
-            <span className="ml-auto">
-              {categoryTotal ? `${categoryTotal.category.name}: ` : 'Grand total: '}
-              <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(categoryTotal ? categoryTotal.totalCents : totals.grandTotalCents, settings)}</strong>
-            </span>
-          </div>
+          {mode === 'cost' ? (
+            costReport ? (
+              <CostReportGrid
+                report={costReport}
+                readOnly={readOnly}
+                focusCategoryId={focusCategoryId}
+                filter={rowFilter}
+                viewEpoch={railEpoch}
+                onFilterCounts={updateFilterCounts}
+                onLineUpdates={updateCostLines}
+                viewRestore={sheetRestore}
+                onViewChange={handleViewChange}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-10 text-center text-xs text-[color:var(--ui-text-muted)]">
+                No cost report — the active budget version is unavailable.
+              </div>
+            )
+          ) : (
+            <BudgetGrid
+              model={model}
+              readOnly={readOnly}
+              focusCategoryId={focusCategoryId}
+              filter={rowFilter}
+              viewEpoch={railEpoch}
+              onFilterCounts={updateFilterCounts}
+              onCommit={commitEdits}
+              onOpenLine={(line) => setEditingLineId(line.id)}
+              onOpenNode={(kind, id) => setEditingNode({ kind, id })}
+              onAddAccount={addAccount}
+              onQuickAddLine={quickAddLine}
+              onQuickAddAccountLine={quickAddAccountLine}
+              onQuickAddLastLine={quickAddLastLine}
+              onBulkAddLines={promptAddLines}
+              onDuplicateLine={duplicateLine}
+              onDeleteCategory={confirmDeleteCategory}
+              onDeleteAccount={confirmDeleteAccount}
+              onDeleteLine={confirmDeleteLine}
+              onDeleteMarkup={confirmDeleteMarkup}
+              viewRestore={sheetRestore}
+              onViewChange={handleViewChange}
+            />
+          )}
+          {mode === 'cost' ? (
+            <div className="flex items-center gap-3 px-3 py-1.5 border-t border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-[10px] text-[color:var(--ui-text-muted)] shrink-0">
+              <span>Actual <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(costReport?.totals.actualCents || 0, costSettings)}</strong></span>
+              <span>Committed <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(costReport?.totals.committedCents || 0, costSettings)}</strong></span>
+              {rowFilter.trim() && (
+                <span data-budget-filtered className="rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">Filtered</span>
+              )}
+              <span className="ml-auto">
+                {costCategoryTotal ? `${costCategoryTotal.name}: ` : 'Grand total: '}
+                <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(costCategoryTotal ? costCategoryTotal.row.efcCents : costReport?.totals.efcCents || 0, costSettings)}</strong>
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 px-3 py-1.5 border-t border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-[10px] text-[color:var(--ui-text-muted)] shrink-0">
+              <span>Fringes <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.fringeCents, settings)}</strong></span>
+              <span>Contingency <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(totals.markupCents, settings)}</strong></span>
+              {rowFilter.trim() && (
+                <span data-budget-filtered className="rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--ui-text-muted)]">Filtered</span>
+              )}
+              <span className="ml-auto">
+                {categoryTotal ? `${categoryTotal.category.name}: ` : 'Grand total: '}
+                <strong className="text-[color:var(--ui-text-strong)]">{formatMoney(categoryTotal ? categoryTotal.totalCents : totals.grandTotalCents, settings)}</strong>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

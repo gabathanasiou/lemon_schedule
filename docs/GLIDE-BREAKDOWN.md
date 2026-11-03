@@ -170,13 +170,18 @@ auto-repaint.
 - **Smooth scroll is the default on every Glide grid.** `useGlideSmoothScroll`
   (`src/lib/persist.ts`, localStorage `lemon_schedule_glide_smooth_scroll`)
   defaults to ON on every device; the Breakdown/Crew/Locations View menus toggle
-  it and `InlineGlideTable` (Budget, Day Manager, Library, Expenses) follows the
-  same pref, so all grids scroll identically. Never hardcode per-grid motion.
+  it and `InlineGlideTable` (Budget, Cost Report, Day Manager, Library,
+  Expenses) follows the same pref, so all grids scroll identically. Never
+  hardcode per-grid motion.
 - **One overlay geometry for every grid (roadmap 347).** `createGlideCellEditor` returns picker
   editors in Glide's NORMAL padded cell box (no `disablePadding`), so the popout trigger/text sits at
-  the same margins/size/alignment as the canvas cell — the Budget sheet, Library, Expenses, Day
-  Times, Crew and Breakdown all share it. A picker cell that needs alignment passes the column's
+  the same margins/size/alignment as the canvas cell — the Budget sheet, Cost Report, Library,
+  Expenses, Day Times, Crew and Breakdown all share it. A picker cell that needs alignment passes the column's
   `align` through as `textAlign`; never a per-grid overlay style.
+- **View continuity (roadmap 349).** Optional `onViewChange` reports the top visible row + current
+  cell, and `viewRestore` reapplies them after a view switch. Row/column keys resolve through
+  `lib/glideViewState.ts` (exact → parent → nearest index; scroll stays pixel-exact). Used by the
+  Budget ↔ Cost Report switch.
 - **Sheet layout props (roadmaps 337/340/343).** `heightMode="fill"` measures its container and lets
   Glide scroll rows INSIDE the grid, keeping the column header pinned (the Budget sheet); the default
   `content` keeps the old content-height card. `rowThemeOverride(row)` paints a band across every

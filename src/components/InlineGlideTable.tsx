@@ -37,6 +37,10 @@ import { effectiveGridRange } from '../lib/glideSelection';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { FloatingTooltip } from './FloatingTooltip';
+import {
+  parentKeyForRow, resolveGlideViewRestore,
+  type GlideViewRestore, type GlideViewState,
+} from '../lib/glideViewState';
 
 /**
  * Inline Glide table — a compact, self-sizing spreadsheet embedded in a page
@@ -153,6 +157,12 @@ export interface InlineGlideTableProps {
   /** Row keys for presence; defaults to `row.key`, then the row index. Keys
    *  must be stable across clients (they survive client-side reordering). */
   presenceRowKey?: (row: Record<string, string>, index: number) => string;
+  /** Restore a shared sheet anchor after a view switch (roadmap 349). The
+   *  token is consumed once; rows/columns resolve independently by key. */
+  viewRestore?: GlideViewRestore | null;
+  /** Reports the top visible row + current cell so the host can carry the
+   *  viewport/selection across two grids of the same sheet. */
+  onViewChange?: (state: GlideViewState) => void;
 }
 
 const DEFAULT_ROW_HEIGHT = 28;
@@ -203,6 +213,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   heightMode = 'content',
   presenceScope,
   presenceRowKey,
+  viewRestore,
+  onViewChange,
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -369,6 +381,127 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }, [selectionKey]);
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
+
+  // Cross-view continuity (roadmap 349): report the top visible row + current
+  // cell so the host can restore them in the other view of the same sheet.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const scrollTopRef = useRef(0);
+  const rowHRef = useRef(rowH);
+  rowHRef.current = rowH;
+  const columnsRef = useRef(COLUMNS);
+  columnsRef.current = COLUMNS;
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
+
+  const emitViewChange = useCallback(() => {
+    const callback = onViewChangeRef.current;
+    const list = rowsRef.current;
+    if (!callback || list.length === 0) return;
+    const rowHeight = Math.max(1, rowHRef.current);
+    const scrollTop = Math.max(0, scrollerRef.current?.scrollTop ?? scrollTopRef.current);
+    scrollTopRef.current = scrollTop;
+    const topIndex = Math.max(0, Math.min(list.length - 1, Math.floor(scrollTop / rowHeight)));
+    const top = list[topIndex];
+    const cell = gridSelectionRef.current?.current?.cell;
+    const selectedRow = cell ? list[cell[1]] : undefined;
+    const selectedCol = cell ? columnsRef.current[cell[0]]?.key : undefined;
+    callback({
+      scroll: {
+        rowKey: top.key ?? String(topIndex),
+        rowIndex: topIndex,
+        parentKey: parentKeyForRow(top),
+        offset: Math.max(0, scrollTop - topIndex * rowHeight),
+      },
+      selection: selectedRow && selectedCol
+        ? {
+            rowKey: selectedRow.key ?? String(cell![1]),
+            rowIndex: cell![1],
+            parentKey: parentKeyForRow(selectedRow),
+            colKey: selectedCol,
+          }
+        : null,
+    });
+  }, []);
+
+  // Attach to Glide's scroller once it exists; MutationObserver covers the
+  // first frame and any full remount of the editor body.
+  useEffect(() => {
+    const root = wrapperRef.current;
+    if (!root) return;
+    let el: HTMLDivElement | null = null;
+    // Deliberately synchronous: the host only stores the anchor in a ref, and
+    // the last scroll must be visible before the user can click the view
+    // switch (a rAF throttle could leave a stale anchor on the way out).
+    const onScroll = () => {
+      if (!el) return;
+      scrollTopRef.current = el.scrollTop;
+      emitViewChange();
+    };
+    const bind = (next: HTMLDivElement | null) => {
+      if (el === next) return;
+      if (el) el.removeEventListener('scroll', onScroll);
+      el = next;
+      scrollerRef.current = next;
+      if (next) {
+        scrollTopRef.current = next.scrollTop;
+        next.addEventListener('scroll', onScroll, { passive: true });
+      }
+    };
+    const find = () => bind(root.querySelector('.dvn-scroller') as HTMLDivElement | null);
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      bind(null);
+    };
+  }, [emitViewChange]);
+
+  // Report the initial/after-render state (and any row-set change) so a switch
+  // immediately after mount still has an anchor.
+  useEffect(() => {
+    emitViewChange();
+  }, [rows, emitViewChange]);
+
+  // Restore the shared anchor once per switch token. Selection and scroll are
+  // applied separately: the viewport is rebuilt from the top-row key, not the
+  // selected row, so scrolling away from the selection survives the switch.
+  const restoredViewTokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!viewRestore || restoredViewTokenRef.current === viewRestore.token) return;
+    if (rows.length === 0) return;
+    // A fill-mode grid has no scrollable height until it has measured; a
+    // scrollTop set before that is clamped to 0 and silently lost.
+    if (heightMode === 'fill' && fillHeight <= 0) return;
+    const target = resolveGlideViewRestore(viewRestore, rows, COLUMNS, rowH);
+    if (!target) return;
+    restoredViewTokenRef.current = viewRestore.token;
+    const selection: GridSelection = {
+      columns: CompactSelection.empty(),
+      rows: CompactSelection.empty(),
+      current: {
+        cell: [target.colIndex, target.rowIndex],
+        range: { x: target.colIndex, y: target.rowIndex, width: 1, height: 1 },
+        rangeStack: [],
+      },
+    };
+    gridSelectionRef.current = selection;
+    setGridSelection(selection);
+    if (selectionKey) SELECTION_CACHE.set(selectionKey, selection);
+    scrollTopRef.current = target.scrollTop;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      // Two frames: let Glide finish mounting its scroller and apply the
+      // selection's own scroll before we set the exact offset.
+      const scroller = scrollerRef.current
+        ?? (wrapperRef.current?.querySelector('.dvn-scroller') as HTMLDivElement | null);
+      if (gridRef.current?.scrollTo) {
+        gridRef.current.scrollTo(0, { amount: target.scrollTop, unit: 'px' }, 'vertical', 0, 0, { behavior: 'auto' });
+      }
+      if (scroller) scroller.scrollTop = target.scrollTop;
+      emitViewChange();
+    }));
+  }, [viewRestore, rows, COLUMNS, rowH, heightMode, fillHeight, selectionKey, emitViewChange]);
+
   // Shift+Enter quick-add (roadmap 337): move the selection onto the row the
   // host just created, once its dispatch lands in `rows`. The first EDITABLE
   // data column is the natural landing cell; typing then opens its editor
@@ -829,9 +962,11 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
   const onGridSelectionChange = useCallback((sel: GridSelection) => {
+    gridSelectionRef.current = sel;
     setGridSelection(sel);
     if (selectionKey) SELECTION_CACHE.set(selectionKey, sel);
-  }, [selectionKey]);
+    emitViewChange();
+  }, [selectionKey, emitViewChange]);
 
   return (
     <div

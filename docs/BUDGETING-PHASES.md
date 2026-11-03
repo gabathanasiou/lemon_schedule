@@ -278,8 +278,8 @@ returning account/line rows with Budget/Actual/Committed/ETC/EFC/Variance/
 POs optional: committed = committed expenses + open PO remaining.
 
 ### UI
-`CostReportView` (as-of/period, KPI strip, expandable rows, inline ETC/reason)
-replaces the phase-1 Cost Report placeholder; `ExpensesView` (filters/group/
+`CostReportGrid` (roadmap 349 — the Budget sheet's Cost Report view on the
+shared `InlineGlideTable`) replaces the phase-1 placeholder; `ExpensesView` (filters/group/
 add/import) + `ExpenseModal` replace the Expenses placeholder; `ExpenseSection`
 in the Day Manager (`dayTabs`, registry, `DAY_TAB_OPTIONS`, root-owned modal,
 `DaySectionActions.openExpense`). Read-only hides edits.

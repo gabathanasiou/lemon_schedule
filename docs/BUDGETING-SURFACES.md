@@ -1,42 +1,41 @@
 # Budgeting — surfaces manual (Budget tab, reports, later phases)
 
-Status: **phase 2 LANDED (2026-10-30, roadmap 334)** — Budget, Cost Report,
-Expenses and Library are all live, plus the Day Manager Expenses card.
-Companion to `docs/BUDGETING.md` (model, engine, store, phases); market evidence
-is `docs/BUDGETING-RESEARCH.md`. This file owns the screens and the
-`budgetTable` report block. Read it before changing `src/components/budget/`,
-the budget/cost report fields/collections or the print templates.
+Status: **phase 2 LANDED (2026-10-30, roadmap 334)** — Budget (Cost Report is
+its second view, roadmap 349), Expenses and Library are live, plus the Day
+Manager card. Companions: `BUDGETING.md`, `BUDGETING-RESEARCH.md`; this file
+owns the screens + `budgetTable` — read it before changing `src/components/budget/`.
 
 ## 1. Budget tab — navigation & shell
 
-- `src/lib/appNav.ts`: `'budget'` is an `AppTabId`, `TAB_LABELS.budget =
-  'Budget'`, `TAB_ORDER` puts it between Production and Reports (⌘/Ctrl+8);
-  `SUB_TAB_LABELS.budget = { budget: 'Budget', cost: 'Cost Report', expenses:
-  'Expenses', library: 'Library' }`.
+- `src/lib/appNav.ts`: Budget is an `AppTabId` between Production and Reports
+  (⌘/Ctrl+8). Visible pills are Budget / Expenses / Library; `cost` remains a
+  `SUB_TAB_LABELS.budget` place (`#/budget/cost`) opening the cost view
+  (roadmap 349).
 - `src/components/AppHeader.tsx`: `TAB_ICONS.budget` = Wallet. `src/App.tsx`
   renders `<BudgetTab subTab onSubTabChange onPrintDesign>` and registers the
   Budget tab pop-out. All user navigation goes through `go()`; never raw
   `setActiveTab`.
-- `isPhoneSupportedPlace` excludes Budget (phone authoring is later); desktop
-  and iPad are the surfaces.
+- `isPhoneSupportedPlace` excludes Budget (phone authoring later); desktop/iPad only.
 - `BudgetTab.tsx` is the composition root: one project/`computeBudget` read,
   sub-tab switch, version menu, empty state, JSON import. It passes `readOnly`
   and the computed model down; `BudgetView`/`BudgetLibraryView` take the store
   only for `dispatch`, and no row component calls `useProject()`.
-- `PageToolbar` hosts the four sub-tabs plus the `BudgetVersionMenu` in
-  `rightContent`. The page is a light `ThemeScope`; project chrome comes from
-  `ProjectChromeScope`.
-- **Cost Report** (`CostReportView.tsx`): as-of date + period menu, KPI strip,
-  expandable category → account → line rows, inline ETC + reason, Print via
-  `ReportPrintDialog` and CSV. **Expenses** (`ExpensesView.tsx`): filters, Add
-  expense, Import CSV, the Glide ledger, footer totals and the shared
-  `ExpenseModal`. Both replace the phase-1 placeholders; neither is a second
+- `PageToolbar` hosts the three sub-tabs + `BudgetVersionMenu`; `cost` maps the
+  active pill back to Budget. Light `ThemeScope`; chrome from `ProjectChromeScope`.
+- **View switch:** `BudgetView.tsx` owns a `Seg variant="track" dense`
+  (Budget | Cost Report) above the KPI strip, matching Production/Calendar;
+  `onModeChange` → `go()`, so `#/budget/cost` is history-backed. Both views
+  share the rail/filter/collapse; the top row + selected cell carry across by
+  row key (missing rows fall back to parent/nearest).
+- **Cost Report** (`CostReportGrid.tsx`): same sheet tree and `InlineGlideTable`
+  recipe, as-of/period toolbar, cost KPI strip, inline ETC + reason, Print and
+  CSV. **Expenses** (`ExpensesView.tsx`): filters, Add expense, Import CSV, the
+  Glide ledger, footer totals and the shared `ExpenseModal`. Neither is a second
   budget engine (they read `computeCostReport`).
 - **Empty state** (`BudgetEmptyState.tsx`) is the only trigger when
   `project.budget === undefined`, regardless of sub-tab: Blank, Feature, From
-  schedule cards, Import budget JSON, and a "linked quantities update live —
-  reviewed sync" note. From schedule shows preview counts (shoot days, crew /
-  cast / location lines), not a wizard. The disclosure line states budgets are
+  schedule, Import JSON, and the "live links / reviewed sync" note. From
+  schedule previews counts, not a wizard. The disclosure says budgets are
   project state and visible to viewers.
 - `BudgetTab` owns the hidden JSON file input and the replace-budget confirm;
   `BudgetView` has its own Import button with the same parse + confirm.
@@ -214,28 +213,29 @@ Top-to-bottom, one scroll surface:
 
 ## 4b. Cost Report & Expenses views
 
-### Cost Report (`CostReportView.tsx`)
+### Cost Report — the Budget page's second view (`CostReportGrid.tsx`)
 
-- Toolbar: as-of date, period menu, counts, Print + CSV. KPI strip: Budget,
-  Actual, Committed, EFC, Variance (under/over + icon) and % Used. The table
-  expands category → account → line; account-level spend sits under an
-  "Unallocated" child and the project bucket is the final row.
+- Same rail (EFC + variance), filter/collapse and a cost KPI strip (Budget,
+  Actual, Committed, EFC, Variance, % Used).
+- The shared `InlineGlideTable` over `buildCostRows`: category → account → line
+  bands, the account "Unallocated" child and project bucket, with Budget,
+  Actual, Committed, ETC, EFC, Variance, % Used and Reason columns. No second
+  table renderer.
+- Toolbar: as-of date, period menu, counts, Print + CSV (the Cost Report
+  design via `ReportPrintDialog`; CSV writes the flat rows plus totals).
 - `computeCostReport(project, { asOf, from, to })` feeds every number. **A
-  period narrows the displayed Actual only — EFC/variance/% used stay as-of.**
-  Out-of-budget categories stay visible with a "Not in budget" cue; variance is
-  colour + icon + text, never colour alone.
-- Line rows edit `ETC` (`MoneyField` → `UPDATE_BUDGET_LINE { etcCents }` on
-  blur) and `Reason`; an override shows **Auto** to clear it. Edits are gated by
-  `readOnly || version.locked`. Print uses the Cost Report design via
-  `ReportPrintDialog`; CSV writes the flat rows plus totals.
+  period narrows Actual only — EFC/variance/% used stay as-of.** Out-of-budget
+  categories show a "not in budget" cue; variance is colour + arrow + text.
+- Line rows edit `ETC` (grid text editor → `BULK_UPDATE_BUDGET_LINES`) and
+  `Reason`; empty ETC clears the override, and right-click → **Use automatic
+  ETC** does the same. Edits are gated by `readOnly || version.locked`; print
+  keeps the DOM report table (never canvas).
 
 ### Expenses (`ExpensesView.tsx`, `ExpensesGrid.tsx`, `ExpenseModal.tsx`)
 
-- Filters: From/To, status, method, account (`SearchMenu` accordion of
-  categories with "All accounts"/"Unallocated" pinned) and production day (the
-  shared `DayPickerList`); **Clear** resets. Add expense creates an actual
-  expense and opens the modal; Import CSV parses into `BULK_ADD_EXPENSES`
-  (unmatched accounts/POs stay blank; skipped rows reported).
+- Filters: From/To, status, method, account (`SearchMenu`) and production day
+  (`DayPickerList`); **Clear** resets. Add expense opens the modal; Import CSV
+  parses into `BULK_ADD_EXPENSES` (blank unmatched accounts/POs; skips reported).
 - Ledger = shared `InlineGlideTable`: Date, Description, Account, Vendor,
   Method, Status, Amount, PO. Editable = white, read-only = grey; (i) opens
   the modal, trash deletes, right-click mirrors; copy/paste/fill ride the shared

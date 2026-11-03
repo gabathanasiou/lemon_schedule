@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChartNoAxesCombined, Library, Receipt, Wallet } from 'lucide-react';
+import { Library, Receipt, Wallet } from 'lucide-react';
 import { ThemeScope } from '@gabriel/ui-kit';
 import type { ReportDesign } from '../../types';
 import { useProject } from '../../store';
@@ -16,14 +16,14 @@ import { BudgetVersionMenu } from './BudgetVersionMenu';
 import { BudgetEmptyState } from './BudgetEmptyState';
 import { BudgetView } from './BudgetView';
 import { BudgetLibraryView } from './BudgetLibraryView';
-import { CostReportView } from './CostReportView';
 import { ExpensesView } from './ExpensesView';
 
 export type BudgetSubTab = 'budget' | 'cost' | 'expenses' | 'library';
 
+// `cost` is a VIEW place inside Budget (roadmap 349) — kept in the type and
+// the URL, but not a top-level pill.
 const SUB_TABS = [
   { id: 'budget' as const, label: 'Budget', icon: <Wallet className="w-3.5 h-3.5" /> },
-  { id: 'cost' as const, label: 'Cost Report', icon: <ChartNoAxesCombined className="w-3.5 h-3.5" /> },
   { id: 'expenses' as const, label: 'Expenses', icon: <Receipt className="w-3.5 h-3.5" /> },
   { id: 'library' as const, label: 'Library', icon: <Library className="w-3.5 h-3.5" /> },
 ];
@@ -117,7 +117,7 @@ export default function BudgetTab({
     <ThemeScope mode="light" surface="neutral" className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-strong)]">
       <PageToolbar
         tabs={SUB_TABS}
-        activeTab={subTab}
+        activeTab={subTab === 'cost' ? 'budget' : subTab}
         onChange={(id) => onSubTabChange(id as BudgetSubTab)}
         rightContent={versionMenu}
       />
@@ -143,12 +143,12 @@ export default function BudgetTab({
         />
       ) : subTab === 'library' ? (
         <BudgetLibraryView model={model} project={project} readOnly={locked} />
-      ) : subTab === 'cost' ? (
-        <CostReportView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} />
       ) : subTab === 'expenses' ? (
         <ExpensesView project={project} readOnly={!canWrite} />
+      ) : subTab === 'cost' ? (
+        <BudgetView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} mode="cost" onModeChange={onSubTabChange} />
       ) : (
-        <BudgetView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} />
+        <BudgetView model={model} project={project} readOnly={locked} onPrintDesign={onPrintDesign} mode="budget" onModeChange={onSubTabChange} />
       )}
     </ThemeScope>
   );
