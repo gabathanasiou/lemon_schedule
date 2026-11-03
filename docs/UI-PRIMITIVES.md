@@ -390,11 +390,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   tap-to-hover needs a real `:hover` rule — tap 1 applies it (sticky), tap 2 clicks. `(hover: hover)` /
   `(any-hover: hover)` are false on iPadOS and with no hovering pointer — either gate kills it. Hover
   is always a Tailwind `hover:` or `.group:hover`/`.group:focus-within`; sticky hover IS the feedback.
-- **Touch audit (331/335/337)**: plain controls act on tap 1; menu rows act on **pointerup**
+- **Touch audit (331/335/337/338)**: plain controls act on tap 1; menu rows act on **pointerup**
   (`coarseItemTap`) — never on a click iOS may swallow. Coarse submenus are ONE in-place card
-  (335): the parent stays in layout but invisible, the child FLIPs out of its box (modal
-  `playRectMorph`), Back morphs the parent back; Back is a normal `DropdownItem` naming the card.
-  Accordion = WIP/playground-only. Never change layout on hover/active (iOS drops the click on
-  reflow; TabFace delays its reveal 200ms); never cancel `pointerdown` (use `mousedown`); tooltips
-  clear on outside pointerdown; morph fields focus inside the tap. WebKit canNOT emulate the native
-  deferral — the motion-on nested case is the gate. Pen = finger.
+  (335): parent stays in layout but invisible, child FLIPs out of its box, Back morphs it back.
+  **A click only acts if its gesture started on that row** (338, `isGhostClick`): a late click
+  from the tap that opened the card otherwise runs the row that replaced it (child item / Back)
+  — the menu "dismisses itself". A reopen during the close morph ends at the natural state, not
+  the close's `opacity:0`. Never change layout on hover/active (iOS drops the click); never cancel
+  `pointerdown`; tooltips clear on outside pointerdown; morph fields focus inside the tap.

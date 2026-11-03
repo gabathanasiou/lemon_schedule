@@ -263,7 +263,11 @@ const E2E_SPEC_CAP = 71;
 // submenus + nested File → Print → Custom Reports + version picker, all on a
 // landscape iPhone (first-tap rows; a swallowed click is silent failure for a
 // settings change).
-const E2E_TEST_CAP = 294;
+// 294 → 296: roadmap 338 — a deferred (ghost) click from the tap that opened
+// a nested card must not run the row that replaced it, and a reopen inside the
+// close morph must leave a painted, interactive menu (both were silent
+// "the menu dismissed itself / nothing opened" failures).
+const E2E_TEST_CAP = 296;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -170,6 +170,98 @@ test.describe('Schedule tab with REAL motion', () => {
   await page.getByRole('menuitem', { name: 'Actor Scenario' }).tap();
   await expect(versionMenu).toBeHidden();
   });
+
+  /* Roadmap 338 — the "nested menu dismisses itself on a tap" bug. iOS can
+     deliver the click for a tap late (tap-to-hover deferral / retargeting
+     after the card under the finger changed). The nested card opens EXACTLY
+     over the row that was tapped, so that click used to land on a different
+     row (the first child item, or the Back row) and run it: the menu closed
+     and sometimes a setting changed. The invariant is per-row: a click may
+     only act if the SAME row received this gesture's pointerdown. */
+  test('a deferred click never activates the row that replaced the tapped one (338)', async ({ page }) => {
+    await bootPhone(page);
+    await page.setViewportSize({ width: 852, height: 393 });
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+    const trigger = page.locator('[data-presence-anchor="toolbar:schedule:view"]');
+    const viewMode = () => page.evaluate(() => localStorage.getItem('lemon_schedule_view_mode'));
+    const before = await viewMode();
+
+    /* A tap as iOS delivers it in the tap-to-hover model: pointer events,
+       click deferred. This opens the child card over the row. */
+    const tapNoClick = async (locator: import('@playwright/test').Locator) => {
+      const b = (await locator.boundingBox())!;
+      const pt = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const pressedAt = await page.evaluate(() => performance.now());
+      await locator.evaluate((el, p) => {
+        for (const type of ['pointerdown', 'pointerup']) {
+          el.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 1,
+            isPrimary: true, button: 0, buttons: type === 'pointerdown' ? 1 : 0,
+            clientX: p.x, clientY: p.y,
+          }));
+        }
+      }, pt);
+      return { pt, pressedAt };
+    };
+    /* The deferred click for that tap, landing where the finger was. The next
+       touch clears the one-shot swallow (exactly like the user's next tap),
+       so only the per-row guard can stop it. */
+    const ghostClick = async (pt: { x: number; y: number }, pressedAt: number) => {
+      /* The deferred click, landing on the row that replaced the tapped one.
+         It arrives AFTER the old one-shot 600ms swallow expired but inside the
+         ghost window — only the per-row guard can stop it. */
+      await page.waitForFunction((t) => performance.now() > t, pressedAt + 750);
+      await page.evaluate((p) => {
+        const el = document.elementFromPoint(p.x, p.y) as HTMLElement | null;
+        el?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1, clientX: p.x, clientY: p.y }));
+      }, pt);
+    };
+
+    // 1) Second row → the point under the finger is the first child item.
+    await trigger.tap();
+    const sub = page.getByRole('menuitem', { name: 'Stripboard View' });
+    let tap = await tapNoClick(sub);
+    await expect(page.getByRole('menuitem', { name: 'A4 Landscape' })).toBeVisible();
+    await ghostClick(tap.pt, tap.pressedAt);
+    await expect(page.getByRole('menuitem', { name: 'A4 Landscape' })).toBeVisible();
+    expect(await viewMode()).toBe(before);
+
+    // Back to the root with a real tap, then the first row → the point under
+    // the finger is now the Back row: a ghost must not "go back".
+    await page.locator('[data-submenu-back]').first().tap();
+    await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+    const first = page.getByRole('menuitem', { name: 'Ribbon Layout' });
+    tap = await tapNoClick(first);
+    await expect(page.getByRole('menuitem', { name: 'Default', exact: true })).toBeVisible();
+    await ghostClick(tap.pt, tap.pressedAt);
+    await expect(page.getByRole('menuitem', { name: 'Default', exact: true })).toBeVisible();
+  });
+
+  /* Roadmap 338 — rapid trigger taps. An open landing inside a close morph
+     used to finish by restoring the CLOSE's inline `opacity: 0`, leaving the
+     menu mounted, "open" and permanently invisible (the classic "tap, nothing
+     happens, tap again"). */
+  test('a reopen during the close morph leaves a painted, interactive menu (338)', async ({ page }) => {
+    await bootPhone(page);
+    await page.setViewportSize({ width: 852, height: 393 });
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible();
+    const trigger = page.locator('[data-presence-anchor="toolbar:schedule:view"]');
+    for (let i = 0; i < 6; i++) {
+      // open → close → open, as fast as a finger can tap.
+      await trigger.tap();
+      await trigger.tap();
+      await trigger.tap();
+      await expect.poll(
+        () => page.locator('[role="menu"]').first().evaluate(el => Number(getComputedStyle(el).opacity)),
+        { timeout: 2000, message: `round ${i}: three taps must leave a painted menu` },
+      ).toBe(1);
+      // …and it must actually work.
+      await page.getByRole('menuitem', { name: 'Ribbon Layout' }).tap();
+      await expect(page.getByRole('menuitem', { name: 'Default', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[role="menu"]')).toHaveCount(0, { timeout: 2000 });
+    }
+  });
 });
 
 test('landscape: the full chrome returns and a calendar day modal opens', async ({ page }) => {
