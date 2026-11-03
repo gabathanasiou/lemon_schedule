@@ -15,8 +15,10 @@ import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import { budgetReportDesigns } from '../../lib/budget/reportTemplates';
 import { buildScheduleDiffApply, computeScheduleBudgetDiff } from '../../lib/budget/diff';
-import { SectionTile } from './SectionTile';
-import { BudgetGrid, clearBudgetCollapse, type BudgetGridCommit } from './BudgetGrid';
+import { BudgetGrid, type BudgetGridCommit } from './BudgetGrid';
+import { BudgetKpis } from './BudgetKpis';
+import { CategoryRail, type CategoryRailItem } from './CategoryRail';
+import { clearBudgetCollapse } from './sheetCollapse';
 import { BudgetLineModal } from './BudgetLineModal';
 import { BudgetNodeModal } from './BudgetNodeModal';
 import { ScheduleReviewModal } from './ScheduleReviewModal';
@@ -359,6 +361,13 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
 
   const totals = model.totals;
   const categoryTotal = focusCategoryId ? model.categories.find(c => c.category.id === focusCategoryId) : undefined;
+  const railItems: CategoryRailItem[] = model.categories.map(cat => ({
+    id: cat.category.id,
+    number: cat.category.number,
+    name: cat.category.name,
+    meta: formatPercent(cat.percentOfGrand, 1),
+    amountCents: cat.totalCents,
+  }));
   const linkedLabel = model.linkedLineCount > 0
     ? `${model.linkedLineCount} line${model.linkedLineCount === 1 ? ' follows' : 's follow'} the schedule`
     : 'No lines linked to the schedule';
@@ -455,64 +464,19 @@ export function BudgetView({ model, project, readOnly, onPrintDesign }: { model:
         </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 px-3 py-2 border-b border-[color:var(--ui-border)] shrink-0">
-        <SectionTile label="Grand total" value={formatMoney(totals.grandTotalCents, settings)} />
-        <SectionTile label="ATL" value={formatMoney(totals.byGroup.atl, settings)} tone="muted" />
-        <SectionTile label="BTL" value={formatMoney(totals.byGroup.btl, settings)} tone="muted" />
-        <SectionTile label="Post" value={formatMoney(totals.byGroup.post, settings)} tone="muted" />
-        <SectionTile label="Fringes" value={formatMoney(totals.fringeCents, settings)} tone="muted" />
-        <SectionTile label="Contingency" value={formatMoney(totals.markupCents, settings)} tone="muted" />
-      </div>
+      <BudgetKpis mode="budget" model={model} report={null} />
 
       <div className="flex-1 flex min-h-0">
-        <div
-          className="w-52 shrink-0 border-r border-[color:var(--ui-border)] overflow-y-auto scrollbar-custom bg-[var(--ui-panel-bg)]"
-          onContextMenu={(e) => {
-            // Blank rail space → the category manager menu with New category.
-            if (readOnly) return;
-            e.preventDefault();
-            setRailMenu({ x: e.clientX, y: e.clientY });
-          }}
-          data-budget-category-rail
-        >
-          <button
-            type="button"
-            onClick={() => { unfoldAll(); setFocusCategoryId(null); }}
-            className={`w-full text-left px-3 py-2 text-xs border-b border-l-2 border-[color:var(--ui-border)] ${focusCategoryId === null ? 'border-l-[color:var(--ui-accent-header-fill)] bg-[var(--ui-item-hover-bg)] font-semibold text-[color:var(--ui-text-strong)]' : 'border-l-transparent text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]'}`}
-          >
-            All categories
-          </button>
-          {model.categories.map(cat => (
-            <button
-              key={cat.category.id}
-              type="button"
-              onClick={() => { unfoldAll(); setFocusCategoryId(focusCategoryId === cat.category.id ? null : cat.category.id); }}
-              onContextMenu={(e) => {
-                if (readOnly) return;
-                e.preventDefault();
-                e.stopPropagation();
-                setRailMenu({ x: e.clientX, y: e.clientY, categoryId: cat.category.id });
-              }}
-              className={`w-full text-left px-3 py-2 border-b border-l-2 border-[color:var(--ui-border)] ${focusCategoryId === cat.category.id ? 'border-l-[color:var(--ui-accent-header-fill)] bg-[var(--ui-item-hover-bg)] font-semibold text-[color:var(--ui-text-strong)]' : 'border-l-transparent text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]'}`}
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] font-semibold truncate">{cat.category.number} {cat.category.name}</span>
-                <span className="text-[10px] shrink-0">{formatPercent(cat.percentOfGrand, 1)}</span>
-              </div>
-              <div className="text-[10px] opacity-80">{formatMoney(cat.totalCents, settings)}</div>
-            </button>
-          ))}
-          {!readOnly && (
-            <button
-              type="button"
-              onClick={addCategory}
-              className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)]"
-              data-budget-new-category
-            >
-              <Plus className="w-3 h-3" /> New category
-            </button>
-          )}
-        </div>
+        <CategoryRail
+          items={railItems}
+          settings={settings}
+          focusCategoryId={focusCategoryId}
+          onFocus={(id) => { unfoldAll(); setFocusCategoryId(id); }}
+          mode="budget"
+          readOnly={readOnly}
+          onAddCategory={addCategory}
+          onMenu={(e, categoryId) => setRailMenu({ x: e.clientX, y: e.clientY, categoryId })}
+        />
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <BudgetGrid

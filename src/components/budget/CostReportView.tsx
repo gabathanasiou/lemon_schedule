@@ -5,6 +5,7 @@ import type { BudgetModel } from '../../lib/budget/calc';
 import type { CostAccountNode, CostCategoryNode, CostRow } from '../../lib/budget/costReport';
 import { computeCostReport } from '../../lib/budget/costReport';
 import { isoToday } from '../../lib/budget/model';
+import { PERIOD_LABELS, periodRange, periodLabel, type PeriodKey } from '../../lib/budget/period';
 import { formatMoney, formatPercent } from '../../lib/budget/format';
 import { costReportFilename, downloadFile, exportCostReportCsv } from '../../lib/budget/export';
 import { costReportDesign } from '../../lib/budget/reportTemplates';
@@ -16,42 +17,6 @@ import DropdownDivider from '../DropdownDivider';
 import DateField from '../DateField';
 import { BudgetInput, MoneyField } from './fields';
 import { SectionTile } from './SectionTile';
-
-type PeriodKey = 'all' | 'month' | 'quarter' | 'year' | 'custom';
-
-const PERIOD_LABELS: Record<PeriodKey, string> = {
-  all: 'All time',
-  month: 'This month',
-  quarter: 'This quarter',
-  year: 'This year',
-  custom: 'Custom range',
-};
-
-const pad = (n: number) => String(n).padStart(2, '0');
-
-function lastDayOfMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
-/** The as-of month/quarter/year window as ISO from/to (local calendar math). */
-function periodRange(key: PeriodKey, asOf: string): { from?: string; to?: string } {
-  if (key === 'all') return {};
-  const year = Number(asOf.slice(0, 4));
-  const month = Number(asOf.slice(5, 7));
-  if (!year || !month) return {};
-  if (key === 'month') {
-    return { from: `${asOf.slice(0, 7)}-01`, to: `${asOf.slice(0, 7)}-${pad(lastDayOfMonth(year, month))}` };
-  }
-  if (key === 'quarter') {
-    const startMonth = Math.floor((month - 1) / 3) * 3 + 1;
-    const endMonth = startMonth + 2;
-    return {
-      from: `${year}-${pad(startMonth)}-01`,
-      to: `${year}-${pad(endMonth)}-${pad(lastDayOfMonth(year, endMonth))}`,
-    };
-  }
-  return { from: `${year}-01-01`, to: `${year}-12-31` };
-}
 
 function VarianceCell({ cents, settings }: { cents: number; settings: Parameters<typeof formatMoney>[1] }) {
   if (cents === 0) return <span className="text-[color:var(--ui-text-muted)]">{formatMoney(0, settings)}</span>;
@@ -151,9 +116,7 @@ export function CostReportView({
   };
 
   const totals = report?.totals;
-  const periodLabel = period === 'custom'
-    ? (customFrom || customTo ? `${customFrom || '…'} → ${customTo || '…'}` : 'Custom range')
-    : PERIOD_LABELS[period];
+  const periodText = periodLabel(period, customFrom, customTo);
 
   const columnCount = 9;
   const lineCellPad = 'px-2 py-1';
@@ -299,7 +262,7 @@ export function CostReportView({
           onOpenChange={setPeriodOpen}
           width="w-44"
           theme="light"
-          trigger={<Button theme="light"><span className="truncate">{periodLabel}</span></Button>}
+          trigger={<Button theme="light"><span className="truncate">{periodText}</span></Button>}
         >
           {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(key => (
             <DropdownItem

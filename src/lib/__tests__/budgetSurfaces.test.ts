@@ -7,6 +7,7 @@ import { applyRatesToCurrencies, fetchDailyRates, formatRatesSyncedAt } from '..
 import { currencySymbolFor, DEFAULT_BUDGET_CURRENCIES, makeBudgetLine, mergeDefaultCurrencies, settingsWithCurrency } from '../budget/model';
 import { templateBudget } from '../budget/templates';
 import { expenseStatusTone, EXPENSE_STATUS_TONES } from '../budget/statusTones';
+import { periodRange, periodLabel } from '../budget/period';
 
 function sampleModel() {
   const p = makeBlankProject('Grid Rows');
@@ -170,5 +171,23 @@ describe('formula functions + book (roadmap 346)', () => {
     expect(frag).toEqual({ start: 6, fragment: 'SH' });
     const inserted = insertFormulaText('Qty * SH', 8, 'SHOOT_DAYS');
     expect(inserted).toEqual({ next: 'Qty * SHOOT_DAYS', caret: 16 });
+  });
+});
+
+describe('cost report period windows (roadmap 349)', () => {
+  it('derives month, quarter and year ranges from the as-of date', () => {
+    expect(periodRange('all', '2026-11-03')).toEqual({});
+    expect(periodRange('month', '2026-11-03')).toEqual({ from: '2026-11-01', to: '2026-11-30' });
+    expect(periodRange('quarter', '2026-11-03')).toEqual({ from: '2026-10-01', to: '2026-12-31' });
+    expect(periodRange('year', '2026-11-03')).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+    expect(periodRange('month', '2028-02-10')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+  });
+
+  it('leaves custom ranges to the picker and labels the selection', () => {
+    expect(periodRange('custom', '2026-11-03')).toEqual({});
+    expect(periodLabel('month', '', '')).toBe('This month');
+    expect(periodLabel('custom', '', '')).toBe('Custom range');
+    expect(periodLabel('custom', '2026-10-01', '2026-10-31')).toBe('2026-10-01 → 2026-10-31');
+    expect(periodRange('month', '')).toEqual({});
   });
 });

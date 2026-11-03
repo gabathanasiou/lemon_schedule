@@ -8,6 +8,11 @@ import { buildBudgetRows, collapseBudgetRows, filterBudgetRows, type BudgetGridR
 import { formatMoney } from '../../lib/budget/format';
 import type { BudgetModel, ComputedBudgetLine } from '../../lib/budget/calc';
 import type { BudgetLine, BudgetSettings } from '../../types';
+import { budgetBandTheme } from './budgetBandTheme';
+import {
+  collapsedAccountIds, collapsedCategoryIds, isAccountCollapsed, isCategoryCollapsed,
+  toggleAccountCollapse, toggleCategoryCollapse,
+} from './sheetCollapse';
 
 /** One semantic edit from the budget grid (already translated from a Glide
  *  cell edit), committed by the view in one undo entry. */
@@ -32,24 +37,6 @@ const COLUMNS: InlineGlideColumn[] = [
 ];
 
 const EDITABLE = new Set(['item', 'qty', 'unit', 'rate', 'x', 'cur', 'fringes', 'groups']);
-const CATEGORY_BG = '#e8e8ea';
-const ACCOUNT_BG = '#f6f6f7';
-const STRONG_TEXT = '#18181b';
-const ACCOUNT_TEXT = '#3f3f46';
-
-/** Collapse state is VIEW-ONLY and per session: module-level so a day/tab
- *  switch (the view unmounting) keeps it, never project/undo/presence state. */
-const COLLAPSED_CATEGORIES = new Set<string>();
-const COLLAPSED_ACCOUNTS = new Set<string>();
-
-/** Selecting a category in the rail (or adding one) unfolds every band —
- *  the user is navigating, not preserving a collapsed view. The caller bumps
- *  `viewEpoch` so the grid recomputes even when the focus id itself is
- *  unchanged ("All categories" while already showing all). */
-export function clearBudgetCollapse(): void {
-  COLLAPSED_CATEGORIES.clear();
-  COLLAPSED_ACCOUNTS.clear();
-}
 
 /**
  * The editable budget detail sheet — the shared `InlineGlideTable` recipe with
@@ -101,13 +88,11 @@ export function BudgetGrid({
    *  re-renders the flattened rows (never a project/undo write). */
   const [viewRev, bumpView] = React.useReducer((x: number) => x + 1, 0);
   const toggleCategory = React.useCallback((id: string) => {
-    if (COLLAPSED_CATEGORIES.has(id)) COLLAPSED_CATEGORIES.delete(id);
-    else COLLAPSED_CATEGORIES.add(id);
+    toggleCategoryCollapse(id);
     bumpView();
   }, []);
   const toggleAccount = React.useCallback((id: string) => {
-    if (COLLAPSED_ACCOUNTS.has(id)) COLLAPSED_ACCOUNTS.delete(id);
-    else COLLAPSED_ACCOUNTS.add(id);
+    toggleAccountCollapse(id);
     bumpView();
   }, []);
 
@@ -118,7 +103,7 @@ export function BudgetGrid({
   );
   const filteredRows = React.useMemo(() => filterBudgetRows(allRows, filter), [allRows, filter]);
   const rows = React.useMemo(
-    () => collapseBudgetRows(filteredRows, COLLAPSED_CATEGORIES, COLLAPSED_ACCOUNTS),
+    () => collapseBudgetRows(filteredRows, collapsedCategoryIds(), collapsedAccountIds()),
     // viewRev/viewEpoch are the mutation signals for the module-level collapse
     // sets (local toggle vs rail-driven unfold-all).
     [filteredRows, viewRev, viewEpoch],
@@ -274,10 +259,7 @@ export function BudgetGrid({
 
   const rowTheme = React.useCallback((rowIndex: number) => {
     const row = rowMeta.get(rowIndex);
-    if (!row) return undefined;
-    if (row.kind === 'category') return { bgCell: CATEGORY_BG, textDark: STRONG_TEXT, textMedium: STRONG_TEXT, textLight: STRONG_TEXT };
-    if (row.kind === 'account') return { bgCell: ACCOUNT_BG, textDark: ACCOUNT_TEXT, textMedium: ACCOUNT_TEXT, textLight: ACCOUNT_TEXT };
-    return undefined;
+    return row ? budgetBandTheme(row.kind) : undefined;
   }, [rowMeta]);
 
   /** Persistent trash column — every deletable row gets its own glyph. */
@@ -324,15 +306,15 @@ export function BudgetGrid({
         if (row.hasChildren !== '1') return textCell('', { readonly: true, allowOverlay: false });
         if (kind === 'category') {
           return disclosureGlyphCell({
-            expanded: !COLLAPSED_CATEGORIES.has(row.id),
-            label: `${COLLAPSED_CATEGORIES.has(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
+            expanded: !isCategoryCollapsed(row.id),
+            label: `${isCategoryCollapsed(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
             onActivate: () => toggleCategory(row.id),
           });
         }
         if (kind === 'account') {
           return disclosureGlyphCell({
-            expanded: !COLLAPSED_ACCOUNTS.has(row.id),
-            label: `${COLLAPSED_ACCOUNTS.has(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
+            expanded: !isAccountCollapsed(row.id),
+            label: `${isAccountCollapsed(row.id) ? 'Expand' : 'Collapse'} ${row.item}`,
             onActivate: () => toggleAccount(row.id),
           });
         }
