@@ -2,6 +2,49 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-11-03 — Menus keep the first tap
+
+**Features**
+- **Budget** — the Cost Report is now a Budget view: a full sheet of the numbers instead of a dialog.
+
+**Bug fixes**
+- **iPhone** — the first tap now opens menus and nested cards, menus no longer dismiss themselves, and Edit, help, Print and every other button act on the tap.
+- **iPhone** — the help button has its icon back.
+- **Schedule** — the View and Sort menus open exactly under their button.
+
+**Changes**
+- **Menus** — a nested menu is one card that grows into the child and morphs back.
+- **Header and page tabs** — collapsing into their icon forms animates instead of snapping.
+
+## 2026-10-31 — Budgets compare and scroll
+
+**Features**
+- **Budget** — compare budget versions side by side.
+
+**Bug fixes**
+- **Budget** — the grid pickers are back, and the arrow keys no longer collapse a group.
+- **Tables** — fill-mode grids scroll their own rows with the wheel and the scrollbar.
+
+## 2026-10-30 — Budgets arrive, overtime included
+
+**Features**
+- **Budget** — the new Budget tab: estimate on a sheet, pick from a Library of fringes, markups, globals and phases, and link lines to the schedule.
+- **Budget** — a Cost Report and an Expenses ledger; add an expense from the Day Manager, or a budget line from an account's menu.
+- **Budget** — overtime: set the policy and see overtime on a day, in the sheet and in reports.
+- **Budget** — review schedule changes against the budget and pull in the ones you accept.
+- **Reports** — budget tables and templates.
+- **Design** — the main action wears the project's header colour, and dialogs take the same accent surface.
+- **Tables** — cells can be editable or read-only, with proper tick and status glyphs.
+- **iPhone** — menus stay on screen, tooltips clear on an outside tap, and the first tap lands.
+
+**Bug fixes**
+- **Expenses** — the editor's pickers open and the date stays readable in a locked project.
+- **Reports** — measured report layouts print on white paper.
+
+**Changes**
+- **Budget** — fringe totals, status tones, currency syncing and a formula book; the sheet gains bands, a row filter and tidier line actions.
+- **Budget** — versions start blank, currency symbols follow the line, and fringe groups are clearer.
+
 ## 2026-10-29 — Every sheet gets a rebuilt grid
 
 **Features**
