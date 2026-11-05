@@ -200,7 +200,7 @@ test.describe('Budget', () => {
         // Single click selects; Enter opens the overlay editor. A double-click
         // would let the focus scroll shift the second click onto the next row.
         await page.keyboard.press('Enter');
-        const editor = page.locator('#portal textarea, #portal input').first();
+        const editor = page.locator('#portal textarea:not([disabled]), #portal input:not([disabled])').first();
         await expect(editor).toBeVisible({ timeout: 5000 });
         // Fill through the overlay input directly — the editor can open before
         // its input takes focus under parallel load, and `fill` owns focus.
