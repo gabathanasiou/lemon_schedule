@@ -131,19 +131,6 @@ seed→scale mapper if stage 4 lands.
 (blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
 (overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
 
-## 313. Kit RichTextEditor / FormatToolbar tokenisation (`[ ]`)
-
-**Request**: the last kit surface that is dark-only. Move `RichTextEditor`, `FormatToolbar` and the
-`TB_*` editor chrome onto `--ui-*` tokens so they follow mode/accent/surface like every other
-primitive (302).
-
-**Approach**: kit `src/RichTextEditor.tsx`, `src/FormatToolbar.tsx`, `src/EditorChrome.tsx` `TB_*`
-recipes; replace zinc/blue literals with token classes; set `data-mode`/`data-accent` on the editor
-root; keep ProseMirror content styles and staged-token behavior. Light + dark + accent surfaces.
-**Verify**: kit `rich-text-formatting.spec.ts` + `rich-text-staged-tokens.spec.ts` in both modes;
-`npm run lint`; no app adoption until the kit tag ships.
-**Relations**: 302. App adoption follows through 310 when a modal hosts the editor.
-
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
 **Relations**: extends the debug bridge (AGENTS.md §Agentic Debug Bridge);
