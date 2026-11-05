@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { GridSelection, Highlight } from '@glideapps/glide-data-grid';
+import type { GridSelection, Rectangle } from '@glideapps/glide-data-grid';
 import { usePresenceActions, usePresenceSelections } from './supabase/presenceContext';
 import { useCurrentWindow } from './popoutTarget';
 import { avatarColor } from './avatarIdentity';
-import { effectiveGridRange, resolveSelectionRange, selectionRangeToWire, withAlpha } from './glideSelection';
+import { effectiveGridRange, resolveSelectionRange, selectionRangeToWire } from './glideSelection';
 import { isItemSelection, selectionKey } from './supabase/presence';
 
 /**
@@ -11,11 +11,12 @@ import { isItemSelection, selectionKey } from './supabase/presence';
  *
  * Every instance participates on its own: the hook PUBLISHES this grid's
  * selection (keyed by `scope`, throttled/idle-skipped in the channel) and
- * RESOLVES the peers' selections for the same scope into `highlightRegions`
- * for this grid's `DataEditor`. Because both halves are per-instance and use
- * the instance's own geometry, the highlight works in every mounted
- * instance — the main window, a pop-out window, a portalled canvas — with
- * that client's own scroll, column widths and font scale.
+ * RESOLVES the peers' selections for the same scope into cell ranges for
+ * `GlidePeerSelectionTags` (peer-colour border + name tag). Because both
+ * halves are per-instance and use the instance's own geometry, the highlight
+ * works in every mounted instance — the main window, a pop-out window, a
+ * portalled canvas — with that client's own scroll, column widths and font
+ * scale.
  *
  * Lifecycle rules (docs/PRESENCE.md): ephemeral only; a cleared
  * selection, a blurred/hidden window and unmounting the grid all publish the
@@ -30,8 +31,17 @@ import { isItemSelection, selectionKey } from './supabase/presence';
  * the highlight, the pointer and the header bubble always agree.
  */
 
-/** Peer-selection fill opacity — visible under text, never shouting over it. */
-const PEER_SELECTION_ALPHA = 0.16;
+/** One peer's selected cell range, resolved in THIS grid's coordinates. */
+export interface GlidePeerSelectionRange {
+  userId: string;
+  name: string;
+  /** Opaque avatar colour — the border and the name tag share it. */
+  color: string;
+  range: Rectangle;
+  /** The peer has a cell editor open — the border thickens and their live
+   *  pointer is hidden (docs/PRESENCE.md). */
+  editing: boolean;
+}
 
 export function useGlidePeerSelection(opts: {
   /** Stable logical-surface id; falsy = this instance stays out of presence. */
@@ -42,8 +52,10 @@ export function useGlidePeerSelection(opts: {
   rowKeys: string[];
   /** Column keys in grid order. */
   colKeys: string[];
-}): Highlight[] | undefined {
-  const { scope, selection, rowKeys, colKeys } = opts;
+  /** This grid has a cell editor open right now. */
+  editing?: boolean;
+}): GlidePeerSelectionRange[] {
+  const { scope, selection, rowKeys, colKeys, editing = false } = opts;
   const actions = usePresenceActions();
   const peers = usePresenceSelections();
   // One stable identity per hook instance for the provider's owner check.
@@ -52,8 +64,8 @@ export function useGlidePeerSelection(opts: {
 
   // The publish path reads the freshest geometry through a ref so the
   // effect deps stay (selection, keys) — never a stale closure.
-  const latestRef = useRef({ selection, rowKeys, colKeys });
-  latestRef.current = { selection, rowKeys, colKeys };
+  const latestRef = useRef({ selection, rowKeys, colKeys, editing });
+  latestRef.current = { selection, rowKeys, colKeys, editing };
 
   const publish = useCallback(() => {
     if (!scope) return;
@@ -61,14 +73,14 @@ export function useGlidePeerSelection(opts: {
     const range = effectiveGridRange(latest.selection, latest.rowKeys.length, latest.colKeys.length);
     actions.publishSelection(
       ownerRef.current,
-      range ? selectionRangeToWire(scope, range, latest.rowKeys, latest.colKeys) : null,
+      range ? selectionRangeToWire(scope, range, latest.rowKeys, latest.colKeys, latest.editing) : null,
     );
   }, [actions, scope]);
 
   // Publish on every selection change (the channel idle-skips repeats).
   useEffect(() => {
     publish();
-  }, [publish, selection, rowKeys, colKeys]);
+  }, [publish, selection, rowKeys, colKeys, editing]);
 
   // Clear while the owning window is away (user decision: blur/window switch
   // hides the selection; returning republishes it), and on grid unmount.
@@ -102,7 +114,7 @@ export function useGlidePeerSelection(opts: {
     if (!scope) return '';
     return peers
       .filter(p => p.selection.scope === scope && !isItemSelection(p.selection))
-      .map(p => `${p.userId}§${selectionKey(p.selection)}`)
+      .map(p => `${p.userId}§${p.name}§${selectionKey(p.selection)}`)
       .sort()
       .join('|');
   }, [peers, scope]);
@@ -110,15 +122,21 @@ export function useGlidePeerSelection(opts: {
   const peersRef = useRef(peers);
   peersRef.current = peers;
 
-  return useMemo<Highlight[] | undefined>(() => {
-    if (!scope || !signature) return undefined;
-    const out: Highlight[] = [];
+  return useMemo<GlidePeerSelectionRange[]>(() => {
+    if (!scope || !signature) return [];
+    const out: GlidePeerSelectionRange[] = [];
     for (const p of peersRef.current) {
       if (p.selection.scope !== scope || isItemSelection(p.selection)) continue;
       const range = resolveSelectionRange(p.selection, rowKeys, colKeys);
       if (!range) continue;
-      out.push({ color: withAlpha(avatarColor(p.userId), PEER_SELECTION_ALPHA), range, style: 'solid' });
+      out.push({
+        userId: p.userId,
+        name: p.name,
+        color: avatarColor(p.userId),
+        range,
+        editing: p.selection.editing === true,
+      });
     }
-    return out.length > 0 ? out : undefined;
+    return out;
   }, [scope, signature, rowKeys, colKeys]);
 }

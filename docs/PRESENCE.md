@@ -94,11 +94,12 @@ persisted, never in the project JSON, never a room action.
   Registered today: `breakdown-glide`, every `InlineGlideTable` instance (Day
   Manager Call Times/Crew, Precalls, the Call Sheet grids — scopes like
   `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`, and the
-  Budget surfaces `budget:detail` / `budget:cost` / `budget:expenses`) and
-  `GlideGridShell` (`crew-glide`, `locations-glide`). A cell scrolled out of
-  the grid's visible area is hidden, never painted over chrome. Budget view
-  gates are the sub-tab itself (`budget` / `cost` / `expenses` / `library`), so
-  a peer on another Budget view shows no pointer or selection there.
+  Budget surfaces `budget:detail` / `budget:cost` / `budget:expenses` /
+  `budget:library:<key>`) and `GlideGridShell` (`crew-glide`,
+  `locations-glide`). A cell scrolled out of the grid's visible area is hidden,
+  never painted over chrome. Budget view gates are the sub-tab itself
+  (`budget` / `cost` / `expenses` / `library`), so a peer on another Budget view
+  shows no pointer or selection there.
 
 ## Visibility gates
 
@@ -114,6 +115,10 @@ persisted, never in the project JSON, never a room action.
     either side falls back to the place rule. The header/toolbar pointers
     follow the same gates — nothing floats over a view the peer isn't looking
     at, and the header bubbles remain the way to jump to a colleague's place.
+  - the peer does **not** have an open CELL EDITOR on a Grid — a cell editor is
+    a local-only overlay, so the peer's pointer is hidden while they edit (the
+    thickened selection border is the signal). Same hide-don't-fake rule as
+    menus/modals.
   Anchors that resolve off this client's viewport are hidden (no edge chips).
   Rendered script lines are anchored per block (roadmap 252, above); a future
   editable script CARET stays flagged, not faked (TipTap/ProseMirror relative
@@ -174,15 +179,19 @@ persisted, never in the project JSON, never a room action.
     data coordinates (stable row/column KEYS plus the sender's indices as the
     clamp fallback). `breakdown-glide`, `crew-glide`, `locations-glide`,
     `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`, the
-    Budget grids (`budget:detail`, `budget:cost`, `budget:expenses`). Every
-    MOUNTED instance publishes its own selection (multi-window = newest window
-    wins per user) and paints the peers' ones itself from its own geometry via
-    Glide's native `highlightRegions` (peer-colour fill + solid ring) — one
-    shared hook (`useGlidePeerSelection`), so it works in the main window AND
+    Budget grids (`budget:detail`, `budget:cost`, `budget:expenses`,
+    `budget:library:<key>`). Every MOUNTED instance publishes its own selection
+    (multi-window = newest window wins per user) and paints the peers' ones
+    itself from its own geometry — one shared hook (`useGlidePeerSelection`) +
+    ONE overlay (`GlidePeerSelectionTags`), so it works in the main window AND
     in pop-out windows / portalled canvases, correct through differing scroll,
-    column widths and font scale. Opt-out = no `scope` (grids inside modals,
-    e.g. the crew-template editor). Manual: docs/GLIDE-BREAKDOWN.md §Peer
-    selection highlights.
+    column widths and font scale. **No background fill**: a peer range draws a
+    2px border in their colour plus a small name tag at its first cell; while
+    the peer has a cell editor open the border thickens to 4px and their live
+    pointer hides (`editing` rides the same frame). A border whose first cell
+    scrolled away keeps its visible remainder but drops the tag. Opt-out = no
+    `scope` (grids inside modals, e.g. the crew-template editor). Manual:
+    docs/GLIDE-BREAKDOWN.md §Peer selection highlights.
   - **DOM surfaces (stage 2)**: `{ scope, items }` — the stable element ids the
     surface's own DOM already wears (`data-row-id` on stripboard rows and
     Calendar cards, `data-event-key` on events-mode cards, `data-block-id` on
@@ -306,16 +315,17 @@ persisted, never in the project JSON, never a room action.
     scene id + scenes index and resolved back through scene NUMBERS, so a
     different doc order still lands right; the jump is rAF-deferred past the
     mount-time scroll-memory restore.
-  - the **scroll position** of the stripboard, Calendar, Sheet and Glide grid —
-    a separate `scroll` broadcast (~8/s, coalescing + idle skip) with SEMANTIC
-    anchors (never pixels): the top-edge item's key + a 0..1 offset, sampled
-    and applied by `src/lib/presenceScroll.ts` (binary search over item
+  - the **scroll position** of the stripboard, Calendar, Sheet and EVERY Glide
+    grid — a separate `scroll` broadcast (~8/s, coalescing + idle skip) with
+    SEMANTIC anchors (never pixels): the top-edge item's key + a 0..1 offset,
+    sampled and applied by `src/lib/presenceScroll.ts` (binary search over item
     offsetTops + one calibration rect) through the surface registry that
     `usePresenceScrollSurface` wires per surface. The stripboard carries a
     coarse day-block fallback for rows outside the receiver's render window
-    (land → render → re-align); the Breakdown Glide grid uses its first visible
-    cell + `scrollTo` (inline Glide tables — Day Manager, Budget — publish
-    pointers/selections but not scroll). Only the main window publishes/applies
+    (land → render → re-align). `GlideGridShell` and `BreakdownTabGlide` use
+    their scope's top-left cell; every `InlineGlideTable` publishes under its
+    own presence scope (`budget:detail`, `day:3:times:cast`, …), so several
+    mounted grids follow independently. Only the main window publishes/applies
     surface state — popout instances stay out, parity with the live-pointer rule.
   - **User decisions (2026-10-12, corrected same day): scrolling yourself
     NEVER ends follow** — look around freely; there is no pause state, your

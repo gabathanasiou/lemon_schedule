@@ -41,6 +41,9 @@ export interface PresenceScrollSurfaceOptions {
   /** Canvas surfaces: sample/target the surface's own scroll API instead. */
   sample?: () => ScrollItemSample | null;
   apply?: (sample: PresenceScrollSample) => void;
+  /** False = don't publish or receive on this surface (e.g. a grid without a
+   *  presence scope). Defaults true. */
+  enabled?: boolean;
 }
 
 /** Canvas region changes this soon after our own apply are its echo. */
@@ -49,7 +52,7 @@ const CANVAS_ECHO_MS = 250;
 export function usePresenceScrollSurface(options: PresenceScrollSurfaceOptions): { notify: () => void; enabled: boolean } {
   const actions = usePresenceActions();
   const isPopout = !!usePopoutWindow();
-  const enabled = !isPopout;
+  const enabled = !isPopout && options.enabled !== false;
   const optionsRef = useRef(options);
   optionsRef.current = options;
   // Where our own apply landed (DOM surfaces) / when it happened (canvas).

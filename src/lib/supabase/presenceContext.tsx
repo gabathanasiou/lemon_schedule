@@ -768,14 +768,16 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       const prev = newest.get(s.userId);
       if (!prev || s.ts >= prev.ts) newest.set(s.userId, { selection: s.selection, ts: s.ts });
     }
+    const names = new Map(peersRef.current.map(p => [p.userId, p.name]));
     const out: PresencePeerSelection[] = [];
     for (const [userId, s] of newest) {
-      if (s.selection) out.push({ userId, selection: s.selection });
+      if (s.selection) out.push({ userId, name: names.get(userId) ?? 'Someone', selection: s.selection });
     }
     return out;
-    // The version counter is the change signal (the map itself is a ref).
+    // The version counter is the change signal (the map itself is a ref);
+    // `peers` covers a display-name change without a new selection edge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionVersion]);
+  }, [selectionVersion, peers]);
 
   // Live drag claims (newest window wins, TTL handled by resolveDragClaims).
   // The signature keeps the array identity stable across heartbeats and

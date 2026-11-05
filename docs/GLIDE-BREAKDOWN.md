@@ -254,18 +254,22 @@ a funnel (no accent tint); the expanded field's leading icon matches.
 Every Glide grid participates in peer-selection presence through ONE shared seam — never per-surface
 copies:
 
-- **`useGlidePeerSelection({ scope, selection, rowKeys, colKeys })`**
+- **`useGlidePeerSelection({ scope, selection, rowKeys, colKeys, editing })`**
   (`src/lib/useGlidePeerSelection.ts`) publishes this instance's selection (via the presence
   channel's throttled/idle-skipped `selection` broadcast) and resolves the peers' selections for the
-  same scope into Glide's native `highlightRegions` (peer colour fill + solid ring). Geometry lives
-  in `src/lib/glideSelection.ts` (`effectiveGridRange` — also the shared copy/cut/clear rectangle —
-  plus the wire encode/decode and `withAlpha`); wire shapes + parsers in
-  `src/lib/supabase/presence.ts` (`PresenceGridSelection`, `parseSelectionPayload`, `selectionKey`).
+  same scope into `GlidePeerSelectionTags` (peer-colour border + name tag). No canvas fill: the
+  dedicated DOM overlay draws a 2px border in the peer's colour with a name tag at the first cell;
+  while the peer has a cell editor open the border is 4px and their live pointer is hidden
+  (`editing` rides the selection frame). Geometry lives in `src/lib/glideSelection.ts`
+  (`effectiveGridRange` — also the shared copy/cut/clear rectangle — plus the wire encode/decode
+  and `withAlpha`); wire shapes + parsers in `src/lib/supabase/presence.ts`
+  (`PresenceGridSelection`, `parseSelectionPayload`, `selectionKey`).
 - **`scope` names the LOGICAL grid, never the instance** — `breakdown-glide`, `crew-glide`,
   `locations-glide`, `day:<sectionIndex>:times:<category>`, `day:<sectionIndex>:crew:<dept>`,
-  `callsheet:<sectionIndex>:…`. It must match across clients; the day/place identity in the scope is
+  `callsheet:<sectionIndex>:…`, `budget:detail` / `budget:cost` / `budget:expenses` /
+  `budget:library:<key>`. It must match across clients; the day/place identity in the scope is
   what keeps the highlight off a different day's table (there is no separate same-view gate).
-- **Every mounted instance renders its own highlights with its own geometry**, so the highlight is
+- **Every mounted instance renders its own border/tag with its own geometry**, so the highlight is
   correct through differing scroll/column widths/font scale and shows in pop-out windows and
   portalled canvases too; a selection made in ANY instance publishes (newest window wins per user).
 - **Lifecycle**: deselect, `window.blur`, a hidden document and unmount all publish the clear edge;
@@ -273,14 +277,18 @@ copies:
   provider), so closing one window never wipes another window's live selection. A closed window's
   selection is pruned by clientId on the next presence sync.
 - **Opt-out**: omit `presenceScope` (`InlineGlideTable`) / `GlideShellConfig.presenceScope`
-  (required there) — used for grids that live in a modal (template editors).
-- Ranges are GRID/data coordinates; never add the row-marker offset yourself (Glide shifts
-  `highlightRegions` internally). `Highlight.style: 'solid'` = fill + solid outline.
+  (required there) — used for grids that live in a modal (template editors). Every PAGE-level Glide
+  grid carries a scope (Budget Library tables included, `budget:library:<key>`).
+- Ranges are GRID/data coordinates; never add the row-marker offset yourself (`DataEditorRef.getBounds`
+  handles it for the overlay).
+- **Scroll follow** rides the same scope: `InlineGlideTable` and `GlideShell` publish their
+  top-left visible cell under `presenceScope` and apply a followed peer's sample through
+  `DataEditorRef.scrollTo` (keys, never pixels).
 - Verify: pure helpers are Vitest (`src/lib/__tests__/glideSelection.test.ts`,
   `presence.test.ts`); the two-window harness (`workers/rooms/test/two-window-repro.mjs`, the
   selection section) drives a real drag-select in one window and asserts the other receives the
-  frame AND paints the peer colour on the grid canvas (clears on the tab switch); the visual
-  look is a rule-7 manual pass (docs/PRESENCE.md).
+  frame, paints the border/tag and thickens it while the first window edits (clears on the tab
+  switch); the visual look is a rule-7 manual pass (docs/PRESENCE.md).
 - DOM surfaces (stripboard rows, Calendar cards, Report Designer blocks/columns, Ribbon Designer
   cells — roadmap 234 stage 2) ride the SAME `selection` frame with an item-id list and their own
   renderer (`PeerItemOutlines`, `src/lib/itemSelection.ts`); this hook owns the grid rectangle half

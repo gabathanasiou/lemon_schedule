@@ -32,6 +32,8 @@ import { useDedupeCellCommit } from './glideEditGuard';
 import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from './glidePaste';
 import { useGlideFill } from './glideFill';
 import { useGlidePeerSelection } from './useGlidePeerSelection';
+import { usePresenceScrollSurface } from './supabase/usePresenceScrollSurface';
+import { GlidePeerSelectionTags } from '../components/GlidePeerSelectionTags';
 import { registerPresenceGridScope, type PresenceGridScope } from './presenceResolvers';
 import { useFollowView } from './supabase/useFollowView';
 import type { AppPlace } from './appNav';
@@ -255,6 +257,8 @@ export const GlideGridShell: React.FC<{
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
   });
+  const [cellEditing, setCellEditing] = useState(false);
+  const headerH = Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT);
   const gridRef = useRef<DataEditorRef>(null);
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
@@ -269,11 +273,36 @@ export const GlideGridShell: React.FC<{
   // selection and paints the peers' ones under `config.presenceScope`.
   const presenceRowKeys = useMemo(() => rows.map(r => r.key), [rows]);
   const presenceColKeys = useMemo(() => COLUMNS.map(c => c.key), [COLUMNS]);
-  const peerHighlights = useGlidePeerSelection({
+  const peerSelectionRanges = useGlidePeerSelection({
     scope: config.presenceScope,
     selection: gridSelection,
     rowKeys: presenceRowKeys,
     colKeys: presenceColKeys,
+    editing: cellEditing,
+  });
+
+  // Follow completeness (docs/PRESENCE.md): mirror this grid's top-left
+  // visible cell under its own presence scope, so following a colleague who is
+  // scrolling Crew/Locations lands on the same rows. Rows/columns travel by
+  // stable key, never pixels.
+  const visibleRegionRef = useRef<{ x: number; y: number } | null>(null);
+  const presenceScroll = usePresenceScrollSurface({
+    surface: config.presenceScope,
+    sample: () => {
+      const list = rowsRef.current;
+      if (list.length === 0) return null;
+      const vr = visibleRegionRef.current;
+      const rowIndex = Math.max(0, Math.min(list.length - 1, vr?.y ?? 0));
+      const colIndex = Math.max(0, Math.min(COLUMNSRef.current.length - 1, vr?.x ?? 0));
+      return { key: `${list[rowIndex].key}|${COLUMNSRef.current[colIndex]?.key ?? ''}`, off: 0 };
+    },
+    apply: (sample) => {
+      const [rowKey, colKey] = sample.key.split('|');
+      const rowIndex = rowsRef.current.findIndex(r => r.key === rowKey);
+      if (rowIndex < 0 || !gridRef.current) return;
+      const colIndex = Math.max(0, COLUMNSRef.current.findIndex(c => c.key === colKey));
+      gridRef.current.scrollTo(colIndex, rowIndex, 'both', 0, 0, { vAlign: 'start', hAlign: 'start' });
+    },
   });
 
   // Live-pointer grid scope (roadmap 236): the pointer chain probes THIS grid
@@ -691,7 +720,11 @@ export const GlideGridShell: React.FC<{
       : isKitGlyphCell(content)
         ? content.data
         : undefined;
-    if (!button) return;
+    if (!button) {
+      // A normal cell activation opens the cell editor.
+      if (!readOnlyRef.current) setCellEditing(true);
+      return;
+    }
     pressControlCell(cell, button.label);
     button.onActivate?.();
     requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
@@ -805,7 +838,7 @@ export const GlideGridShell: React.FC<{
         data-presence-grid={config.presenceScope}
         data-glide-visible-rows={rows.length}
         data-glide-total-rows={allRows.length}
-        style={{ flex: 1, minHeight: 0, touchAction: 'none' }}
+        style={{ position: 'relative', flex: 1, minHeight: 0, touchAction: 'none' }}
       >
         <DataEditor
           key={fontVersion}
@@ -822,16 +855,22 @@ export const GlideGridShell: React.FC<{
           getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
-          highlightRegions={peerHighlights}
+          onCellEditingStarted={() => setCellEditing(true)}
+          onCellEditingStopped={() => setCellEditing(false)}
+          onVisibleRegionChanged={(range) => {
+            visibleRegionRef.current = { x: range.x, y: range.y };
+            presenceScroll.notify();
+          }}
           theme={createGlideTheme(fontSize)}
           rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
-          headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}
+          headerHeight={headerH}
           onDelete={handleClear}
           onPaste={handlePaste}
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
           onCellActivated={onCellActivated}
+          onFinishedEditing={() => setCellEditing(false)}
           customRenderers={controlCellRenderers}
           onHeaderContextMenu={onHeaderContextMenu}
           provideEditor={provideEditor}
@@ -847,6 +886,7 @@ export const GlideGridShell: React.FC<{
           readonly={locked}
           {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
+        <GlidePeerSelectionTags gridRef={gridRef} selections={peerSelectionRanges} headerHeight={headerH} />
       </div>
 
       {/* Context Menu */}

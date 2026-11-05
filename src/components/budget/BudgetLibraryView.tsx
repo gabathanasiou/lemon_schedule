@@ -36,10 +36,12 @@ interface LibraryRow extends Record<string, string> {
 }
 
 function LibraryTable({
-  title, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit,
+  title, scopeKey, hint, columns, rows, readOnly, onCommit, onAdd, onDelete, addLabel, editors, onEdit,
   headerActions, footerNote, collapsed, onToggleCollapsed, closedSummary, gridHeightClass,
 }: {
   title: string;
+  /** Stable presence scope for this library table (`budget:library:<key>`). */
+  scopeKey: LibraryKey;
   hint?: string;
   columns: (InlineGlideColumn & { editable?: boolean; swatch?: boolean })[];
   rows: LibraryRow[];
@@ -133,6 +135,7 @@ function LibraryTable({
             rowInfo={onEdit ? rowInfo : undefined}
             editors={editors}
             heightMode={gridHeightClass ? 'fill' : 'content'}
+            presenceScope={`budget:library:${scopeKey}`}
             rowMenuItems={(rowIndex, close) => {
               if (readOnly) return null;
               const row = rows[rowIndex];
@@ -548,6 +551,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Fringes"
+          scopeKey="fringes"
           hint="Percent / fixed per unit / flat, with an optional cutoff per line or range."
           addLabel="Fringe"
           rows={fringeRows}
@@ -573,6 +577,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Groups"
+          scopeKey="groups"
           hint="Tags shared by lines and fringes (one fringe can apply to a whole group)."
           addLabel="Group"
           rows={groupRows}
@@ -591,6 +596,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Globals"
+          scopeKey="globals"
           hint="Named numbers for formulas; a global can reference another global."
           addLabel="Global"
           rows={globalRows}
@@ -609,6 +615,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Units"
+          scopeKey="units"
           hint="How a line's quantity is counted; hours feed the day-rate maths."
           addLabel="Unit"
           rows={unitRows}
@@ -627,6 +634,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Currencies"
+          scopeKey="currencies"
           hint="A line in another currency converts with its rate; a missing rate is a warning, never 1:1."
           addLabel="Currency"
           collapsed={!currenciesOpen}
@@ -661,6 +669,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Markups"
+          scopeKey="markups"
           hint="Contingency, charges and discounts applied after category totals."
           addLabel="Markup"
           rows={markupRows}
