@@ -145,7 +145,7 @@ test.describe('Budget', () => {
       await expect.poll(async () => (await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary())).lines).toBe(before + 1);
     });
 
-    await waitForPersistedProject(page, 'p.budget && p.budget.categories.length === 4 && p.budget.versions.length === 1');
+    await waitForPersistedProject(page, 'p.budget && p.budget.categories.length === 4 && p.budget.versions.length === 1 && p.budget.versions[0].lines.length === 1');
     await page.reload();
     await page.waitForFunction(() => !!(window as any).__lemonSchedule, undefined, { timeout: 10000 });
     const afterReload = await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary());
@@ -197,9 +197,10 @@ test.describe('Budget', () => {
         expect(box).toBeTruthy();
         await page.mouse.click(pointFor(box!).x, pointFor(box!).y);
         await waitForGlideCellSelected(page, glideCellId(5, 2));
-        // Single click selects; Enter opens the overlay editor. A double-click
-        // would let the focus scroll shift the second click onto the next row.
-        await page.keyboard.press('Enter');
+        // Type-to-open (`editOnType`): the first keystroke opens the overlay
+        // editor, which is more reliable than Enter before the canvas focus
+        // settles; fill then guarantees the exact value.
+        await page.keyboard.type('6');
         const editor = page.locator('#portal textarea:not([disabled]), #portal input:not([disabled])').first();
         await expect(editor).toBeVisible({ timeout: 5000 });
         // Fill through the overlay input directly — the editor can open before
