@@ -2,15 +2,17 @@ import React from 'react';
 import type { DataEditorRef } from '@glideapps/glide-data-grid';
 import { shortNameOf } from '../lib/avatarIdentity';
 import type { GlidePeerSelectionRange } from '../lib/useGlidePeerSelection';
+import { PresenceDots } from './PresenceDots';
 
 /**
- * Peer cell-selection border + name tag (docs/PRESENCE.md — peer selections).
+ * Peer cell-selection border + editing name tag (docs/PRESENCE.md — peer
+ * selections).
  *
- * No background fill: a peer's selected range is marked by a border in their
- * deterministic colour and a small name tag at its top-left, so a
- * collaborator's selection is attributable without tinting the cells. While
- * the peer is actively editing a cell the border thickens (and their live
- * pointer is hidden by `PresenceOverlay`).
+ * No background fill: a peer's selected range is marked by a 2px border in
+ * their deterministic colour. The name tag appears ONLY while the peer is
+ * actively editing a cell — the live cursor already identifies an idle
+ * selection — and carries the animated editing dots. Their live cursor is
+ * hidden while the editor is open (PresenceOverlay).
  *
  * Geometry is measured through the SAME `DataEditorRef.getBounds` the pointer
  * anchors use, so it follows the receiver's own scroll, column widths and font
@@ -34,10 +36,9 @@ interface MountedTag {
   top: number;
   width: number;
   height: number;
-  /** Null = the selection's first cell is scrolled out; border only. */
+  /** Null = show no tag (idle selection, or the first cell scrolled out). */
   tagTop: number | null;
   tagMaxWidth: number;
-  borderWidth: number;
 }
 
 function sameTags(a: MountedTag[], b: MountedTag[]): boolean {
@@ -47,8 +48,7 @@ function sameTags(a: MountedTag[], b: MountedTag[]): boolean {
     const y = b[i];
     if (x.key !== y.key || x.name !== y.name || x.color !== y.color
       || x.left !== y.left || x.top !== y.top || x.width !== y.width
-      || x.height !== y.height || x.tagTop !== y.tagTop || x.tagMaxWidth !== y.tagMaxWidth
-      || x.borderWidth !== y.borderWidth) return false;
+      || x.height !== y.height || x.tagTop !== y.tagTop || x.tagMaxWidth !== y.tagMaxWidth) return false;
   }
   return true;
 }
@@ -111,11 +111,12 @@ export function GlidePeerSelectionTags({
           top: topInOverlay,
           width,
           height,
-          tagTop: startVisible
+          // Idle selections are already identified by the live cursor — only
+          // an ACTIVE editor gets the name tag (with the editing dots).
+          tagTop: s.editing && startVisible
             ? (topInOverlay >= TAG_HEIGHT + TAG_GAP ? topInOverlay - TAG_HEIGHT - TAG_GAP : topInOverlay + 2)
             : null,
           tagMaxWidth: Math.max(56, Math.min(180, ob.width - (left - ob.left) - 4)),
-          borderWidth: s.editing ? 4 : 2,
         });
       }
       return out;
@@ -144,11 +145,11 @@ export function GlidePeerSelectionTags({
         <React.Fragment key={tag.key}>
           <div
             className="absolute rounded-[2px]"
-            style={{ left: tag.left, top: tag.top, width: tag.width, height: tag.height, boxShadow: `inset 0 0 0 ${tag.borderWidth}px ${tag.color}` }}
+            style={{ left: tag.left, top: tag.top, width: tag.width, height: tag.height, boxShadow: `inset 0 0 0 2px ${tag.color}` }}
           />
           {tag.tagTop != null && (
             <div
-              className="absolute flex items-center overflow-hidden text-ellipsis whitespace-nowrap rounded px-1.5 font-semibold text-white shadow-sm"
+              className="absolute flex items-center gap-1 overflow-hidden whitespace-nowrap rounded px-1.5 font-semibold text-white shadow-sm"
               style={{
                 left: tag.left,
                 top: tag.tagTop,
@@ -160,7 +161,8 @@ export function GlidePeerSelectionTags({
                 textShadow: '0 1px 1px rgba(0,0,0,0.35)',
               }}
             >
-              {tag.name}
+              <span className="overflow-hidden text-ellipsis">{tag.name}</span>
+              <PresenceDots />
             </div>
           )}
         </React.Fragment>

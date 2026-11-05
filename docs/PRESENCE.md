@@ -117,7 +117,7 @@ persisted, never in the project JSON, never a room action.
     at, and the header bubbles remain the way to jump to a colleague's place.
   - the peer does **not** have an open CELL EDITOR on a Grid — a cell editor is
     a local-only overlay, so the peer's pointer is hidden while they edit (the
-    thickened selection border is the signal). Same hide-don't-fake rule as
+    their name tag + editing dots is the signal). Same hide-don't-fake rule as
     menus/modals.
   Anchors that resolve off this client's viewport are hidden (no edge chips).
   Rendered script lines are anchored per block (roadmap 252, above); a future
@@ -186,12 +186,14 @@ persisted, never in the project JSON, never a room action.
     ONE overlay (`GlidePeerSelectionTags`), so it works in the main window AND
     in pop-out windows / portalled canvases, correct through differing scroll,
     column widths and font scale. **No background fill**: a peer range draws a
-    2px border in their colour plus a small name tag at its first cell; while
-    the peer has a cell editor open the border thickens to 4px and their live
-    pointer hides (`editing` rides the same frame). A border whose first cell
-    scrolled away keeps its visible remainder but drops the tag. Opt-out = no
-    `scope` (grids inside modals, e.g. the crew-template editor). Manual:
-    docs/GLIDE-BREAKDOWN.md §Peer selection highlights.
+    2px border in their colour. The **name tag appears only while they are
+    actively editing** a cell (carrying the same animated editing dots as the
+    overlay cue) — an idle selection is already identified by their live
+    cursor, which is hidden while the editor is open (`editing` rides the same
+    frame). A border whose first cell scrolled away keeps its visible remainder
+    but drops the tag. Opt-out = no `scope` (grids inside modals, e.g. the
+    crew-template editor). Manual: docs/GLIDE-BREAKDOWN.md §Peer selection
+    highlights.
   - **DOM surfaces (stage 2)**: `{ scope, items }` — the stable element ids the
     surface's own DOM already wears (`data-row-id` on stripboard rows and
     Calendar cards, `data-event-key` on events-mode cards, `data-block-id` on

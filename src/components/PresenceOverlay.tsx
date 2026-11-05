@@ -135,8 +135,8 @@ export function PresenceOverlay() {
   const sigRef = useRef('');
 
   // A peer with an OPEN CELL EDITOR is inside a local-only overlay: their last
-  // pointer would sit over UI nobody else can see, so hide it entirely (the
-  // thicker selection border + tag is the signal). Header bubbles stay.
+  // pointer would sit over UI nobody else can see, so hide it entirely (their
+  // name tag with editing dots is the signal). Header bubbles stay.
   const editingUsers = useMemo(() => {
     const ids = new Set<string>();
     for (const s of selections) if (!isItemSelection(s.selection) && s.selection.editing) ids.add(s.userId);

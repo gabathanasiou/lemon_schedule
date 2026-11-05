@@ -257,10 +257,11 @@ copies:
 - **`useGlidePeerSelection({ scope, selection, rowKeys, colKeys, editing })`**
   (`src/lib/useGlidePeerSelection.ts`) publishes this instance's selection (via the presence
   channel's throttled/idle-skipped `selection` broadcast) and resolves the peers' selections for the
-  same scope into `GlidePeerSelectionTags` (peer-colour border + name tag). No canvas fill: the
-  dedicated DOM overlay draws a 2px border in the peer's colour with a name tag at the first cell;
-  while the peer has a cell editor open the border is 4px and their live pointer is hidden
-  (`editing` rides the selection frame). Geometry lives in `src/lib/glideSelection.ts`
+  same scope into `GlidePeerSelectionTags` (peer-colour border; the name tag appears only while
+  they edit). No canvas fill: the dedicated DOM overlay draws a 2px border in the peer's colour;
+  the name tag + animated editing dots appear only while the peer has a cell editor open, when
+  their live pointer is hidden (`editing` rides the selection frame). Geometry lives in
+  `src/lib/glideSelection.ts`
   (`effectiveGridRange` — also the shared copy/cut/clear rectangle — plus the wire encode/decode
   and `withAlpha`); wire shapes + parsers in `src/lib/supabase/presence.ts`
   (`PresenceGridSelection`, `parseSelectionPayload`, `selectionKey`).
@@ -287,7 +288,7 @@ copies:
 - Verify: pure helpers are Vitest (`src/lib/__tests__/glideSelection.test.ts`,
   `presence.test.ts`); the two-window harness (`workers/rooms/test/two-window-repro.mjs`, the
   selection section) drives a real drag-select in one window and asserts the other receives the
-  frame, paints the border/tag and thickens it while the first window edits (clears on the tab
+  frame and shows the editing name tag/dots while the first window edits (clears on the tab
   switch); the visual look is a rule-7 manual pass (docs/PRESENCE.md).
 - DOM surfaces (stripboard rows, Calendar cards, Report Designer blocks/columns, Ribbon Designer
   cells — roadmap 234 stage 2) ride the SAME `selection` frame with an item-id list and their own

@@ -12,11 +12,11 @@ import { isItemSelection, selectionKey } from './supabase/presence';
  * Every instance participates on its own: the hook PUBLISHES this grid's
  * selection (keyed by `scope`, throttled/idle-skipped in the channel) and
  * RESOLVES the peers' selections for the same scope into cell ranges for
- * `GlidePeerSelectionTags` (peer-colour border + name tag). Because both
- * halves are per-instance and use the instance's own geometry, the highlight
- * works in every mounted instance — the main window, a pop-out window, a
- * portalled canvas — with that client's own scroll, column widths and font
- * scale.
+ * `GlidePeerSelectionTags` (peer-colour border; the name tag appears while
+ * they edit). Because both halves are per-instance and use the instance's own
+ * geometry, the highlight works in every mounted instance — the main window, a
+ * pop-out window, a portalled canvas — with that client's own scroll, column
+ * widths and font scale.
  *
  * Lifecycle rules (docs/PRESENCE.md): ephemeral only; a cleared
  * selection, a blurred/hidden window and unmounting the grid all publish the
@@ -38,8 +38,8 @@ export interface GlidePeerSelectionRange {
   /** Opaque avatar colour — the border and the name tag share it. */
   color: string;
   range: Rectangle;
-  /** The peer has a cell editor open — the border thickens and their live
-   *  pointer is hidden (docs/PRESENCE.md). */
+  /** The peer has a cell editor open — the name tag with editing dots appears
+   *  and their live pointer is hidden (docs/PRESENCE.md). */
   editing: boolean;
 }
 
