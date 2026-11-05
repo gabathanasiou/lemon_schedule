@@ -21,6 +21,8 @@ overtime or budget-report code.
   currency table, a per-line currency and optional `fxRate`; line amounts
   display in their currency, account/category/grand totals convert to base.
   A missing rate is a warning and contributes 0 — never a silent 1:1.
+  **A NEW budget's base currency follows the project timezone** (item 354:
+  `currencyForTimeZone`; existing budgets are never migrated — Library overrides).
 - **Templates:** Blank, Feature and From schedule. Commercial/AICP stay later.
   **Generated lines are live-linked**; pin per line; lock freezes quantities.
 - **Budget versions are a third independent axis** (schedule / calendar /
@@ -124,12 +126,11 @@ settings USD / symbol `$` / whole units / minus negatives / topsheet posting.
 - `makeBlankProject` never creates a budget; `migrateBudget` normalizes arrays
   and defaults on every LOAD but never auto-creates one.
 
-### Overtime (phase 3, shipped)
-`ProductionInfo.overtime`/`castOvertime` (`OvertimePolicy` with `dailyHours`,
-`tiers`, 6th/7th multipliers), `DayMeta.overtime` (`DayOvertime`: actual times,
-policy, `OvertimeOverride[]`, posted stamp), `CrewPerson.rateCents/rateUnit/
-guaranteeHours/overtime`, `CastMember.rateCents/rateUnit/guaranteeHours/
-overtime`. Everything is optional; older projects need no migration.
+### Overtime (phase 3, split in item 358)
+Project policy (`ProductionInfo.overtime`/`castOvertime`) is edited in Budget →
+Library → Overtime. Day data (`DayMeta.overtime` — actuals, overrides, posted
+stamp) lives in the Day Manager Overtime section, which shows hours/cost and
+posts payroll in one batch. `lib/budget/overtime.ts` is the ONE engine.
 
 ## 4. Engine (`src/lib/budget/`)
 

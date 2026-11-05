@@ -45,12 +45,12 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 - **Layout:** KPI strip, category rail on the left, one always-expanded sheet in
   the centre and a footer totals line. Category and account rows are inline
   bands (grey), line rows white; markup rows sit beneath with signed totals.
-- **Toolbar:** Add Category, Add Markup, a linked-lines summary ("N lines follow
-  the schedule" / "No lines linked"), the **schedule review** button ("N updates
-  from the schedule" / "Up to date", roadmap 348), Print (design menu + Save as
-  design), Export (CSV / JSON), Import (JSON). No automatic sync, no
-  View/columns menu, no Templates menu after creation (templates live in the
-  empty state).
+- **Toolbar:** Add Markup, the **schedule review** status button (item 356:
+  icon-only while up to date, the label when there are updates; roadmap 348),
+  and ONE **Edit** menu (Print designs, Save as design, Export CSV/JSON,
+  Import). The linked-lines summary and the header Add Category are gone — the
+  rail owns new categories. No automatic sync, no View/columns menu, no
+  Templates menu after creation (templates live in the empty state).
 - **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency via
   `formatMoney(model.settings)`; `SectionTile` stays view-local.
 - **Left rail:** "All categories" + one button per category with number, name,
@@ -59,12 +59,16 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
   a category → Edit category / Add account / Delete category (confirm) then
   **+ New category**; right-click blank rail space → New category (roadmap
   339, kit `ContextMenu`). A trailing **+ New category** row keeps the action
-  discoverable; read-only shows no rail menu.
+  discoverable; read-only shows no rail menu. Item 355: the rail collapses to
+  a 40px icon rail and drag-resizes (shared `usePaneResize`, session-only
+  width) — the Element Manager's `SidebarNav` mechanics.
 - **One sheet.** Category and account rows are inline bands (category
   `#e8e8ea`, account `#f6f6f7`), both showing number+name/fringe/total; markup
-  rows sit at the bottom with signed totals. No drag reorder or column resize;
-  range selection/copy/paste/fill ride the shared `InlineGlideTable` plumbing
-  and commit as one batch.
+  rows sit at the bottom with signed totals. Item 355: columns keep their
+  designed widths and the sheet scrolls horizontally on narrow windows (the
+  grid's `columnSizing="natural"`); category/account labels **span** across the
+  empty Qty→Cur cells instead of clipping. Range selection/copy/paste/fill ride
+  the shared `InlineGlideTable` plumbing and commit as one batch.
 
 ### Grid columns & editability
 
@@ -75,14 +79,14 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 | Unit | line | Painted enum picker over the library units; typed unknown values are ignored |
 | Rate | line | Money string; commits `rateCents` (2dp display) |
 | X | line | Numeric multiplier |
-| Cur | line | Painted enum picker over the currency codes |
+| Cur | line | Painted enum picker over the currency codes; displays the symbol + code (`€ EUR`) when not editing |
 | Fringes | line | Painted entity multi-picker; typed unknown names create library fringes in the SAME batch |
 | Groups | line | Painted entity multi-picker; typed unknown names create library groups in the same batch |
 | Total | read-only | The line's LOCAL total (line currency); category/account totals are base |
 
 - The grid is the shared **`InlineGlideTable`**, not a bespoke Glide fork:
-  auto-fit columns, content height, one commit per edit, presence scope
-  `budget:detail` keyed by row key.
+  natural-width columns + horizontal scroll (item 355), fill height, one commit
+  per edit, presence scope `budget:detail` keyed by row key.
 - **Colour coding is the shared grid rule** (`docs/UI-PRIMITIVES.md` §Glide
   grids / `docs/DESIGN-LANGUAGE.md`): editable cells are the white input
   surface at rest (near-white hover); read-only cells are the neutral grey
@@ -103,9 +107,9 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
   just left of the persistent trash column and opens that row's **inspect/edit**
   target — category/account → the node modal, line → the line modal
   (roadmap 335: the target is explicit per row kind, NEVER "the first
-  context-menu action"; markup rows have no editor). **Category rows also carry
-  a + glyph** that adds a line to the category's first account (creating a
-  General account when empty) **without opening a modal**. **Shift+Enter**
+  context-menu action"; markup rows have no editor). Category rows carry
+  **trash only** (item 355); adding a line is the context menu / Shift+Enter.
+  **Shift+Enter**
   quick-adds in the focused row's context (`InlineGlideTable.onAddRow`), or
   appends when nothing is focused; the selection lands on the new row.
   Right-click **Add line…** asks a count (1–100) and creates N lines in ONE
@@ -140,7 +144,8 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 - **`BudgetLineModal`** — description, qty, rate, multiplier; schedule link
   picker (shoot days, role/person, cast, locations) with Pin/Unpin and a
   "following the schedule — N units" / "pinned at N (schedule now M)" line;
-  unit and currency pickers; notes; fringe and group checklists; advanced qty/
+  unit and currency pickers; notes; fringe checklist; Groups is a kit
+  multi-select dropdown (item 357); advanced qty/
   rate/X formula overrides (roadmap 346: the shared `FormulaField` —
   caret-aware autocomplete over system/project globals + ROUND/MIN/MAX/ABS/
   CLAMP, and a searchable **formula book** per field; plain text, never the
@@ -179,14 +184,19 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 Top-to-bottom, one scroll surface:
 
 1. **Budget settings** — base currency picker (the project chrome's light
-   `DropdownMenu`), a **derived, read-only symbol** (roadmap 341: the currency
-   row's symbol, edited only in the Currencies table; `currencySymbol` is kept
-   populated in the same write), decimals (whole/2dp), negatives (minus/
-   parentheses), fringe posting (Top sheet/Category/Account), and a read-only
-   cost-context line (line count · linked · grand total).
-2. **System values** — the seven system globals with live values; global
+   `DropdownMenu`; a new budget's default comes from the project timezone, item
+   354), decimals (whole/2dp), negatives (minus/parentheses) and fringe posting
+   (Top sheet/Category/Account) as kit dropdowns with a one-line explanation
+   (item 356), and a read-only cost-context line (line count · linked · grand
+   total). The redundant Symbol box is gone — the symbol is derived from the
+   Currencies table (roadmap 341).
+2. **Overtime** (item 358) — project policy cards for Crew and Cast (paid day,
+   tiers, 6th/7th day, notes) opening `OvertimePolicyModal`; one
+   `SET_PRODUCTION_INFO` write. The Day Manager records actuals, the Cost
+   Report shows the outcome.
+3. **System values** — the seven system globals with live values; global
    formula errors in amber. This card is explanatory, not editable.
-3. **Editable tables** (all `InlineGlideTable`, add button per card, delete
+4. **Editable tables** (all `InlineGlideTable`, add button per card, delete
    warns; deleting an in-use fringe/group also clears it from the active
    version's lines in the same confirm, one batch):
    - **Fringes** — name, calc (Percent/Fixed per unit/Flat), percent, amount,
@@ -221,8 +231,11 @@ Top-to-bottom, one scroll surface:
   bands, the account "Unallocated" child and project bucket, with Budget,
   Actual, Committed, ETC, EFC, Variance, % Used and Reason columns. No second
   table renderer.
-- Toolbar: as-of date, period menu, counts, Print + CSV (the Cost Report
-  design via `ReportPrintDialog`; CSV writes the flat rows plus totals).
+- Toolbar: as-of date, period menu, counts, and the shared **Edit** menu
+  (Print Cost Report via `ReportPrintDialog`, Save as design, Export CSV —
+  item 356).
+- Same natural-width sheet (item 355): horizontal scrolling, collapsible/
+  resizable rail, trash-only row actions.
 - `computeCostReport(project, { asOf, from, to })` feeds every number. **A
   period narrows Actual only — EFC/variance/% used stay as-of.** Out-of-budget
   categories show a "not in budget" cue; variance is colour + arrow + text.
@@ -256,8 +269,10 @@ Top-to-bottom, one scroll surface:
   count + Actual. The card is the SAME `ExpensesGrid` as the ledger (roadmap
   336) with commit-on-blur edits, (i) → the shared `ExpenseModal`, a persistent
   trash lane and right-click actions; **Add expense** quick-adds an editable
-  row attributed to this day WITHOUT opening the modal. Actual/Committed
-  totals and the **Create a budget** CTA remain; read-only hides every write.
+  row attributed to this day WITHOUT opening the modal. Item 359: this card
+  hides the **Date** column (the day is already known) — the Budget ledger
+  keeps it. Actual/Committed totals and the **Create a budget** CTA remain;
+  read-only hides every write.
 - `DayManagerPage` root-owns the shared `ExpenseModal` (`actions.openExpense`).
   Copy-from-day does **not** copy expenses; call sheets never print costs by
   default.
@@ -366,13 +381,13 @@ design** clones it via `ADD_REPORT_DESIGN`.
 
 - **Phase 2 — Cost Report & Expenses — LANDED.** §4b. PO authoring is
   action/bridge-only (no PO modal yet).
-- **Phase 3 — Overtime — LANDED (2026-10-30).** Crew card **Overtime** button
-  (badge `Xh · $Y`) + root-owned `OvertimeModal` (Day/Departments/Crew/Cast):
-- **Phase 3 — Overtime — LANDED (2026-10-30).** Crew card **Overtime** button
-  (badge `Xh · $Y`) + root-owned `OvertimeModal` (Day/Departments/Crew/Cast):
-  actual call/wrap, paid day, tiers, 6th/7th multipliers, per-department/person
-  overrides, no-rate warning, **Post to expenses** in one batch. `DayMeta.
-  overtime` owns the settings; copy-from-day carries it. Report fields incl.
+- **Phase 3 — Overtime — SPLIT (item 358).** Project policy lives in Budget →
+  Library → **Overtime** (crew + cast: paid day, tiers, 6th/7th day, notes);
+  the Day Manager's **Overtime** section records actual call/wrap and shows the
+  per-person crew/cast hours and cost grids, with **Post to expenses** in one
+  batch. The old Crew-card button/modal is retired. `DayMeta.overtime` still
+  stores the day actuals/posted stamp (stored day policies/overrides keep
+  working through the engine); copy-from-day carries it. Report fields incl.
   `crewRate/rateUnit/hours/otHours/otCost/dayCost`, `dayOvertimeHours/Cost`,
   `deptOtHours/Cost`; cast numeric rates are data/bridge-editable today.
 - **Phase 4 — Advanced.** Version compare (+ Original/Variance) — LANDED;
