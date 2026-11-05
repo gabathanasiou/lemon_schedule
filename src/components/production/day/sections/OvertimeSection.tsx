@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BadgeDollarSign, Clock, TriangleAlert } from 'lucide-react';
-import type { DayOvertime, OvertimePolicy } from '../../../../types';
+import type { DayOvertime, OvertimeOverride, OvertimePolicy } from '../../../../types';
 import type { DaySectionProps } from '../daySectionTypes';
 import { computeDayOvertime, overtimeDayFromView, overtimeExpensesForDay, resolveOvertimePolicy } from '../../../../lib/budget/overtime';
 import { formatMoney } from '../../../../lib/budget/format';
@@ -9,6 +9,7 @@ import { textCell } from '../../../../lib/glideCells';
 import Button from '../../../Button';
 import TimeField from '../../../TimeField';
 import { useDialog } from '../../../Dialog';
+import { NumberField } from '../../../budget/fields';
 
 /**
  * Item 358 — the Day Manager's Overtime section. Policy lives in Budget →
@@ -109,6 +110,24 @@ const OvertimeSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, r
 
   const patchOt = (patch: Partial<DayOvertime>) => patchMeta({ overtime: { ...overtime, ...patch } });
 
+  /** Per-department OT overrides (the old modal's Departments tab, restored as
+   *  the same compact header fields the crew pre-calls use). The engine
+   *  resolves project → day → department → person. */
+  const overrides = overtime.overrides || [];
+  const overrideFor = (dept: string) => overrides.find(o => o.target === 'department' && o.targetId === dept);
+  const setDeptOverride = (dept: string, patch: Partial<OvertimeOverride>) => {
+    const index = overrides.findIndex(o => o.target === 'department' && o.targetId === dept);
+    let next: OvertimeOverride[];
+    if (index >= 0) {
+      const merged = { ...overrides[index], ...patch };
+      const empty = merged.dailyHours == null && merged.multiplier == null && !merged.tiers && !merged.note;
+      next = empty ? overrides.filter((_, i) => i !== index) : overrides.map((o, i) => i === index ? merged : o);
+    } else {
+      next = [...overrides, { target: 'department', targetId: dept, ...patch }];
+    }
+    patchOt({ overrides: next });
+  };
+
   const crewRows = useMemo(() => overtimeRowsOf(result.crew, settings), [result.crew, settings]);
   const castRows = useMemo(() => overtimeRowsOf(result.cast, settings), [result.cast, settings]);
 
@@ -175,6 +194,60 @@ const OvertimeSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, r
           <BadgeDollarSign className="w-3.5 h-3.5" /> Post to expenses
         </Button>
       </div>
+
+      {result.departments.length > 0 && (
+        <div className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)]" data-overtime-departments>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--ui-card-band)] border-b border-[color:var(--ui-border)]">
+            <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">Departments</span>
+            <span className="text-[10px] text-[color:var(--ui-text-faint)]">same OT for the whole department</span>
+          </div>
+          {result.departments.map(dept => {
+            const override = overrideFor(dept.department);
+            return (
+              <div key={dept.department} className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 border-t border-[color:var(--ui-border)]" data-overtime-department={dept.department}>
+                <span className="w-36 shrink-0 truncate text-[11px] font-semibold text-[color:var(--ui-text-strong)]">{dept.department}</span>
+                <label className="flex items-center gap-1 text-[10px] text-[color:var(--ui-text-muted)]">
+                  Daily h
+                  <NumberField
+                    value={override?.dailyHours ?? dept.policy.dailyHours}
+                    min={1}
+                    max={24}
+                    step={0.5}
+                    readOnly={readOnly}
+                    ariaLabel={`${dept.department} daily hours`}
+                    onCommit={v => setDeptOverride(dept.department, { dailyHours: v > 0 ? v : undefined })}
+                  />
+                </label>
+                <label className="flex items-center gap-1 text-[10px] text-[color:var(--ui-text-muted)]">
+                  OT ×
+                  <NumberField
+                    value={override?.multiplier ?? dept.policy.multiplier}
+                    min={0}
+                    max={4}
+                    step={0.1}
+                    readOnly={readOnly}
+                    ariaLabel={`${dept.department} overtime multiplier`}
+                    onCommit={v => setDeptOverride(dept.department, { multiplier: v > 0 ? v : undefined })}
+                  />
+                </label>
+                {override && !readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setDeptOverride(dept.department, { dailyHours: undefined, multiplier: undefined })}
+                    className="text-[10px] text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)]"
+                    title="Clear this department's override"
+                  >
+                    Reset
+                  </button>
+                )}
+                <span className="ml-auto text-[10px] tabular-nums text-[color:var(--ui-text-muted)]">
+                  {hoursLabel(dept.otHours)} · {formatMoney(dept.otCostCents, settings)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {overtime.postedAt && (
         <p className="text-[10px] text-[color:var(--ui-text-faint)]">

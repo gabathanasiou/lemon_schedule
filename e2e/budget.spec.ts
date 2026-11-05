@@ -202,6 +202,9 @@ test.describe('Budget', () => {
         await page.keyboard.press('Enter');
         const editor = page.locator('#portal textarea, #portal input').first();
         await expect(editor).toBeVisible({ timeout: 5000 });
+        // Under parallel load the overlay can open before its input takes
+        // focus — click it so the keyboard goes to the editor, not the grid.
+        await editor.click();
         await expect.poll(
           async () => {
             try {

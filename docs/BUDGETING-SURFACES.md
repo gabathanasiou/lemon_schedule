@@ -383,7 +383,9 @@ design** clones it via `ADD_REPORT_DESIGN`.
   action/bridge-only (no PO modal yet).
 - **Phase 3 — Overtime — SPLIT (item 358).** Project policy lives in Budget →
   Library → **Overtime** (crew + cast: paid day, tiers, 6th/7th day, notes);
-  the Day Manager's **Overtime** section records actual call/wrap and shows the
+  the Day Manager's **Overtime** section records actual call/wrap, carries
+  per-DEPARTMENT daily-hours/OT-multiplier overrides (the same compact header
+  fields as the crew pre-calls; `DayMeta.overtime.overrides`) and shows the
   per-person crew/cast hours and cost grids, with **Post to expenses** in one
   batch. The old Crew-card button/modal is retired. `DayMeta.overtime` still
   stores the day actuals/posted stamp (stored day policies/overrides keep

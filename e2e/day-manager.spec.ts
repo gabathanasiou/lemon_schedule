@@ -125,7 +125,7 @@ test.describe('Day Manager (roadmap 98)', () => {
       return row.id as string;
     });
 
-    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.getByRole('button', { name: 'Schedule', exact: true }).click();
     const row = page.locator(`[data-row-id="${withMeta}"]`).first();
     await expect(row).toBeVisible({ timeout: 8000 });
     await row.click({ button: 'right' });
