@@ -1224,7 +1224,7 @@ Auto-ID.
 **Phases (each a complete vertical slice; detailed AI work packages in `docs/BUDGETING-PHASES.md`):**
 - **1 — Budget authoring, versions & reports:** model/shared chart/library, versions (picker/trash/active/lock, shared chart + per-version lines), tab/nav, Glide grid, templates, fringes/globals/groups/units/markups, live schedule links (no sync), blank/from-schedule creation, per-line currency + fx/base totals, `budgetTable` + budget fields/collections, Top Sheet/Account Detail/Budget Health prints, CSV/JSON.
 - **2 — Cost tracking — LANDED (2026-10-30):** expenses/POs, Cost Report view, Day Manager Expenses card/modal, actuals/committed/ETC/EFC/variance, cost report print, expense fields/CSV.
-- **3 — Overtime:** crew + cast rates/guarantee, project/day/dept/person overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost, post-to-expenses, OT report fields, version lock.
+- **3 — Overtime:** crew + cast rates/guarantee, project/day/dept/person overrides, Crew card modal (Day/Departments/Crew/Cast), hours/cost, post-to-expenses, OT report fields, version lock. **UI placement superseded by 361** — OT is a Crew-card lens, not a Day Manager card.
 - **4 — Advanced (separate branches):** **version compare + Original/Variance
   — LANDED (2026-10-30):** `budgetTable` `comparison` mode reads two block-named
   versions through `ctx.budgetForVersion`, Original/Budget/Variance/Var % columns,
@@ -1261,3 +1261,23 @@ numeric cast rates are data/bridge-editable.
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
 **Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
+
+
+## 361. Day Manager — OT is the Crew card's second lens, not a card (`[ ]`)
+
+**Asked 2026-11-05 (user):** the 358 standalone Day Manager **Overtime** card is wrong. OT must integrate into the existing **Crew** card as a **toggle between Timings and OT** — for crew **and** cast — with **no new card, section, modal or tab**. The department/crew organisation per day is already right and stays the one grouping.
+
+**Design (agreed):** one card, two lenses. The Crew card body gets the kit `Seg` (track, dense) top-left: **Timings** (today's `CrewRosterEditor`, untouched) / **OT**. Header, department order (`day.crewGroups`), department names and include checkboxes are identical in both lenses — only the columns and the header strip change.
+
+- **OT strip** replaces `Add role` / `Apply template`: actual call + actual wrap (`TimeField` → `daybreakMeta.overtime`), live `Nh · OT Nh · $X`, **Post to expenses** (existing confirm + `BULK_ADD_EXPENSES` batch).
+- **Department blocks:** same `day.crewGroups` blocks; the header adds the existing `Daily h` / `OT ×` override fields + the department's OT total; timings-only fields (Report to, Pre-call) hide. Rows = the same people, read-only `InlineGlideTable`: Role · Person · Hours · OT h · OT cost.
+- **Cast:** one compact block at the bottom of the same lens (ID · Character · Artiste · Hours · OT h · OT cost; policy hint `Budget → Library → Overtime`), replacing the old modal's Cast tab. Cast timings stay in Call Times.
+- `noRate` warning and the posted stamp stay inside the lens.
+
+**Files:** remove the `overtime` entry from `production/day/daySectionRegistry.tsx` (the Crew tab becomes one card); re-home `sections/OvertimeSection.tsx` as the lens body rendered by `sections/CrewSection.tsx` (keep the `data-overtime-*` hooks); the Crew registry `extract` gains `overtime` so Copy-from-day still carries actuals/overrides/policy. Engine (`lib/budget/overtime.ts`), Budget → Library policy cards and report fields untouched.
+
+**Docs:** `docs/BUDGETING-SURFACES.md` §4b/§7 (OT is a Crew-card lens; no standalone Day Manager section); AGENTS.md Budget pointer if it names the section.
+
+**Verify:** `npm run lint`; `e2e/budget.spec.ts` OT test rewired to toggle the Crew lens (hooks unchanged); `npm run test:smart`; manual per TESTING §Manual — the toggle keeps department order, dept override edits flow, actuals change totals, Post creates one batch, the cast block matches the Cost Report, undo covers the batch.
+
+**Relations:** `supersedes` 358's Day Manager-section placement (engine, policy, posting and report fields stay); `relates to` 334, 146, 99, 157, 315.
