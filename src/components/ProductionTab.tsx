@@ -90,17 +90,19 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
   const viewToggle = (sub: ProductionSubTab) => {
     const dark = sub === 'days' && daysChromeDark;
     const alt = sub === 'days'
-      ? { active: views.days === 'callsheet', label: 'Call Sheet view', title: 'Call sheet editor', icon: Sheet, mode: 'callsheet' }
-      : { active: views[sub] === 'glide', label: 'Glide view', title: `${subTabLabels[sub]} Glide view`, icon: Table2, mode: 'glide' };
+      ? { active: views.days === 'callsheet', label: 'Call Sheet view', short: 'Call Sheet', title: 'Call sheet editor', icon: Sheet, mode: 'callsheet' }
+      : { active: views[sub] === 'glide', label: 'Glide view', short: 'Glide', title: `${subTabLabels[sub]} Glide view`, icon: Table2, mode: 'glide' };
     const AltIcon = alt.icon;
     return (
       <Seg
         variant="track"
         dense
+        iconCollapse
+        iconWithLabel={false}
         value={views[sub]}
         options={[
-          { v: 'manager', l: '', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:manager` } },
-          { v: alt.mode, l: '', title: alt.title, ariaLabel: alt.label, icon: <AltIcon className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:${alt.mode}` } },
+          { v: 'manager', l: 'Manager', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:manager` } },
+          { v: alt.mode, l: alt.short, title: alt.title, ariaLabel: alt.label, icon: <AltIcon className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:${alt.mode}` } },
         ]}
         onChange={m => { if (views[sub] !== m) requestViewChange(sub, m); }}
         ariaLabel={`${subTabLabels[sub]} view`}
