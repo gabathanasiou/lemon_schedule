@@ -201,96 +201,24 @@ if (fragileTotal) {
 // 71 → 72: roadmap 334 — budgeting phase 1 (`e2e/budget.spec.ts`: template
 // creation/persistence + the schedule-link → lock loop).
 const E2E_SPEC_CAP = 72;
-// 260 → 267: roadmap 38 script-diff acceptance (split/merge badges + in-app edit
-// conflict), 132 Part D duplicate modes and Part F tag remap — behavior needs
-// real DOM/file-chooser coverage, not unit-only.
-// 267 → 268: roadmap 136 tagging overhaul (selection→category menu + FDX commit
-// + the Suggestions toggle) needs a second spec case; the old picker e2e is gone.
-// 268 → 270: roadmap 165 positioning engine — app-level geometry guards that a
-// panel never overhangs the visual viewport (the kit playground covers flip).
-// 270 → 271: roadmap 180 fix — re-enable the multi-value range-fill confirm spec
-// (was `test.fixme`d; disabled cases aren't counted by this check).
-// 271 → 272: roadmap 206 — WebKit-only EntityDropdown finger-scroll regression
-// (coarse+touch path; no unit/Chromium layer can drive it).
-// 272 → 273: roadmap 198 — designer day picker: the picked day must survive a
-// reload (localStorage pref + designer remount; unit tests can't drive the app).
-// 273 → 274: roadmap 159 — precalls block: the call-sheet precall edit must
-// persist to daybreakMeta.departmentPrecalls (silent loss is plausible).
-// 274 → 275: DropdownPanel/SelectDropdown portal isolation — a stripboard
-// entity-dropdown item click unmounted the editor mid-toggle (silent loss).
-// 275 → 278: EntityDropdown context matrix (entity-dropdown-contexts.spec.ts
-// + the Glide canvas overlay case) — panel picks must commit and never leak
-// into host handlers on every host shape (Scene Sheet / popup / Glide).
-// 278 → 280: roadmap 233 — the designers' editing focus moved to a per-user
-// localStorage pref; "the pick must not write the project (a room action) and
-// must survive a reload" needs a real client (designer remount + onAction spy).
-// 280 → 281: roadmap 163 — script-tab perf harness with a generated full-length
-// screenplay; before/after evidence needs the real DOM at document scale.
-// 281 → 282: roadmap 255 — the Glide's NEW rows (add row + paste) skipped the
-// cast creation guard, silently writing a NAME into scene.cast; that path can
-// only be driven through the real grid overlay.
-// 282 → 283: roadmap 263 — tab-switch perf harness (click→surface + pill glide
-// frames); the before/after evidence IS a real client with the pill on screen.
-// 283 → 284: roadmap 274 — report rich text P0: hostile stored markup only
-// executes in a browser, so the ingest strip and the two render sinks need a
-// real client (the node unit layer has no DOM to sanitize with).
-// 284 → 283: hygiene — retired `glide-breakdown`'s never-failing "edits a cell
-// via double-click" legacy test (its only assertion sat inside `if (overlayInput)`
-// and its edit path is covered by the range-fill/context-matrix tests). Locked
-// the freed slot rather than leaving headroom.
-// 283 → 280: roadmap 295 (second rebalancing pass) — three state-only e2e cases
-// moved to Vitest and retired: linked-elements add-propagation (already covered
-// by elementLinks unit + the sibling removal case), SET_SCRIPT_DOCUMENT baseline
-// rotation (scriptDocumentStore.test.ts), and the days-off span walk
-// (daysOffSync + computeRowData section-date cursor unit tests).
-// 280 → 281: roadmap 298 — the crew table's repeated column header: the page
-// budget (pageStartExtra) and the continuation render only exist in measured
-// print DOM; an unbudgeted repeat silently overflows/clips the page.
-// 281 → 283: roadmap 257 — Board ID data safety: (a) Auto-ID plus a manual
-// renumber must never rewrite scene fields, (b) a duplicate number must not
-// land (the cell reverts) — both are silent-corruption paths.
-// 283 → 284: roadmap 157 — cast detail edits behind the Details toggle must
-// persist (a dropped performer/contact is silent data loss).
-// 284 → 285: roadmap 306 — Element View property edits + picker navigation
-// 285 → 286: roadmap 172 — manager SearchMenu jump/flash
-// 286 → 288: roadmap 172 — Glide row filter (breakdown + shared DB shell)
-// share the manager's write paths (a stale selection or dropped edit is silent).
-// 288 → 289: roadmap 322 — a typed prefix must complete to a catalogue option
-// (type "I", Tab → INT); a dropped completion silently writes a partial value.
-// 289 → 290: roadmap 322 — Glide's typed-open passes the first character as
-// `initialValue` (no input event); a picker that ignores it silently drops the
-// letter and opens on the wrong row.
-// 290 → 292: roadmap 334 — budgeting phase 1 (template creation/persistence and
-// the schedule-link → lock loop; a drift or lost budget is silent data loss).
-// 292 → 295: roadmap 331/182 — the three iPhone touch cases above.
-// 295 → 296: roadmaps 335-337 — the Schedule tab's view/cell-border/ribbon
-// submenus + nested File → Print → Custom Reports + version picker, all on a
-// landscape iPhone (first-tap rows; a swallowed click is silent failure for a
-// settings change).
-// 296 → 298: roadmap 338 — a deferred (ghost) click from the tap that opened
-// a nested card must not run the row that replaced it, and a reopen inside the
-// close morph must leave a painted, interactive menu (both were silent
-// "the menu dismissed itself / nothing opened" failures).
-// 298 → 299: roadmap 338b — a swallowed trigger click must not replay on the
-// next menu-row pointerup (PageToolbar's stale gesture toggled the menu shut).
-// 299 → 300: roadmap 338c — a header icon tab must switch on the FIRST tap
-// (iOS drops the click on the label reflow) while a drag stays a scroll.
-// 300 → 301: roadmap 338d — every kit Button (Edit / help / Print) must act on
-// the TAP: iOS drops clicks on toolbar controls with no movement at all.
-const E2E_TEST_CAP = 301;
+// Test COUNT is not capped (roadmap 360): the suite grows by judgement —
+// update an existing test first, and add one only when a silent break is
+// plausible (data loss, wrong computed value, persistence). The spec-file cap
+// above still applies (extend a spec, never multiply files).
+
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
   0,
 );
 console.log(
-  'E2E suite: %d specs / %d tests (caps %d / %d).',
-  e2eSpecFiles.length, e2eTestCount, E2E_SPEC_CAP, E2E_TEST_CAP,
+  'E2E suite: %d specs (cap %d) / %d tests.',
+  e2eSpecFiles.length, E2E_SPEC_CAP, e2eTestCount,
 );
-if (e2eSpecFiles.length > E2E_SPEC_CAP || e2eTestCount > E2E_TEST_CAP) {
+if (e2eSpecFiles.length > E2E_SPEC_CAP) {
   errors.push(
-    `e2e suite grew past its cap (${e2eSpecFiles.length}/${E2E_SPEC_CAP} specs, ${e2eTestCount}/${E2E_TEST_CAP} tests) — ` +
-      `merge into an existing spec, move pure logic to a unit test, or raise the cap consciously (see docs/TESTING.md).`,
+    `e2e suite grew past its spec cap (${e2eSpecFiles.length}/${E2E_SPEC_CAP}) — ` +
+      `extend an existing spec or move pure logic to a unit test (see docs/TESTING.md).`,
   );
 }
 

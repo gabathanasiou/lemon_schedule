@@ -223,17 +223,20 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 
 ## Adding a spec
 
-Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
-(enforced by `npm run lint`): **≤ 70 specs / ≤ 280 tests** (`scripts/check-doc-budget.mjs`).
-More features means more tests; unbounded growth means a prune. When a new case is needed, in
-order of preference:
+Adding is **deliberate, not automatic** — e2e is the expensive layer. There is **no test-count
+cap** (roadmap 360); the **spec-file** cap stays (**≤ 72 specs**, enforced by `npm run lint`).
+Keep the suite lean by judgement: update an existing test before adding one, and add a test only
+when a silent break is plausible (data loss, wrong computed value, persistence). When a new case
+is needed, in order of preference:
 
 1. **Extend an existing spec** in the same area — don't create a near-duplicate file.
-2. **Push the logic down to a unit test** (`npm run test:unit`) — a missed edge case usually
+2. **Extend an existing test** in that spec — a second assertion beats a second `test()`.
+3. **Push the logic down to a unit test** (`npm run test:unit`) — a missed edge case usually
    belongs there, not in the browser.
-3. **Merge** two tiny single-test specs for the same surface into one.
-4. Only if the behavior is genuinely new and UI-wired: add the spec, then **prune something or
-   consciously raise the cap** in `scripts/check-doc-budget.mjs` with a one-line reason.
+4. **Merge** two tiny single-test specs for the same surface into one.
+5. Only if the behavior is genuinely new and UI-wired: add the case (and a spec only when no
+   existing file fits). Never append tests speculatively — the reviewer's question is “which
+   silent break does this catch?”.
 
 Never test the same behavior at two layers (unit + e2e). Retire a spec when its behavior is gone
 (git keeps it); quarantine chronic flake rather than silently deleting coverage.
