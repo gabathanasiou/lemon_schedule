@@ -600,19 +600,6 @@ are hard-coded (`src/components/reports/reportStyle.ts:37-42`, A4 − 12mm;
   math) + manual; migrate existing designs.
 - **Relations**: 140/142 (designer chrome), 3.
 
-## 164. Day Manager — add an element to a day's Call Times (`[ ]`)
-
-**Request**: in the Day Manager Call Times section, allow adding an element
-(cast etc.) to the day even when it appears in no scheduled scene (e.g. a
-fitting), so it lands on that day's call sheet.
-- Extend the day-scoped element set: resolver `elementCallsOfDay`
-  (`reportData.ts`) + `DayTimesGlide` reads; write per-day additions on the
-  governing `daybreakMeta` (item 99/101 convention, `dayMeta.ts`) — one source
-  for grid + report + call sheet.
-- **Verify**: Vitest for the resolver; extend `e2e/day-times-glide.spec.ts`
-  (wrong call time/count = silent).
-- **Relations**: 99, 107, 111, 146.
-
 ## 171. Day Manager locations overhaul + drop nearest hospital/police (`[ ]`, big)
 
 **Request**: the day's location attachment is bad — the dropdown cuts off and
@@ -1319,3 +1306,127 @@ numeric cast rates are data/bridge-editable.
 **Verify:** Vitest line/fringe/formula/OT/cost-report maths; e2e create-from-template, edit/totals/undo/persistence, version switch/lock, schedule change→linked qty, expense→actual, OT→expense, report print, viewer read-only; 1,000-line perf; `npm run lint`; manual visual pass per `docs/TESTING.md`.
 
 **Relations:** `depends on` 315 (Day Manager tabs) for Expenses, 146 (crew slots) + 99 (call times) for OT, 157 (cast details) for cast rates, 66 (calendar versions) for schedule counts, 97 (MCP) for the agent seam; `relates to` 333, 311/248, 322, 202, 172, 123, 308, 230.
+
+## 354. Budget currency — timezone default + explicit cell display (`[ ]`)
+
+**Request** (user 2026-11-05): a new budget opens in the currency its
+project's timezone implies (Europe/Athens → EUR), and money cells show the
+symbol (`€11,500`), using the code where the column has room
+(`€ (EUR) 11,500`).
+- New pure `src/lib/budget/currencyDefaults.ts` — `currencyForTimeZone(tz)`
+  over a compact IANA map (Europe → EUR with the London/Zurich/Stockholm/Oslo/
+  Copenhagen/Warsaw/Prague/Budapest/Bucharest/Istanbul/Kyiv/Belgrade
+  exceptions; Americas → USD/CAD/MXN/BRL; Asia/Pacific + AED/SAR/ILS; AUD/NZD/
+  ZAR; fallback USD). Applied when a budget is created
+  (`caseApplyBudgetTemplate` → `templateBudget`, `buildBudgetFromSchedule`).
+  **No migration** — existing settings stay; the Library Base-currency picker
+  is the override.
+- ONE display helper in `lib/budget/format.ts`: symbol below a width threshold,
+  `symbol (CODE)` above; used by the Budget and Cost Report cells (`Cur` reads
+  `€ EUR`). Fixes the mixed `€11,500` rate / `$0` totals (base currency was
+  still the USD default).
+- **Verify**: unit coverage in the existing budget test files (map + formatter);
+  extend `e2e/budget.spec.ts` (currency cell text).
+- **Relations**: 334, 341; batch with 355–359.
+
+## 355. Budget / Cost Report grid readability (`[ ]`)
+
+**Request** (user 2026-11-05): narrow windows crush the cells — allow sideways
+scrolling, let account/category headlines run across the empty middle cells
+instead of clipping, make the category rail collapse/resize like the Element
+Manager, and drop the row `+` (trash only).
+- `InlineGlideTable`: `columnSizing?: 'fit' | 'natural'` (default fit). Natural
+  keeps the designed widths and permits horizontal scrolling; `index.css`
+  currently hard-sets `overflow-x: hidden` in fill mode — add the scroll class.
+  Budget + Cost Report pass natural.
+- Header overflow: category/account rows return a Glide `span` from `item`
+  across the empty columns, stopping before the first populated cell (Budget:
+  Qty → Cur). Shared helper in `lib/glideCells`.
+- `CategoryRail`: collapse-to-rail + drag-resize via `usePaneResize` /
+  `useManagerTableSizes` (SidebarNav parity). Width session-only (no pref).
+  "All categories" and the rail's **New category** stay.
+- Budget row actions: remove the `add-line` `+` glyph; trash only (Add line
+  stays in the row context menu + Shift+Enter).
+- **Verify**: extend `e2e/budget.spec.ts` (scrollable narrow grid, full label,
+  rail collapse/resize, no plus); unit for the span ranges; cost report parity.
+- **Relations**: 349, 350; batch with 354/356–359.
+
+## 356. Budget toolbar & settings cleanup (`[ ]`)
+
+**Request** (user 2026-11-05): quiet the toolbar and fix the settings controls.
+- Remove the `Sparkles` “n lines follow the schedule” label (`linkedLabel`).
+- The schedule-review “Up to date” button becomes an icon-first morphing
+  button: compact status at rest, label on hover/focus, opens the review.
+- Print / Export / Import fold into ONE **Edit** menu (Print designs submenu,
+  Export CSV/JSON, Import), shared by the Budget and Cost Report toolbars.
+- Remove the header **Add category** button (the rail's New category + empty
+  state remain). Remove the redundant read-only **Symbol** box in settings
+  (derived from the currency catalogue; the Currencies card edits symbols).
+- Fringe posting gets a one-line description (“Top sheet = one combined row;
+  Category/Account = posted into each band”); Fringe posting, Decimals and
+  Negatives become kit single-select dropdowns instead of cramped `Seg`s.
+- **Verify**: rule-7 manual pass (menus open, settings stick); extend
+  `e2e/budget.spec.ts` only where a silent break is plausible.
+- **Relations**: 334, 341; batch with 354/355/357–359.
+
+## 357. Budget modals — node editor, groups, formula suggestions (`[ ]`)
+
+**Request** (user 2026-11-05): refine the (i) modal for accounts/categories,
+turn Groups into a multi-select dropdown, and make every formula field suggest.
+- `BudgetNodeModal`: sectioned layout (Identity, Classification, Notes) + a
+  read-only rollup strip (budget/actual/committed/EFC) for categories/accounts;
+  the group `Seg` becomes a dropdown.
+- Line **Groups**: kit multi-select dropdown, no search (`DropdownMenu`
+  `mode="multiple"`, commit on footer) — replaces the `Checklist`.
+- Formulas: the Globals library edits formulas as a plain grid cell — route
+  every formula surface through `FormulaField`; suggestions open on focus
+  (whole registry), not only after typing.
+- **Verify**: extend `e2e/budget.spec.ts` (groups picker commits, formula
+  suggestion applies) + existing unit for the formula book.
+- **Relations**: 334, 346; batch with 354–356/358/359.
+
+## 358. Overtime — policy in Budget, times in the Day grids (`[ ]`)
+
+**Request** (user 2026-11-05): the Overtime modal is hard to understand and
+lives behind a button in the Crew card. Industry tools split it three ways:
+budgeting apps keep OT policy/assumptions in budget settings (Movie Magic
+Budgeting, Hot Budget, Showbiz), scheduling/call-sheet tools capture actual
+call/wrap per person per day (Movie Magic Scheduling, Yamdu, StudioBinder), and
+the cost outcome lands in the Cost Report. Adopt that split:
+- **Policy** moves to the Budget tab (Settings/Library “Overtime”: daily hours,
+  tiers, 6th/7th-day multipliers, meal penalties). Project → day → dept →
+  person resolution stays in `lib/budget/overtime.ts` (no new engine).
+- **Actuals** become a second view of the Day Manager **Crew and Cast** grids
+  (“Times / OT” view toggle): call, wrap, hours, OT hours, OT cost per person;
+  the day's actual call/wrap in the grid header; per-person/day overrides
+  inline. The Crew card's Overtime button/modal retires.
+- **Cost outcome** stays in the Cost Report (already computed); posting to
+  expenses keeps its one-batch action.
+- **Verify**: unit for the policy resolver unchanged; extend
+  `e2e/budget.spec.ts` (OT grid view writes actuals + cost) — manual pass on
+  the policy editor.
+- **Relations**: merges the OT half of 334 phase 3; `depends on` 99/146/157;
+  batch with 354–357/359.
+
+## 359. Day Manager Expenses — drop the date column (`[ ]`)
+
+**Request** (user 2026-11-05): the day is already known — the card should not
+repeat the date.
+- `ExpensesGrid` gains a day-context mode (or hidden columns) so the Day
+  Manager card omits Date; the Budget tab keeps it. Commit map drops the
+  hidden column cleanly.
+- **Verify**: extend `e2e/budget.spec.ts` Day Manager expenses step.
+- **Relations**: 351; batch with 354–358.
+
+## 360. Retire the E2E test-count cap (`[ ]`)
+
+**Request** (user 2026-11-05): the count was raised on every feature — stop
+counting. Keep the spec-file cap; keep the suite lean by judgement.
+- Remove `E2E_TEST_CAP` from `scripts/check-doc-budget.mjs` (output reports the
+  count without a cap); keep `E2E_SPEC_CAP` (extend an existing spec, never
+  multiply files).
+- `docs/TESTING.md` + AGENTS.md rule 7: update an existing test first; add one
+  only when a silent break is plausible (data loss, wrong computed value,
+  persistence). No “over doing it”.
+- **Verify**: `npm run lint`; no suite change.
+- **Relations**: supersedes the cap notes added for 338d/164.
