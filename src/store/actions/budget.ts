@@ -224,7 +224,10 @@ export function caseUpdateBudgetSettings(state: State, action: Action, applyChan
 
 export function caseApplyBudgetTemplate(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'APPLY_BUDGET_TEMPLATE') return state;
-  const template = templateBudget(action.payload.key);
+  // A template generates ids — the ACTOR builds it once and ships the whole
+  // budget. Rebuilding it from `key` on every room client would give each
+  // peer different category/account/line ids (edits then target nothing).
+  const template = action.payload.budget ?? templateBudget(action.payload.key);
   return applyChange({ ...state.present, budget: template });
 }
 

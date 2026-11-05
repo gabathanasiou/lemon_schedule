@@ -164,6 +164,13 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   places: the app release AND `npx wrangler deploy` in `workers/rooms`. A stale worker looks like
   "the button does nothing" — the transient room note now says the edit was refused (2026-11-05:
   the budget release hit exactly this; every budget action was rejected until the worker redeploy).
+- **Room actions must be DETERMINISTIC.** The room runs the reducer separately on every client, so
+  any id the reducer generates diverges: the ACTOR must generate ids/timestamps and carry them in
+  the payload (`APPLY_BUDGET_TEMPLATE.budget` ships the whole actor-built template;
+  `NEW_BUDGET_VERSION.id` is actor-supplied). Never call `generateUUID()`/`Date.now()` inside a case
+  for identity that later actions reference — 2026-11-05 the Feature template generated per-client
+  category/account/line ids, so collaborators had the same-looking budget with different ids and
+  peer edits/scrolled-follow targets resolved to nothing.
 - **Local dev loop (roadmap 246).** The dev server (`vite.config.ts` `rooms-dev` plugin, serve-only)
   auto-starts the worker after listen through ONE launcher, `tools/rooms-dev.mjs`: health-probe →
   reuse a running worker (parallel worktree dev servers share ONE worker, its `.dev.vars` and its DO

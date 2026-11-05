@@ -287,7 +287,7 @@ export type Action =
   | { type: 'UNPIN_BUDGET_LINE'; payload: string }
   | { type: 'SET_BUDGET_LIBRARY'; payload: BudgetLibraryPayload }
   | { type: 'UPDATE_BUDGET_SETTINGS'; payload: Partial<BudgetSettings> }
-  | { type: 'APPLY_BUDGET_TEMPLATE'; payload: { key: 'blank' | 'feature'; id?: string } }
+  | { type: 'APPLY_BUDGET_TEMPLATE'; payload: { key: 'blank' | 'feature'; budget?: Budget } }
   | { type: 'IMPORT_BUDGET'; payload: { budget: Budget } }
   | { type: 'NEW_BUDGET_VERSION'; payload: { name: string; cloneFromId?: string | null; id?: string } }
   | { type: 'RENAME_BUDGET_VERSION'; payload: { id: string; name: string } }

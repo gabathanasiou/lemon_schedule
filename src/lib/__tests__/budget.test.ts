@@ -305,6 +305,19 @@ describe('budget store actions', () => {
     expect(restored.present.budget!.versionTrash).toHaveLength(0);
   });
 
+  it('ships an actor-built template verbatim and honours an explicit version id (room determinism)', () => {
+    const { state } = stateWithBudget();
+    const template = templateBudget('feature');
+    const next = reducer(state, { type: 'APPLY_BUDGET_TEMPLATE', payload: { key: 'feature', budget: template } });
+    // Same object identity: the payload's ids are authoritative on every client.
+    expect(next.present.budget).toBe(template);
+    const version = reducer(next, { type: 'NEW_BUDGET_VERSION', payload: { name: 'v02', cloneFromId: null, id: 'fixed-version' } });
+    expect(version.present.budget!.versions.at(-1)!.id).toBe('fixed-version');
+    // Legacy/no-payload dispatch still builds a template locally.
+    const fallback = reducer(state, { type: 'APPLY_BUDGET_TEMPLATE', payload: { key: 'blank' } });
+    expect(fallback.present.budget!.versions).toHaveLength(1);
+  });
+
   it('never deletes the last version', () => {
     const { state, p } = stateWithBudget();
     const next = reducer(state, { type: 'DELETE_BUDGET_VERSION', payload: p.budget!.activeVersionId });
