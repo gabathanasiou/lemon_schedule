@@ -12,6 +12,11 @@ export interface MoneyFormatOptions {
   decimals?: 0 | 2;
   symbol?: string;
   negativeStyle?: 'minus' | 'parentheses';
+  /** v0.2.14 item 354 — show the ISO code beside the symbol (`€ (EUR) 1,200`)
+   *  when the cell has room. Off by default. */
+  showCode?: boolean;
+  /** Currency code for `showCode` (defaults to `settings.currency`). */
+  code?: string;
 }
 
 function optionsOf(settings?: Partial<BudgetSettings> | null): Required<MoneyFormatOptions> {
@@ -19,6 +24,8 @@ function optionsOf(settings?: Partial<BudgetSettings> | null): Required<MoneyFor
     decimals: settings?.decimals ?? DEFAULT_BUDGET_SETTINGS.decimals ?? 0,
     symbol: settings?.currencySymbol ?? DEFAULT_BUDGET_SETTINGS.currencySymbol ?? '$',
     negativeStyle: settings?.negativeStyle ?? 'minus',
+    showCode: false,
+    code: settings?.currency ?? DEFAULT_BUDGET_SETTINGS.currency,
   };
 }
 
@@ -26,8 +33,8 @@ function groupThousands(intPart: string): string {
   return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export function formatMoney(cents: MoneyCents | null | undefined, settings?: Partial<BudgetSettings> | null): string {
-  const { decimals, symbol, negativeStyle } = optionsOf(settings);
+export function formatMoney(cents: MoneyCents | null | undefined, settings?: Partial<BudgetSettings> | null, opts?: MoneyFormatOptions): string {
+  const { decimals, symbol, negativeStyle, showCode, code } = { ...optionsOf(settings), ...opts };
   const value = Number.isFinite(Number(cents)) ? Math.round(Number(cents)) : 0;
   const abs = Math.abs(value);
   const whole = Math.floor(abs / 100).toString();
@@ -35,7 +42,8 @@ export function formatMoney(cents: MoneyCents | null | undefined, settings?: Par
   const body = decimals === 2
     ? `${groupThousands(whole)}.${String(frac).padStart(2, '0')}`
     : groupThousands(String(Math.round(abs / 100)));
-  const text = `${symbol}${body}`;
+  const prefix = showCode && code ? `${symbol} (${code}) ` : symbol;
+  const text = `${prefix}${body}`;
   if (value < 0) return negativeStyle === 'parentheses' ? `(${text})` : `-${text}`;
   return text;
 }

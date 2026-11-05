@@ -30,8 +30,6 @@ export interface DaySectionActions {
   openExpense?: (expenseId?: string) => void;
   /** Jump to the Budget tab (Day Manager "Create a budget" CTA). */
   openBudget?: () => void;
-  /** Open the root-owned Overtime modal on a tab (roadmap 334 phase 3). */
-  openOvertime?: (tab?: 'day' | 'departments' | 'crew' | 'cast') => void;
   /** Call-sheet design selection is owned by the composition root so the live
    *  preview pane and the section's picker stay in sync. */
   callSheetDesignId?: string;

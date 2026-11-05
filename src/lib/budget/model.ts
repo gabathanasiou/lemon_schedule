@@ -68,6 +68,14 @@ export const DEFAULT_BUDGET_CURRENCIES: BudgetCurrency[] = [
   { code: 'IDR', symbol: 'Rp', rateToBase: undefined },
   { code: 'PHP', symbol: '₱', rateToBase: undefined },
   { code: 'TWD', symbol: 'NT$', rateToBase: undefined },
+  // Item 354 — timezone-derived defaults need these in the library.
+  { code: 'UAH', symbol: '₴', rateToBase: undefined },
+  { code: 'RSD', symbol: 'дин', rateToBase: undefined },
+  { code: 'RUB', symbol: '₽', rateToBase: undefined },
+  { code: 'ARS', symbol: 'AR$', rateToBase: undefined },
+  { code: 'COP', symbol: 'COL$', rateToBase: undefined },
+  { code: 'CLP', symbol: 'CLP$', rateToBase: undefined },
+  { code: 'PEN', symbol: 'S/', rateToBase: undefined },
 ];
 
 /** Currency rows a budget should have: the defaults, keeping any existing row

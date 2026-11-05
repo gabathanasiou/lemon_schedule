@@ -37,6 +37,12 @@ const COLUMNS: InlineGlideColumn[] = [
   { key: 'total', label: 'Total', width: 102, align: 'right' },
 ];
 
+/** Item 355 — category/account labels run across the empty middle columns
+ *  (Qty → Cur) instead of clipping at the Account column. Every cell in a
+ *  Glide span must report the same range. */
+const HEADER_SPAN: readonly [number, number] = [1, 6];
+const HEADER_SPAN_KEYS = new Set(['item', 'qty', 'unit', 'rate', 'x', 'cur']);
+
 const EDITABLE = new Set(['item', 'qty', 'unit', 'rate', 'x', 'cur', 'fringes', 'groups']);
 
 /**
@@ -270,14 +276,11 @@ export function BudgetGrid({
   const rowActions = React.useCallback((rowIndex: number): InlineGlideRowAction[] => {
     const row = rowMeta.get(rowIndex);
     if (!row || readOnly) return [];
-    if (row.kind === 'category') return [
-      { key: 'add-line', title: 'Add line', icon: 'plus', onClick: () => onQuickAddLine(row.id) },
-      { key: 'delete', title: 'Delete category', icon: 'trash', onClick: () => onDeleteCategory(row.id) },
-    ];
+    if (row.kind === 'category') return [{ key: 'delete', title: 'Delete category', icon: 'trash', onClick: () => onDeleteCategory(row.id) }];
     if (row.kind === 'account') return [{ key: 'delete', title: 'Delete account', icon: 'trash', onClick: () => onDeleteAccount(row.id) }];
     if (row.kind === 'line') return [{ key: 'delete', title: 'Delete line', icon: 'trash', onClick: () => onDeleteLine(row.id) }];
     return [{ key: 'delete', title: 'Delete markup', icon: 'trash', onClick: () => onDeleteMarkup(row.id) }];
-  }, [rowMeta, readOnly, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup, onQuickAddLine]);
+  }, [rowMeta, readOnly, onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup]);
 
   const rowMenuItems = React.useCallback((rowIndex: number, close: () => void) => {
     const row = rowMeta.get(rowIndex);
@@ -304,6 +307,15 @@ export function BudgetGrid({
     const kind = row.kind;
     const isHeader = kind === 'category' || kind === 'account';
     const editable = !readOnly && kind === 'line' && EDITABLE.has(col.key);
+    // Item 355: a band label flows across the empty cells to its right.
+    if (isHeader && HEADER_SPAN_KEYS.has(col.key)) {
+      return textCell(col.key === 'item' ? row.item : '', {
+        readonly: true,
+        allowOverlay: false,
+        align: col.key === 'item' ? 'left' : col.align,
+        span: HEADER_SPAN,
+      });
+    }
     switch (col.key) {
       case 'disclosure':
         // No children → no chevron (a plain blank lane, not a dead control).
@@ -336,7 +348,11 @@ export function BudgetGrid({
       case 'x':
         return textCell(row.x, { readonly: !editable, align: 'center' });
       case 'cur':
-        return textCell(row.cur, { readonly: !editable, align: 'center' });
+        return textCell(row.cur, {
+          readonly: !editable,
+          align: 'center',
+          displayData: row.cur ? [row.curSymbol, row.cur].filter(Boolean).join(' ') : '',
+        });
       case 'unit':
         return textCell(row.unit, { readonly: !editable, align: 'center' });
       case 'fringes':
@@ -373,6 +389,7 @@ export function BudgetGrid({
         rowInfo={rowInfo}
         rowThemeOverride={rowTheme}
         heightMode="fill"
+        columnSizing="natural"
         rowMenuItems={rowMenuItems}
         onAddRow={addRowFrom}
         editors={editors}

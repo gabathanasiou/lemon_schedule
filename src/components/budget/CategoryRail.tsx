@@ -1,7 +1,8 @@
-import React from 'react';
-import { Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Rows3 } from 'lucide-react';
 import type { BudgetSettings } from '../../types';
 import { formatMoney } from '../../lib/budget/format';
+import { usePaneResize } from '../../lib/usePaneResize';
 
 export interface CategoryRailItem {
   id: string;
@@ -18,11 +19,18 @@ export interface CategoryRailItem {
   notInBudget?: boolean;
 }
 
+const RAIL_DEFAULT_W = 208;
+const RAIL_MIN_W = 168;
+const RAIL_MAX_W = 380;
+const RAIL_COLLAPSED_W = 40;
+
 /**
- * The Budget page's category rail (roadmap 339/349). Navigation only: it
- * filters the sheet to one category and never edits the chart. The right-click
- * menu is authoring-only, so the Cost Report mode gets the same rail without
- * the category manager.
+ * The Budget page's category rail (roadmap 339/349, resize/collapse 355).
+ * Navigation only: it filters the sheet to one category and never edits the
+ * chart. The right-click menu is authoring-only, so the Cost Report mode gets
+ * the same rail without the category manager. Collapse/resize matches the
+ * Element Manager's `SidebarNav` (shared `usePaneResize`); the width is a
+ * session preference, like the manager sidebars.
  */
 export function CategoryRail({
   items, settings, focusCategoryId, onFocus, mode, readOnly,
@@ -38,9 +46,49 @@ export function CategoryRail({
   onMenu?: (event: React.MouseEvent, categoryId?: string) => void;
 }) {
   const canMenu = !readOnly && mode === 'budget' && !!onMenu;
+  const [collapsed, setCollapsed] = useState(false);
+  const [width, setWidth] = useState(RAIL_DEFAULT_W);
+  const onResizeDown = usePaneResize({
+    width,
+    min: RAIL_MIN_W,
+    max: RAIL_MAX_W,
+    edge: 'right',
+    onChange: setWidth,
+  });
+
+  if (collapsed) {
+    return (
+      <div
+        className="relative w-10 shrink-0 border-r border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] flex flex-col items-center gap-1 pt-2"
+        data-budget-category-rail
+        data-collapsed="true"
+      >
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="p-1 rounded text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)]"
+          title="Show categories"
+          aria-label="Show categories"
+        >
+          <PanelLeftOpen className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onFocus(null)}
+          className={`p-1 rounded ${focusCategoryId === null ? 'bg-[var(--ui-item-hover-bg)] text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)]'}`}
+          title="All categories"
+          aria-label="All categories"
+        >
+          <Rows3 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="w-52 shrink-0 border-r border-[color:var(--ui-border)] overflow-y-auto scrollbar-custom bg-[var(--ui-panel-bg)]"
+      className="relative shrink-0 border-r border-[color:var(--ui-border)] overflow-y-auto scrollbar-custom bg-[var(--ui-panel-bg)]"
+      style={{ width }}
       onContextMenu={(e) => {
         if (!canMenu) return;
         e.preventDefault();
@@ -48,6 +96,18 @@ export function CategoryRail({
       }}
       data-budget-category-rail
     >
+      <div className="flex items-center justify-between gap-1 px-2.5 py-1.5 border-b border-[color:var(--ui-border)]">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ui-text-faint)]">Categories</span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="p-0.5 rounded text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)]"
+          title="Hide categories"
+          aria-label="Hide categories"
+        >
+          <PanelLeftClose className="w-3.5 h-3.5" />
+        </button>
+      </div>
       <button
         type="button"
         onClick={() => onFocus(null)}
@@ -97,6 +157,12 @@ export function CategoryRail({
           <Plus className="w-3 h-3" /> New category
         </button>
       )}
+      <div
+        onPointerDown={onResizeDown}
+        className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-col-resize touch-none hover:bg-blue-400/40"
+        title="Resize categories"
+        data-budget-rail-resize
+      />
     </div>
   );
 }

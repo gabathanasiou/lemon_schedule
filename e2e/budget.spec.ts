@@ -13,6 +13,10 @@ const budgetTab = '[data-presence-anchor="nav:tab:budget"]';
 const librarySubTab = '[data-presence-anchor="nav:subtab:library"]';
 
 test.describe('Budget', () => {
+  // The natural-width sheet (item 355) keeps its designed columns; a wide
+  // viewport keeps the trailing (i)/trash lanes visible for geometry clicks.
+  test.use({ viewport: { width: 1440, height: 900 } });
+
   test.describe.configure({ mode: 'serial' });
 
   test('creates a Feature budget from the empty state and persists it', async ({ page }) => {
@@ -35,12 +39,52 @@ test.describe('Budget', () => {
     await expect(page.getByText('Budget settings')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('SHOOT_DAYS')).toBeVisible();
 
+    // Item 354/358 — the budget owns the currency default and the OT policy.
+    const crewPolicy = page.locator('[data-overtime-policy="crew"]');
+    await expect(crewPolicy).toBeVisible();
+    await crewPolicy.click();
+    await expect(page.getByRole('heading', { name: 'Overtime policy — Crew' })).toBeVisible({ timeout: 5000 });
+    const paidDay = page.getByRole('spinbutton', { name: 'Paid day hours' });
+    await paidDay.fill('9');
+    await paidDay.blur();
+    await page.getByRole('button', { name: 'Save policy' }).click();
+    await expect.poll(() => page.evaluate(() => (window as any).__lemonSchedule.getProject().productionInfo?.overtime?.dailyHours)).toBe(9);
+
+    await page.locator('[data-presence-anchor="nav:subtab:budget"]').click();
+    await test.step('the category rail collapses and drag-resizes (item 355)', async () => {
+      const rail = page.locator('[data-budget-category-rail]');
+      await expect(rail).toBeVisible();
+      const before = await rail.evaluate(el => el.getBoundingClientRect().width);
+      await page.getByRole('button', { name: 'Hide categories' }).click();
+      await expect(page.locator('[data-budget-category-rail][data-collapsed="true"]')).toBeVisible();
+      await page.getByRole('button', { name: 'Show categories' }).click();
+      const handle = page.locator('[data-budget-rail-resize]');
+      const box = await handle.boundingBox();
+      expect(box).toBeTruthy();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + 40);
+      await page.mouse.down();
+      await page.mouse.move(box!.x + 60, box!.y + 40, { steps: 5 });
+      await page.mouse.up();
+      expect(await rail.evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(before);
+      // Restore the width so the trailing lanes stay in the same place for
+      // the geometry-driven steps below.
+      const box2 = await handle.boundingBox();
+      expect(box2).toBeTruthy();
+      await page.mouse.move(box2!.x + box2!.width / 2, box2!.y + 40);
+      await page.mouse.down();
+      await page.mouse.move(box2!.x - 60, box2!.y + 40, { steps: 5 });
+      await page.mouse.up();
+    });
+
     await test.step('(i) inspects/edits each row kind — it never quick-adds', async () => {
       await page.locator('[data-presence-anchor="nav:subtab:budget"]').click();
       const box = await page.locator('[data-budget-grid] .dvn-scroller').first().boundingBox();
       expect(box).toBeTruthy();
-      // Trailing lanes are fixed-width: info 30px, then actions 56px.
-      const infoX = box!.x + box!.width - 56 - 15;
+      // Natural column widths (item 355): the info lane follows the designed
+      // columns (22+300+54+68+88+42+58+118+96+102) — it is no longer pinned to
+      // the scroller's right edge. Actions (56px) follow the info lane (30px).
+      const contentW = 22 + 300 + 54 + 68 + 88 + 42 + 58 + 118 + 96 + 102;
+      const infoX = box!.x + contentW + 15;
       const rowY = (row: number) => box!.y + 30 + row * 26 + 13;
       const linesBefore = (await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary())).lines;
 
@@ -138,7 +182,8 @@ test.describe('Budget', () => {
       await page.locator('[data-presence-anchor="nav:subtab:budget"]').click();
       await page.getByRole('button', { name: 'Cost Report', exact: true }).click();
       await expect(page.locator('[data-cost-report]')).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText('$1,200', { exact: true }).first()).toBeVisible();
+      const symbol = await page.evaluate(() => (window as any).__lemonSchedule.getProject().budget?.settings?.currencySymbol || '$');
+      await expect(page.getByText(`${symbol}1,200`, { exact: true }).first()).toBeVisible();
 
       await test.step('the cost grid edits ETC inline and clears back to auto', async () => {
         const scroller = page.locator('[data-cost-report] .dvn-scroller').first();
@@ -375,7 +420,7 @@ test.describe('Budget', () => {
       await amount.blur();
       await page.getByRole('button', { name: 'Done', exact: true }).click();
 
-      await expect(section).toContainText('$750');
+      await expect(section).toContainText(`${symbol}750`);
       expect((await page.evaluate(() => (window as any).__lemonSchedule.getProject().expenses)).find((e: any) => e.id === attributed.id).description).toBe('Craft service');
 
       // Re-open the same row through (i) and edit it.
@@ -384,14 +429,14 @@ test.describe('Budget', () => {
       await editAmount.fill('800');
       await editAmount.blur();
       await page.getByRole('button', { name: 'Done', exact: true }).click();
-      await expect(section).toContainText('$800');
+      await expect(section).toContainText(`${symbol}800`);
 
       await waitForPersistedProject(page, 'p.expenses && p.expenses.some(e => e.description === "Craft service" && e.amountCents === 80000)');
       await page.reload();
       await ensureProject(page);
       await page.getByRole('button', { name: 'Production', exact: true }).click();
       await page.locator('[data-day-tab="expenses"]').click();
-      await expect(page.locator('[data-expenses-section]')).toContainText('$800');
+      await expect(page.locator('[data-expenses-section]')).toContainText(`${symbol}800`);
     });
 
     await test.step('crew overtime computes, posts to expenses and persists', async () => {
@@ -412,18 +457,17 @@ test.describe('Budget', () => {
         });
         return b.overtimeSummary();
       });
-      // Day 1 call 08:00 → actual wrap 21:00 = 13h; 3h OT at $50 (10h paid, 2h×1.5 + 1h×2).
+      // Day 1 call 08:00 → actual wrap 21:00 = 13h; 3h OT (10h paid, 2h×1.5 + 1h×2).
       expect(seeded[0].otHours).toBe(3);
       expect(seeded[0].costCents).toBe(5000);
       expect(seeded[0].noRate).toEqual([]);
 
-      const badge = page.locator('[data-crew-overtime]');
-      await expect(badge).toContainText('3h · $50', { timeout: 5000 });
-      await badge.click();
-      await expect(page.getByRole('heading', { name: /^Overtime —/ })).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText('3h OT')).toBeVisible();
+      // The Overtime section (not a modal) reads the SAME engine.
+      const overtimeSection = page.locator('[data-section="overtime"]');
+      await expect(overtimeSection).toContainText(`3h · ${symbol}50`, { timeout: 5000 });
+      await expect(overtimeSection.locator('[data-overtime-glide]').first()).toBeVisible();
 
-      await page.getByRole('button', { name: 'Post to expenses' }).click();
+      await overtimeSection.locator('[data-overtime-post]').click();
       await page.getByRole('button', { name: 'Confirm', exact: true }).click();
       await expect.poll(async () => {
         const expenses = await page.evaluate(() => (window as any).__lemonSchedule.getProject().expenses || []);
@@ -434,14 +478,12 @@ test.describe('Budget', () => {
       expect(posted.method).toBe('payroll');
       expect(posted.status).toBe('actual');
       expect(posted.dayNumber).toBe(1);
-      await page.getByRole('button', { name: 'Done', exact: true }).click();
-
       await waitForPersistedProject(page, 'p.expenses && p.expenses.some(e => String(e.description).startsWith("Overtime —")) && p.versions[0].rows.some(r => r.daybreakMeta && r.daybreakMeta.overtime)');
       await page.reload();
       await ensureProject(page);
       await page.getByRole('button', { name: 'Production', exact: true }).click();
       await page.locator('[data-day-tab="crew"]').click();
-      await expect(page.locator('[data-crew-overtime]')).toContainText('3h · $50');
+      await expect(page.locator('[data-section="overtime"]')).toContainText(`3h · ${symbol}50`);
       const afterReload = await page.evaluate(() => (window as any).__lemonSchedule.overtimeSummary());
       expect(afterReload[0].costCents).toBe(5000);
     });

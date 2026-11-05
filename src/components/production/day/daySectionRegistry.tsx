@@ -13,6 +13,7 @@ import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
 import BreaksNotesSection, { BreaksNotesIcon } from './sections/BreaksNotesSection';
 import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
+import OvertimeSection, { OvertimeIcon } from './sections/OvertimeSection';
 import ExpensesSection from './sections/ExpensesSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
 import ConflictsSection, { ConflictsIcon } from './sections/ConflictsSection';
@@ -176,11 +177,25 @@ export const DAY_SECTIONS: DaySectionDef[] = [
         ...(day.meta.departmentPrecalls ? { departmentPrecalls: day.meta.departmentPrecalls } : {}),
         ...(day.meta.reportToId ? { reportToId: day.meta.reportToId } : {}),
         ...(day.meta.departmentReportTo ? { departmentReportTo: day.meta.departmentReportTo } : {}),
-        // Phase 3: overtime policy/actual times/overrides travel with the crew.
-        ...(day.meta.overtime ? { overtime: day.meta.overtime } : {}),
       };
       return Object.keys(patch).length ? patch : undefined;
     },
+  },
+  {
+    wide: true,
+    id: 'overtime',
+    title: 'Overtime',
+    icon: <OvertimeIcon className="w-3.5 h-3.5" />,
+    summary: day => {
+      const overtime = day.meta.overtime;
+      if (overtime?.postedAt) return 'Posted to expenses';
+      return overtime?.actualCall || overtime?.actualWrap ? 'Actual times set' : 'Scheduled times';
+    },
+    Component: OvertimeSection,
+    copyable: true,
+    copyMode: 'replace',
+    tabs: ['all', 'crew'],
+    extract: day => (day.meta.overtime ? { overtime: day.meta.overtime } : undefined),
   },
   {
     wide: true,

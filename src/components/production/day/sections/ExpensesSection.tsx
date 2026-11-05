@@ -92,6 +92,7 @@ const ExpensesSection: React.FC<DaySectionProps> = ({ day, project, dispatch, ac
           expenses={expenses}
           readOnly={!!readOnly}
           fill={false}
+          hideDate
           presenceScope={`day:${day.chronoDay}:expenses`}
           emptyLabel="No expenses attributed to this day yet — Add expense, or tag one with this date."
           onOpenExpense={(expense) => openExpense(expense.id)}

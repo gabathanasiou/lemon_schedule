@@ -5,6 +5,7 @@ import {
   SCHEDULE_SOURCE_ACCOUNT, SCHEDULE_SOURCE_UNIT,
 } from '../scheduleSync';
 import { featureBudget } from './index';
+import { defaultBudgetSettingsForProject } from '../currencyDefaults';
 
 /**
  * "From schedule" budget creation (`docs/BUDGETING-SURFACES.md` §9). Pure: the
@@ -43,7 +44,7 @@ function accountByNumber(budget: Budget, number: string): string {
 }
 
 export function buildBudgetFromSchedule(project: Project): Budget {
-  const budget = featureBudget();
+  const budget = featureBudget(defaultBudgetSettingsForProject(project));
   const q = computeScheduleQuantities(project);
   const version = budget.versions[0];
   const lines: BudgetLine[] = [];

@@ -32,7 +32,6 @@ import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { ExpenseModal } from '../../budget/ExpenseModal';
-import { OvertimeModal, type OvertimeTab } from './OvertimeModal';
 import { makeExpense } from '../../../lib/budget/model';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
@@ -149,7 +148,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   // null = closed; object = open (optionally with role/name/slot prefilled).
   const [addCrew, setAddCrew] = useState<{ role?: string; name?: string; slotId?: string } | null>(null);
   const [expenseId, setExpenseId] = useState<string | null>(null);
-  const [overtimeTab, setOvertimeTab] = useState<OvertimeTab | null>(null);
 
   const selected = useMemo(() => {
     if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
@@ -273,7 +271,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       setExpenseId(expense.id);
     },
     openBudget: onOpenBudget,
-    openOvertime: tab => setOvertimeTab(tab || 'day'),
     callSheetDesignId: callSheetDesign?.id || '',
     selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
   }), [onOpenScene, onOpenBudget, callSheetDesign?.id, setPrefs, selected?.date, selected?.chronoDay, dispatch]);
@@ -594,18 +591,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
       {crewMemberModal}
-      {overtimeTab && selected && (
-        <OvertimeModal
-          open
-          day={selected}
-          project={project}
-          dispatch={dispatch}
-          readOnly={locked}
-          initialTab={overtimeTab}
-          onClose={() => setOvertimeTab(null)}
-          onPatchMeta={patchMeta}
-        />
-      )}
       {expenseId && (
         <ExpenseModal
           expenseId={expenseId}

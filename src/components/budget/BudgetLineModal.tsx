@@ -89,6 +89,7 @@ export function BudgetLineModal({
   const linkOptions = React.useMemo(() => linkOptionsOf(project), [project]);
   const [unitOpen, setUnitOpen] = React.useState(false);
   const [currencyOpen, setCurrencyOpen] = React.useState(false);
+  const [groupsOpen, setGroupsOpen] = React.useState(false);
   const [linkOpen, setLinkOpen] = React.useState(false);
   const currentLink = scheduleSourceKey(line.source);
 
@@ -290,17 +291,28 @@ export function BudgetLineModal({
 
         {groups.length > 0 && (
           <Section title="Groups">
-            <Checklist
-              items={groupItems}
-              selected={line.groups || []}
-              disabled={readOnly}
-              onToggle={(id) => {
-                const set = new Set(line.groups || []);
-                if (set.has(String(id))) set.delete(String(id)); else set.add(String(id));
-                onUpdate({ groups: [...set] });
+            <DropdownMenu
+              open={groupsOpen}
+              onOpenChange={setGroupsOpen}
+              width="w-56"
+              multiple={{
+                selectedIds: line.groups || [],
+                commitLabel: count => `Apply groups (${count})`,
+                onCommit: ids => onUpdate({ groups: ids }),
               }}
-              maxHeight={140}
-            />
+              trigger={
+                <Button variant="outline" disabled={readOnly} className="w-full justify-between">
+                  <span className="truncate">{(line.groups || []).length ? `${(line.groups || []).length} selected` : 'No groups'}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </Button>
+              }
+            >
+              {groupItems.map(group => (
+                <DropdownItem key={group.id} itemId={group.id} onClick={() => {}}>
+                  {group.label}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
           </Section>
         )}
 

@@ -6,6 +6,7 @@ import type {
 import type { Action, State } from '../reducer';
 import { cloneBudgetVersion, nextBudgetNumber, pruneBudgetVersionTrash } from '../../lib/budget/model';
 import { templateBudget } from '../../lib/budget/templates';
+import { defaultBudgetSettingsForProject } from '../../lib/budget/currencyDefaults';
 
 export type ApplyChange = (p: Project) => State;
 
@@ -224,7 +225,7 @@ export function caseUpdateBudgetSettings(state: State, action: Action, applyChan
 
 export function caseApplyBudgetTemplate(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'APPLY_BUDGET_TEMPLATE') return state;
-  const template = templateBudget(action.payload.key);
+  const template = templateBudget(action.payload.key, defaultBudgetSettingsForProject(state.present));
   return applyChange({ ...state.present, budget: template });
 }
 

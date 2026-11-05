@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
-import { Seg, type PickerItem } from '@gabriel/ui-kit';
+import { type PickerItem } from '@gabriel/ui-kit';
 import { ChevronDown } from 'lucide-react';
 import type {
   BudgetCurrency, BudgetFringe, BudgetGlobal, BudgetGroup, BudgetMarkup,
@@ -9,6 +9,7 @@ import type {
 } from '../../types';
 import type { BudgetModel } from '../../lib/budget/calc';
 import { activeBudgetVersion, currencySymbolFor } from '../../lib/budget/model';
+import { SettingSelect } from './SettingSelect';
 import {
   makeBudgetFringe, makeBudgetGlobal, makeBudgetGroup, makeBudgetMarkup,
   makeBudgetUnit,
@@ -23,6 +24,8 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { BudgetGroupModal } from './BudgetGroupModal';
 import { BudgetGlobalModal } from './BudgetGlobalModal';
+import { OvertimePolicyModal } from './OvertimePolicyModal';
+import { resolveOvertimePolicy } from '../../lib/budget/overtime';
 import Button from '../Button';
 import { InlineGlideTable, type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../InlineGlideTable';
 import { textCell, colorSwatchCell } from '../../lib/glideCells';
@@ -199,6 +202,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
   const [rateSyncing, setRateSyncing] = React.useState(false);
   const [rateError, setRateError] = React.useState<string | null>(null);
   const [currenciesOpen, setCurrenciesOpen] = React.useState(false);
+  const [overtimeKind, setOvertimeKind] = React.useState<'crew' | 'cast' | null>(null);
   const editingGroup = editingGroupId ? (budget.groups || []).find(g => g.id === editingGroupId) : undefined;
   const editingGlobal = editingGlobalId ? (budget.globals || []).find(g => g.id === editingGlobalId) : undefined;
 
@@ -441,7 +445,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
       <div className="mx-auto w-full max-w-5xl px-4 py-4 space-y-3">
         <section className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
           <h2 className="text-xs font-semibold text-[color:var(--ui-text-strong)] mb-2">Budget settings</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Base currency</span>
               <DropdownMenu
@@ -475,49 +479,37 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
               </DropdownMenu>
             </label>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Symbol</span>
-              {/* Derived from the currency table — never a second editable
-                  source (roadmap 341). Edit the symbol on the Currencies card. */}
-              <span
-                className="h-[30px] flex items-center rounded-md border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 text-xs text-[color:var(--ui-text-strong)]"
-                data-budget-currency-symbol
-                title="Derived from the selected currency — edit it in the Currencies table"
-              >
-                {settings.currencySymbol || currencySymbolFor(settings.currency, budget.currencies)}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Decimals</span>
-              <Seg
-                variant="track"
-                theme="light"
+              <SettingSelect
                 value={String(settings.decimals)}
                 options={[{ v: '0', l: 'Whole' }, { v: '2', l: '2 dp' }]}
                 onChange={v => dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { decimals: v === '2' ? 2 : 0 } })}
                 disabled={readOnly}
+                ariaLabel="Decimals"
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Negatives</span>
-              <Seg
-                variant="track"
-                theme="light"
+              <SettingSelect
                 value={settings.negativeStyle || 'minus'}
                 options={[{ v: 'minus', l: '-100' }, { v: 'parentheses', l: '(100)' }]}
                 onChange={v => dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { negativeStyle: v === 'parentheses' ? 'parentheses' : 'minus' } })}
                 disabled={readOnly}
+                ariaLabel="Negatives"
               />
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Fringe posting</span>
-              <Seg
-                variant="track"
-                theme="light"
+              <SettingSelect
                 value={settings.fringePosting || 'topsheet'}
                 options={POSTING_OPTIONS.map(o => ({ v: o.v, l: o.l }))}
                 onChange={v => dispatch({ type: 'UPDATE_BUDGET_SETTINGS', payload: { fringePosting: v as 'topsheet' | 'category' | 'account' } })}
                 disabled={readOnly}
+                ariaLabel="Fringe posting"
               />
+              <p className="text-[10px] text-[color:var(--ui-text-faint)]">
+                Where fringes land on the sheet: Top sheet = one combined row per fringe; Category / Account = posted into each band.
+              </p>
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2">
               <span className="text-[10px] uppercase tracking-wide text-[color:var(--ui-text-faint)]">Cost context</span>
@@ -525,6 +517,36 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
                 {model.lineCount} {model.lineCount === 1 ? 'line' : 'lines'} · {model.linkedLineCount} linked · {formatMoney(model.totals.grandTotalCents, settings)} total
               </span>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-3">
+          <h2 className="text-xs font-semibold text-[color:var(--ui-text-strong)] mb-1">Overtime</h2>
+          <p className="text-[10px] text-[color:var(--ui-text-faint)] mb-2">
+            Project policy for crew and cast. The Day Manager records actual call/wrap; the Cost Report shows the resulting overtime.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {(['crew', 'cast'] as const).map(kind => {
+              const policy = resolveOvertimePolicy(project, undefined, undefined, undefined, kind);
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setOvertimeKind(kind)}
+                  disabled={readOnly}
+                  className="text-left rounded-md border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-3 py-2 hover:bg-[var(--ui-card-hover)] disabled:opacity-50"
+                  data-overtime-policy={kind}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[color:var(--ui-text-strong)]">{kind === 'crew' ? 'Crew' : 'Cast'}</span>
+                    <span className="text-[10px] text-[color:var(--ui-text-faint)]">{policy.dailyHours}h day</span>
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-[color:var(--ui-text-muted)]">
+                    {policy.tiers.map(t => `${t.afterHours}h ×${t.multiplier}`).join(' → ')} · 6th ×{policy.sixthDayMultiplier} · 7th ×{policy.seventhDayMultiplier}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -591,7 +613,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
 
         <LibraryTable
           title="Globals"
-          hint="Named numbers for formulas; a global can reference another global."
+          hint="Named numbers for formulas; a global can reference another global. Open a global (i) to edit its formula with autocomplete."
           addLabel="Global"
           rows={globalRows}
           readOnly={readOnly}
@@ -603,7 +625,7 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
             { key: 'symbol', label: 'Symbol', width: 110, editable: true },
             { key: 'description', label: 'Description', width: 220, editable: true },
             { key: 'value', label: 'Value', width: 80, align: 'right', editable: true },
-            { key: 'formula', label: 'Formula', width: 160, editable: true },
+            { key: 'formula', label: 'Formula', width: 160 },
           ]}
         />
 
@@ -694,6 +716,23 @@ export function BudgetLibraryView({ model, project, readOnly }: { model: BudgetM
           onClose={() => setEditingGlobalId(null)}
           onUpdate={(updates) => setLibrary('globals', (budget.globals || []).map(g => g.id === editingGlobal.id ? { ...g, ...updates } : g))}
           onDelete={() => { void confirmDelete('globals', editingGlobal.id, editingGlobal.symbol); setEditingGlobalId(null); }}
+        />
+      )}
+
+      {overtimeKind && (
+        <OvertimePolicyModal
+          open
+          kind={overtimeKind}
+          project={project}
+          readOnly={readOnly}
+          onClose={() => setOvertimeKind(null)}
+          onSave={(policy) => {
+            dispatch({
+              type: 'SET_PRODUCTION_INFO',
+              payload: overtimeKind === 'crew' ? { overtime: policy } : { castOvertime: policy },
+            });
+            setOvertimeKind(null);
+          }}
         />
       )}
 

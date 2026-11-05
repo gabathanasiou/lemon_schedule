@@ -1,5 +1,4 @@
 import React from 'react';
-import { Download, Printer, Save } from 'lucide-react';
 import type { Project, ReportDesign } from '../../types';
 import type { CostReportModel } from '../../lib/budget/costReport';
 import { costReportFilename, downloadFile, exportCostReportCsv } from '../../lib/budget/export';
@@ -8,8 +7,8 @@ import { PERIOD_LABELS, periodLabel, type PeriodKey } from '../../lib/budget/per
 import Button from '../Button';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import DropdownDivider from '../DropdownDivider';
 import DateField from '../DateField';
+import { BudgetEditMenu } from './BudgetEditMenu';
 
 export interface CostPeriodState {
   asOf: string;
@@ -34,7 +33,6 @@ export function CostReportToolbar({
   onSaveDesign: () => void;
 }) {
   const [periodOpen, setPeriodOpen] = React.useState(false);
-  const [printOpen, setPrintOpen] = React.useState(false);
   const periodText = periodLabel(state.period, state.customFrom, state.customTo);
 
   return (
@@ -87,28 +85,14 @@ export function CostReportToolbar({
         {report?.periodApplied ? 'Actual is the selected period · EFC stays as-of' : `${report?.expenseCount || 0} expenses · ${report?.purchaseOrderCount || 0} POs`}
       </span>
       <div className="ml-auto flex items-center gap-1">
-        {onPrintDesign && (
-          <DropdownMenu
-            open={printOpen}
-            onOpenChange={setPrintOpen}
-            width="w-56"
-            theme="light"
-            trigger={<Button theme="light"><Printer className="w-3.5 h-3.5" /> Print</Button>}
-          >
-            <DropdownItem onClick={() => { setPrintOpen(false); onPrintDesign(costReportDesign()); }}>Print Cost Report</DropdownItem>
-            <DropdownDivider />
-            <DropdownItem onClick={() => { setPrintOpen(false); onSaveDesign(); }}>
-              <span className="inline-flex items-center gap-1"><Save className="w-3 h-3" /> Save as design</span>
-            </DropdownItem>
-          </DropdownMenu>
-        )}
-        <Button
-          theme="light"
-          onClick={() => report && downloadFile(exportCostReportCsv(report), costReportFilename(project), 'text/csv')}
-          disabled={!report}
-        >
-          <Download className="w-3.5 h-3.5" /> CSV
-        </Button>
+        <BudgetEditMenu
+          printActions={onPrintDesign ? [{ label: 'Print Cost Report', onClick: () => onPrintDesign(costReportDesign()) }] : []}
+          saveActions={[{ label: 'Save as design', onClick: onSaveDesign }]}
+          exportActions={[{
+            label: 'Export CSV',
+            onClick: () => { if (report) downloadFile(exportCostReportCsv(report), costReportFilename(project), 'text/csv'); },
+          }]}
+        />
       </div>
     </>
   );

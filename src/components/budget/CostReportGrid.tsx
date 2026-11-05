@@ -191,6 +191,7 @@ export function CostReportGrid({
         readOnly={readOnly}
         rowThemeOverride={rowTheme}
         heightMode="fill"
+        columnSizing="natural"
         rowMenuItems={rowMenuItems}
         baseRowHeight={26}
         baseHeaderHeight={30}

@@ -3,7 +3,7 @@ import type { CustomCell, CustomRenderer, GridCell } from '@glideapps/glide-data
 import { GridCellKind } from '@glideapps/glide-data-grid';
 
 /** Builds a plain text Glide grid cell. */
-export function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor']; themeOverride?: { bgCell?: string; textDark?: string; textMedium?: string; textLight?: string }; selectionRange?: number | readonly [number, number] }>): GridCell {
+export function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor']; themeOverride?: { bgCell?: string; textDark?: string; textMedium?: string; textLight?: string }; selectionRange?: number | readonly [number, number]; span: readonly [number, number] }>): GridCell {
   return {
     kind: GridCellKind.Text,
     data,
@@ -14,6 +14,7 @@ export function textCell(data: string, opts?: Partial<{ readonly: boolean; displ
     cursor: opts?.cursor,
     themeOverride: opts?.themeOverride,
     selectionRange: opts?.selectionRange,
+    span: opts?.span,
   } as GridCell;
 }
 

@@ -9,6 +9,7 @@ import { formatMoney } from '../budget/format';
 import { applyRatesToCurrencies, fetchDailyRates, formatRatesSyncedAt } from '../budget/rates';
 import { currencySymbolFor, DEFAULT_BUDGET_CURRENCIES, makeBudgetLine, mergeDefaultCurrencies, settingsWithCurrency } from '../budget/model';
 import { templateBudget } from '../budget/templates';
+import { currencyForTimeZone, defaultBudgetSettingsForTimeZone } from '../budget/currencyDefaults';
 import { expenseStatusTone, EXPENSE_STATUS_TONES } from '../budget/statusTones';
 import { periodRange, periodLabel } from '../budget/period';
 
@@ -24,6 +25,29 @@ function sampleModel() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('budget currency defaults (item 354)', () => {
+  it('maps the project timezone to a currency code', () => {
+    expect(currencyForTimeZone('Europe/Athens')).toBe('EUR');
+    expect(currencyForTimeZone('Europe/London')).toBe('GBP');
+    expect(currencyForTimeZone('America/Toronto')).toBe('CAD');
+    expect(currencyForTimeZone('America/New_York')).toBe('USD');
+    expect(currencyForTimeZone('Asia/Tokyo')).toBe('JPY');
+    expect(currencyForTimeZone('Australia/Sydney')).toBe('AUD');
+    expect(currencyForTimeZone(undefined)).toBe('USD');
+  });
+
+  it('derives the symbol and keeps template settings', () => {
+    expect(defaultBudgetSettingsForTimeZone('Europe/Athens')).toMatchObject({ currency: 'EUR', currencySymbol: '€' });
+    const blank = templateBudget('blank', { currency: 'EUR', currencySymbol: '€' });
+    expect(blank.settings).toMatchObject({ currency: 'EUR', currencySymbol: '€', templateKey: 'blank' });
+  });
+
+  it('can print the ISO code beside the symbol when a cell has room', () => {
+    expect(formatMoney(1150000, { currency: 'EUR', currencySymbol: '€' }, { showCode: true })).toBe('€ (EUR) 11,500');
+    expect(formatMoney(1150000, { currency: 'EUR', currencySymbol: '€' })).toBe('€11,500');
+  });
 });
 
 describe('budget grid rows (roadmap 342/340)', () => {

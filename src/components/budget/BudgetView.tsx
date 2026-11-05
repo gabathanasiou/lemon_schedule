@@ -126,6 +126,29 @@ export function BudgetView({
   const editingCategory = editingNode?.kind === 'category' ? budget.categories.find(c => c.id === editingNode.id) : undefined;
   const editingAccount = editingNode?.kind === 'account' ? budget.accounts.find(a => a.id === editingNode.id) : undefined;
 
+  /** Item 357 — the (i) modal's rollup: live budget total + cost-report figures. */
+  const editingRollup = React.useMemo(() => {
+    if (!editingNode) return undefined;
+    if (editingNode.kind === 'category') {
+      const cat = model.categories.find(c => c.category.id === editingNode.id);
+      const cost = costReport?.categories.find(c => c.categoryId === editingNode.id)?.row;
+      return cat ? {
+        budgetCents: cat.totalCents,
+        actualCents: cost?.actualCents,
+        committedCents: cost?.committedCents,
+        efcCents: cost?.efcCents,
+      } : undefined;
+    }
+    const acc = model.categories.flatMap(c => c.accounts).find(a => a.account.id === editingNode.id);
+    const costAcc = costReport?.categories.flatMap(c => c.accounts).find(a => a.accountId === editingNode.id)?.row;
+    return acc ? {
+      budgetCents: acc.totalCents,
+      actualCents: costAcc?.actualCents,
+      committedCents: costAcc?.committedCents,
+      efcCents: costAcc?.efcCents,
+    } : undefined;
+  }, [editingNode, model, costReport]);
+
   const addCategory = React.useCallback(() => {
     const category = makeBudgetCategory({ name: 'New Category', sort: budget.categories.length });
     dispatch({ type: 'ADD_BUDGET_CATEGORY', payload: category });
@@ -445,9 +468,6 @@ export function BudgetView({
         meta: formatPercent(cat.percentOfGrand, 1),
         amountCents: cat.totalCents,
       }));
-  const linkedLabel = model.linkedLineCount > 0
-    ? `${model.linkedLineCount} line${model.linkedLineCount === 1 ? ' follows' : 's follow'} the schedule`
-    : 'No lines linked to the schedule';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--ui-modal-header-base)]">
@@ -467,11 +487,9 @@ export function BudgetView({
           <BudgetToolbar
             readOnly={readOnly}
             reviewDiff={reviewDiff}
-            linkedLabel={linkedLabel}
             rowFilter={rowFilter}
             onRowFilterChange={setRowFilter}
             filterCounts={filterCounts}
-            onAddCategory={addCategory}
             onAddMarkup={addMarkup}
             onOpenReview={() => setReviewOpen(true)}
             printDesigns={printDesigns}
@@ -622,6 +640,8 @@ export function BudgetView({
             if (editingNode.kind === 'account' && editingAccount) addLine(editingAccount.id);
             setEditingNode(null);
           }}
+          rollup={editingRollup}
+          settings={mode === 'cost' ? costSettings : settings}
         />
       )}
 

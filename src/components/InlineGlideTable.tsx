@@ -148,6 +148,11 @@ export interface InlineGlideTableProps {
    *  the grid fills its measured container and scrolls its rows INSIDE Glide,
    *  keeping the column header pinned (the Budget sheet, roadmap 343). */
   heightMode?: 'content' | 'fill';
+  /** Column sizing (item 355). `fit` (default) distributes the caller's
+   *  preferred widths to the card, so the table never scrolls sideways.
+   *  `natural` keeps them and lets the grid scroll horizontally — the Budget /
+   *  Cost sheets at narrow widths. */
+  columnSizing?: 'fit' | 'natural';
   /** Presence scope (roadmap 234): the stable id of THIS logical table shared
    *  by every client (e.g. `day:3:times:cast`). Every mounted instance — main
    *  window, popped-out sheet, portalled canvas — publishes its own selection
@@ -211,6 +216,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   rowInfo,
   rowThemeOverride,
   heightMode = 'content',
+  columnSizing = 'fit',
   presenceScope,
   presenceRowKey,
   viewRestore,
@@ -263,6 +269,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       ...(rowInfo ? [INFO_COLUMN] : []),
       ...(rowActions ? [ACTIONS_COLUMN] : []),
     ];
+    if (columnSizing === 'natural') return withTrailing(columns);
     if (!gridWidth || gridWidth <= 0 || total <= 0) return withTrailing(columns);
     const target = Math.max(120, Math.floor(gridWidth) - 1) - trailingWidth;
     const flexIdx = Math.min(1, columns.length - 1);
@@ -277,7 +284,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (rowInfo) out.push(INFO_COLUMN);
     if (rowActions) out.push(ACTIONS_COLUMN);
     return out;
-  }, [columns, gridWidth, rowActions, rowInfo]);
+  }, [columns, gridWidth, rowActions, rowInfo, columnSizing]);
 
   const glideColumns: GridColumn[] = useMemo(
     () => COLUMNS.map(c => ({ title: c.label.toUpperCase(), width: c.width })),
@@ -971,7 +978,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   return (
     <div
       ref={wrapperRef}
-      className={`inline-glide-table${heightMode === 'fill' ? ' inline-glide-table--scroll flex-1 min-h-0 flex flex-col' : ''}`}
+      className={`inline-glide-table${heightMode === 'fill' ? ' inline-glide-table--scroll flex-1 min-h-0 flex flex-col' : ''}${columnSizing === 'natural' ? ' inline-glide-table--x-scroll' : ''}`}
       {...(dataAttr ? { [dataAttr]: '' } : {})}
       {...(dataCategory ? { 'data-category': dataCategory } : {})}
       data-presence-grid={presenceScope}

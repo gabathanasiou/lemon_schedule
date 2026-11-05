@@ -702,6 +702,11 @@ input, textarea, [contenteditable] {
 }
 .inline-glide-table--scroll .dvn-scroller::-webkit-scrollbar-track { background: transparent; }
 
+/* Item 355 — natural column widths: the sheet keeps its designed columns and
+   scrolls sideways instead of crushing them (Budget / Cost Report). */
+.inline-glide-table--x-scroll .dvn-scroller { overflow-x: auto !important; }
+.inline-glide-table--x-scroll .dvn-scroller::-webkit-scrollbar { display: block; height: 10px; width: 10px; }
+
 /* Script razor (cut) tool — Premiere-style scissors cursor over the page.
    SVG cursor with a crosshair fallback (Safari ignores some SVG cursors). */
 .script-razor,

@@ -1,4 +1,4 @@
-import type { Budget } from '../../../types';
+import type { Budget, BudgetSettings } from '../../../types';
 import {
   DEFAULT_BUDGET_CURRENCIES, DEFAULT_BUDGET_GROUPS, DEFAULT_BUDGET_SETTINGS,
   DEFAULT_BUDGET_UNITS, makeBudgetAccount, makeBudgetCategory, makeBudgetMarkup,
@@ -7,7 +7,7 @@ import {
 
 /** Feature-film starter chart of accounts — three fixed levels, structure only
  *  (no zero-dollar placeholder lines). `docs/BUDGETING.md` §7. */
-export function featureBudget(): Budget {
+export function featureBudget(settings?: Partial<BudgetSettings>): Budget {
   const cats = {
     atl: makeBudgetCategory({ number: '1000', name: 'Above the Line', group: 'atl', sort: 0 }),
     btl: makeBudgetCategory({ number: '2000', name: 'Below the Line', group: 'btl', sort: 1 }),
@@ -56,7 +56,7 @@ export function featureBudget(): Budget {
     markups: [
       makeBudgetMarkup({ name: 'Contingency', calc: 'percent', percent: 10, marksUp: 'both', appliesTo: { all: true }, sort: 0 }),
     ],
-    settings: { ...DEFAULT_BUDGET_SETTINGS, templateKey: 'feature' },
+    settings: { ...DEFAULT_BUDGET_SETTINGS, ...settings, templateKey: 'feature' },
     versions: [version],
     activeVersionId: version.id,
     versionTrash: [],
@@ -66,8 +66,8 @@ export function featureBudget(): Budget {
 }
 
 /** Commercial/AICP is a later phase — the key stays reserved. */
-export function templateBudget(key: 'blank' | 'feature'): Budget {
-  if (key === 'feature') return featureBudget();
+export function templateBudget(key: 'blank' | 'feature', settings?: Partial<BudgetSettings>): Budget {
+  if (key === 'feature') return featureBudget(settings);
   const version = makeBudgetVersion({ name: 'v01' });
   return {
     categories: [],
@@ -79,7 +79,7 @@ export function templateBudget(key: 'blank' | 'feature'): Budget {
     units: DEFAULT_BUDGET_UNITS.map(u => ({ ...u })),
     currencies: DEFAULT_BUDGET_CURRENCIES.map(c => ({ ...c })),
     markups: [],
-    settings: { ...DEFAULT_BUDGET_SETTINGS, templateKey: 'blank' },
+    settings: { ...DEFAULT_BUDGET_SETTINGS, ...settings, templateKey: 'blank' },
     versions: [version],
     activeVersionId: version.id,
     versionTrash: [],

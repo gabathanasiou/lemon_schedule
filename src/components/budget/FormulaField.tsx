@@ -48,7 +48,7 @@ export function FormulaField({
 
   const { fragment } = formulaFragmentAt(draft, caret);
   const suggestions = React.useMemo(() => {
-    if (!focused || fragment.length === 0 || dismissedAt === caret) return [];
+    if (!focused || dismissedAt === caret) return [];
     const matches = searchFormulaBook(entries, fragment);
     // Prefer prefix matches, then substring matches; registry order inside each.
     const lower = fragment.toLowerCase();

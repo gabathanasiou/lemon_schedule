@@ -53,6 +53,7 @@ const NO_PO = 'No PO';
 export function ExpensesGrid({
   project, expenses, readOnly, onOpenExpense, onDeleteExpense, onDuplicateExpense, onCommit,
   presenceScope = 'budget:expenses', emptyLabel = 'No expenses yet — add one or import a CSV.', fill = true,
+  hideDate = false,
 }: {
   project: Project;
   expenses: Expense[];
@@ -64,6 +65,8 @@ export function ExpensesGrid({
   /** Presence identity — a day-scoped ledger must not share the Budget pool. */
   presenceScope?: string;
   emptyLabel?: string;
+  /** Item 359 — the Day Manager card already names the date; drop the column. */
+  hideDate?: boolean;
   /** `true` (Budget ledger) fills its flex column; `false` (Day card) sits at
    *  content height inside the card. */
   fill?: boolean;
@@ -237,7 +240,7 @@ export function ExpensesGrid({
   return (
     <div className={fill ? 'flex-1 min-h-0 overflow-hidden' : ''} data-expenses-grid>
       <InlineGlideTable
-        columns={COLUMNS}
+        columns={hideDate ? COLUMNS.filter(c => c.key !== 'date') : COLUMNS}
         rows={rows}
         getCellContent={getCellContent}
         onCommit={commit}
