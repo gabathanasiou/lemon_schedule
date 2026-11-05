@@ -12,6 +12,7 @@ import {
   freezeCursorFor,
   heldItemsOf,
   isItemSelection,
+  isScrollSurface,
   MAX_SELECTION_ITEMS,
   mergePeers,
   parseAccessPayload,
@@ -274,6 +275,11 @@ describe('presence wire helpers', () => {
     const clamped = parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', -4, 2.9), extent: ref('r', 'c', 1, 1) } })!.selection!;
     expect(isItemSelection(clamped)).toBe(false);
     expect(clamped).toEqual({ scope: 'g', anchor: { rowKey: 'r', colKey: 'c', rowIndex: 0, colIndex: 2 }, extent: ref('r', 'c', 1, 1) });
+    // The cell-editor flag is opt-in and strictly boolean.
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', 0, 0), extent: ref('r', 'c', 0, 0), editing: true } })!.selection)
+      .toEqual({ scope: 'g', anchor: ref('r', 'c', 0, 0), extent: ref('r', 'c', 0, 0), editing: true });
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', 0, 0), extent: ref('r', 'c', 0, 0), editing: 'yes' } })!.selection)
+      .not.toHaveProperty('editing');
     // A null selection is the CLEAR edge.
     expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: null }))
       .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: null });
@@ -319,6 +325,8 @@ describe('presence wire helpers', () => {
       extent: { rowKey: 'r2', colKey: 'c3', rowIndex: 1, colIndex: 2 },
     };
     expect(selectionKey(sel)).toBe('g|r1|c1|0|0|r2|c3|1|2');
+    expect(selectionKey({ ...sel, editing: true })).toBe('g|e|r1|c1|0|0|r2|c3|1|2');
+    expect(selectionKey({ ...sel, editing: true })).not.toBe(selectionKey(sel));
     expect(selectionKey(sel)).toBe(selectionKey({ ...sel }));
     expect(selectionKey({ ...sel, scope: 'h' })).not.toBe(selectionKey(sel));
     // Item selections key by scope + ids, distinct from a grid selection on
@@ -367,6 +375,14 @@ describe('presence wire helpers', () => {
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 2, fkey: '3', foff: -1, ts: 7 }))
       .toEqual({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 1, fkey: '3', foff: 0, ts: 7 });
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'hacked', key: 'r1', off: 0, ts: 7 })).toBeNull();
+    // Scoped Glide grids (Budget / Day Manager / Call Sheet) are valid.
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'budget:detail', key: 'acc:1|rate', off: 0, ts: 7 }))
+      .toEqual({ userId: 'u', clientId: 'c', surface: 'budget:detail', key: 'acc:1|rate', off: 0, ts: 7 });
+    expect(isScrollSurface('day:3:times:cast')).toBe(true);
+    expect(isScrollSurface('callsheet:2:crew:Electric')).toBe(true);
+    expect(isScrollSurface('budget:library:fringes')).toBe(true);
+    expect(isScrollSurface('hacked')).toBe(false);
+    expect(isScrollSurface('budget:')).toBe(false);
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', off: 0, ts: 7 })).toBeNull(); // no key
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', key: 'cast', off: 'x', ts: 7 })).toBeNull();
     expect(parseScrollPayload(null)).toBeNull();

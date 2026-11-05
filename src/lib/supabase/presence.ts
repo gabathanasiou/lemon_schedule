@@ -213,6 +213,10 @@ export interface PresenceGridSelection {
   scope: string;
   anchor: PresenceGridRef;
   extent: PresenceGridRef;
+  /** The peer currently has a CELL EDITOR open on this grid. Receivers draw a
+   *  thicker border and hide that peer's live pointer (the editor is a local
+   *  overlay, so the pointer would sit over invisible UI). Ephemeral. */
+  editing?: boolean;
 }
 
 /** A peer's DOM-surface selection (roadmap 234 stage 2) — the stable element
@@ -257,6 +261,8 @@ export interface PresenceSelectionUpdate {
 /** A peer's current selection, resolved per user (newest window wins). */
 export interface PresencePeerSelection {
   userId: string;
+  /** Display name for the selection's name tag (falls back to 'Someone'). */
+  name: string;
   selection: PresenceSelection;
 }
 
@@ -265,7 +271,7 @@ export function selectionKey(selection: PresenceSelection | null): string {
   if (!selection) return '';
   if (isItemSelection(selection)) return `${selection.scope}|i|${selection.items.join('\u0001')}`;
   const ref = (r: PresenceGridRef) => `${r.rowKey}|${r.colKey}|${r.rowIndex}|${r.colIndex}`;
-  return `${selection.scope}|${ref(selection.anchor)}|${ref(selection.extent)}`;
+  return `${selection.scope}|${selection.editing ? 'e|' : ''}${ref(selection.anchor)}|${ref(selection.extent)}`;
 }
 
 export interface PresenceSavePing {
@@ -275,9 +281,20 @@ export interface PresenceSavePing {
 }
 
 /** The scroll surfaces that mirror their position to followers
- *  (docs/PRESENCE.md — follow completeness). */
+ *  (docs/PRESENCE.md — follow completeness). The fixed values are whole-page
+ *  surfaces; a Glide grid may instead use its own stable presence scope
+ *  (`budget:detail`, `day:3:times:cast`, …) so several grids can publish
+ *  independently. */
 export const SCROLL_SURFACES = ['schedule', 'calendar', 'sheet', 'glide'] as const;
-export type ScrollSurface = (typeof SCROLL_SURFACES)[number];
+export type ScrollSurface = (typeof SCROLL_SURFACES)[number] | (string & {});
+
+/** Wire validation for a scroll surface key: a known page surface or one of
+ *  the scoped Glide grids (`budget:detail`, `day:3:times:cast`, …). */
+export function isScrollSurface(value: unknown): value is ScrollSurface {
+  if (typeof value !== 'string') return false;
+  if ((SCROLL_SURFACES as readonly string[]).includes(value)) return true;
+  return /^(budget|day|callsheet):[A-Za-z0-9][A-Za-z0-9:_-]{0,55}$/.test(value);
+}
 
 /** What a surface broadcasts: the SEMANTIC item at its top edge (`key` — the
  *  surface's own data-attribute value, e.g. a row, date cell, field box or
@@ -553,7 +570,7 @@ export function parseSelectionPayload(raw: unknown): PresenceSelectionUpdate | n
   const anchor = parseGridRef(s.anchor);
   const extent = parseGridRef(s.extent);
   if (!anchor || !extent) return null;
-  return { userId, clientId, selection: { scope, anchor, extent }, ts };
+  return { userId, clientId, selection: { scope, anchor, extent, ...(s.editing === true ? { editing: true } : {}) }, ts };
 }
 
 export function parseSavePayload(raw: unknown): PresenceSavePing | null {
@@ -574,7 +591,7 @@ export function parseScrollPayload(raw: unknown): PresenceScroll | null {
   const ts = num(r.ts);
   const key = str(r.key, 128);
   const off = num(r.off);
-  const surface = SCROLL_SURFACES.find(s => s === r.surface);
+  const surface = isScrollSurface(r.surface) ? r.surface : null;
   if (!userId || !clientId || ts == null || !key || off == null || !surface) return null;
   const scroll: PresenceScroll = { userId, clientId, surface, key, off: clamp01(off), ts };
   const fkey = str(r.fkey, 128);

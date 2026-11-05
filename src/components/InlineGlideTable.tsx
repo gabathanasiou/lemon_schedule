@@ -32,7 +32,9 @@ import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
+import { GlidePeerSelectionTags } from './GlidePeerSelectionTags';
 import { effectiveGridRange } from '../lib/glideSelection';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -381,6 +383,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const selectionKey = presenceScope || dataAttr || '';
   const [gridSelection, setGridSelection] = useState<GridSelection>(() =>
     (selectionKey ? SELECTION_CACHE.get(selectionKey) : undefined) ?? EMPTY_SELECTION);
+  // A cell editor is a LOCAL overlay: peers draw a thicker selection border and
+  // hide this user's pointer while it is open.
+  const [cellEditing, setCellEditing] = useState(false);
   // A different day/table is a different logical grid — adopt its cached
   // selection instead of carrying the old one across.
   useEffect(() => {
@@ -399,6 +404,39 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   columnsRef.current = COLUMNS;
   const onViewChangeRef = useRef(onViewChange);
   onViewChangeRef.current = onViewChange;
+
+  // Follow completeness for EVERY inline Glide grid (Budget, Day Manager, Call
+  // Sheet): publish the top-left visible cell under this grid's presence scope
+  // and apply a followed peer's sample to the same grid. Per-scope surface keys
+  // keep simultaneously mounted grids independent. The scroll API has no DOM
+  // scroll event to hook reliably (Glide owns the canvas scroller), so the
+  // DataEditor's `onVisibleRegionChanged` below is the notify seam.
+  const visibleRegionRef = useRef<{ x: number; y: number } | null>(null);
+  const presenceKeyFor = (row: Record<string, string>, index: number) =>
+    presenceRowKey?.(row, index) ?? row.key ?? String(index);
+  const presenceScroll = usePresenceScrollSurface({
+    surface: presenceScope ?? 'glide',
+    enabled: !!presenceScope,
+    sample: () => {
+      const list = rowsRef.current;
+      if (list.length === 0) return null;
+      const vr = visibleRegionRef.current;
+      const rowHeight = Math.max(1, rowHRef.current);
+      const scrollTop = Math.max(0, scrollerRef.current?.scrollTop ?? scrollTopRef.current);
+      const rowIndex = Math.max(0, Math.min(list.length - 1, vr?.y ?? Math.floor(scrollTop / rowHeight)));
+      const colIndex = Math.max(0, Math.min(columnsRef.current.length - 1, vr?.x ?? 0));
+      const row = list[rowIndex];
+      return { key: `${presenceKeyFor(row, rowIndex)}|${columnsRef.current[colIndex]?.key ?? ''}`, off: 0 };
+    },
+    apply: (sample) => {
+      const [rowKey, colKey] = sample.key.split('|');
+      const list = rowsRef.current;
+      const rowIndex = list.findIndex((row, index) => presenceKeyFor(row, index) === rowKey);
+      if (rowIndex < 0 || !gridRef.current) return;
+      const colIndex = Math.max(0, columnsRef.current.findIndex(c => c.key === colKey));
+      gridRef.current.scrollTo(colIndex, rowIndex, 'both', 0, 0, { vAlign: 'start', hAlign: 'start' });
+    },
+  });
 
   const emitViewChange = useCallback(() => {
     const callback = onViewChangeRef.current;
@@ -441,8 +479,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     // switch (a rAF throttle could leave a stale anchor on the way out).
     const onScroll = () => {
       if (!el) return;
-      scrollTopRef.current = el.scrollTop;
+      const scrollTop = Math.max(0, scrollerRef.current?.scrollTop ?? scrollTopRef.current);
+      scrollTopRef.current = scrollTop;
       emitViewChange();
+      presenceScroll.notify();
     };
     const bind = (next: HTMLDivElement | null) => {
       if (el === next) return;
@@ -462,7 +502,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       observer.disconnect();
       bind(null);
     };
-  }, [emitViewChange]);
+  }, [emitViewChange, presenceScroll.notify]);
 
   // Report the initial/after-render state (and any row-set change) so a switch
   // immediately after mount still has an anchor.
@@ -537,11 +577,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     () => (presenceScope ? COLUMNS.map(c => c.key) : NO_KEYS),
     [presenceScope, COLUMNS],
   );
-  const peerHighlights = useGlidePeerSelection({
+  const peerSelectionRanges = useGlidePeerSelection({
     scope: presenceScope,
     selection: gridSelection,
     rowKeys: presenceRowKeys,
     colKeys: presenceColKeys,
+    editing: cellEditing,
   });
   // Live-pointer grid scope (roadmap 236): the pointer chain probes THIS grid
   // under the presence scope and the receiver locates the cell with its own
@@ -762,6 +803,13 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     ctx.restore();
   }, [COLUMNS, wrapHeaders]);
 
+  /** Every editor close (Enter/Tab/Escape/click-away) clears the editing flag
+   *  before the shared escape/cancel seam runs. */
+  const onFinishedEditingTracked = useCallback((...args: Parameters<typeof escapeCancel.onFinishedEditing>) => {
+    setCellEditing(false);
+    escapeCancel.onFinishedEditing(...args);
+  }, [escapeCancel]);
+
   /** Painted control cells own their clicks; repaint so the press flash runs. */
   const onCellClicked = useCallback((cell: Item) => {
     if (!rowActions) return;
@@ -773,6 +821,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
    *  keyboard activation must match their pointer behaviour. */
   const onCellActivated = useCallback((cell: Item) => {
     const content = getCell(cell);
+    // A normal editable cell activation opens the cell editor (double-click or
+    // edit-on-type); control glyph cells open their own picker/modal instead.
+    if (!isControlCell(content) && !readOnlyRef.current) setCellEditing(true);
     const data = (content as any).data as { kind?: string; onActivate?: () => void; onOpen?: () => void } | undefined;
     // View-only toggles (the budget band disclosure) stay live in read-only.
     if (data?.kind === 'lemon-disclosure') {
@@ -1021,7 +1072,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         }
       }}
     >
-      <div ref={gridSizeRef} className={heightMode === 'fill' ? 'flex-1 min-h-0' : undefined} style={{ touchAction: 'none' }}>
+      <div ref={gridSizeRef} className={`relative ${heightMode === 'fill' ? 'flex-1 min-h-0' : ''}`} style={{ touchAction: 'none' }}>
         {/* Auto-fit columns to the card is THIS module's job (COLUMNS above).
             Glide's defaults (min 50 / max 500 per column) would re-clamp our
             scaled widths — a dominant Name column over 500px gets capped and
@@ -1046,13 +1097,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onCellsEdited={onCellsEdited}
             onPaste={handlePaste}
             provideEditor={provideEditor}
-            onFinishedEditing={escapeCancel.onFinishedEditing}
+            onFinishedEditing={onFinishedEditingTracked}
             onCellActivated={onCellActivated}
             customRenderers={[...controlCellRenderers, infoGlyphRenderer, colorSwatchRenderer, disclosureGlyphRenderer]}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={onGridSelectionChange}
-            highlightRegions={peerHighlights}
             theme={createTheme(fontSize)}
             rowHeight={rowH}
             headerHeight={headerH}
@@ -1061,6 +1111,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}
             onHeaderContextMenu={onHeaderContextMenu}
+            onVisibleRegionChanged={(range) => {
+              visibleRegionRef.current = { x: range.x, y: range.y };
+              presenceScroll.notify();
+            }}
             editOnType
             smoothScrollX={smoothScroll}
             smoothScrollY={smoothScroll}
@@ -1077,6 +1131,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         ) : (
           <div style={{ height: gridHeight }} />
         )}
+        <GlidePeerSelectionTags gridRef={gridRef} selections={peerSelectionRanges} headerHeight={headerH} />
       </div>
 
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>

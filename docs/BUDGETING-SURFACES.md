@@ -374,8 +374,7 @@ design** clones it via `ADD_REPORT_DESIGN`.
   records actual call/wrap, carries per-department daily-hours/OT-multiplier
   overrides (same header fields as pre-calls) and shows the crew/cast hours and
   cost grids, with **Post to expenses** in one batch. The Crew-card button/modal
-  is retired. Report fields (`crewRate/…`, `dayOvertimeHours/Cost`,
-  `deptOtHours/Cost`) and copy-from-day are unchanged.
+  is retired; report fields and copy-from-day are unchanged.
 - **Phase 4 — Advanced.** Version compare (+ Original/Variance) — LANDED;
   cashflow, incentives/credits, currency report, AICP/episodic, approvals/
   petty-cash, MMB import/export remain; each its own branch.

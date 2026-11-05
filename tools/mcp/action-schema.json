@@ -467,7 +467,7 @@
     },
     {
       "type": "APPLY_BUDGET_TEMPLATE",
-      "payload": "{ key: 'blank' | 'feature'; id?: string }"
+      "payload": "{ key: 'blank' | 'feature'; budget?: Budget }"
     },
     {
       "type": "IMPORT_BUDGET",

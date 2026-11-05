@@ -8,6 +8,9 @@ import {
   activeBudgetVersion, makeBlankBudget,
 } from '../../lib/budget/model';
 import { buildBudgetFromSchedule } from '../../lib/budget/templates/fromSchedule';
+import { templateBudget } from '../../lib/budget/templates';
+import { defaultBudgetSettingsForProject } from '../../lib/budget/currencyDefaults';
+import { generateUUID } from '../../lib/utils';
 import { lockBudgetVersion } from '../../lib/budget/scheduleSync';
 import { parseBudgetJson } from '../../lib/budget/export';
 import { useDialog } from '../Dialog';
@@ -96,11 +99,11 @@ export default function BudgetTab({
       locked={versionLocked}
       canEdit={canWrite}
       onSelect={(id) => dispatch({ type: 'SET_ACTIVE_BUDGET_VERSION', payload: id })}
-      onCreate={() => dispatch({ type: 'NEW_BUDGET_VERSION', payload: { name: `v${String((project.budget?.versions.length || 0) + 1).padStart(2, '0')}`, cloneFromId: null } })}
+      onCreate={() => dispatch({ type: 'NEW_BUDGET_VERSION', payload: { id: generateUUID(), name: `v${String((project.budget?.versions.length || 0) + 1).padStart(2, '0')}`, cloneFromId: null } })}
       onRename={(id, name) => dispatch({ type: 'RENAME_BUDGET_VERSION', payload: { id, name } })}
       onDuplicate={(id) => {
         const source = project.budget?.versions.find(v => v.id === id);
-        dispatch({ type: 'NEW_BUDGET_VERSION', payload: { name: `${source?.name || 'Version'} Copy`, cloneFromId: id } });
+        dispatch({ type: 'NEW_BUDGET_VERSION', payload: { id: generateUUID(), name: `${source?.name || 'Version'} Copy`, cloneFromId: id } });
       }}
       onDelete={async (id) => {
         if (!project.budget || project.budget.versions.length <= 1) return;
@@ -137,7 +140,7 @@ export default function BudgetTab({
         <BudgetEmptyState
           project={project}
           readOnly={!canWrite}
-          onTemplate={(key) => dispatch({ type: 'APPLY_BUDGET_TEMPLATE', payload: { key } })}
+          onTemplate={(key) => dispatch({ type: 'APPLY_BUDGET_TEMPLATE', payload: { key, budget: templateBudget(key, defaultBudgetSettingsForProject(project)) } })}
           onFromSchedule={() => dispatch({ type: 'IMPORT_BUDGET', payload: { budget: buildBudgetFromSchedule(project) } })}
           onImport={() => fileRef.current?.click()}
         />

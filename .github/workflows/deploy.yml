@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Manual recovery path: a delayed/missed push event must not block shipping.
+  workflow_dispatch:
 
 permissions:
   contents: read

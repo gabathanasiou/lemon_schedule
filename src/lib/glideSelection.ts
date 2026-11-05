@@ -85,6 +85,7 @@ export function selectionRangeToWire(
   range: GridRange,
   rowKeys: string[],
   colKeys: string[],
+  editing = false,
 ): PresenceGridSelection | null {
   const maxY = rowKeys.length - 1;
   const maxX = colKeys.length - 1;
@@ -99,6 +100,7 @@ export function selectionRangeToWire(
     scope,
     anchor: { rowKey: rowKeys[y1], colKey: colKeys[x1], rowIndex: y1, colIndex: x1 },
     extent: { rowKey: rowKeys[y2], colKey: colKeys[x2], rowIndex: y2, colIndex: x2 },
+    ...(editing ? { editing: true } : {}),
   };
 }
 

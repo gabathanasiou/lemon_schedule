@@ -225,7 +225,12 @@ export function caseUpdateBudgetSettings(state: State, action: Action, applyChan
 
 export function caseApplyBudgetTemplate(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'APPLY_BUDGET_TEMPLATE') return state;
-  const template = templateBudget(action.payload.key, defaultBudgetSettingsForProject(state.present));
+  // A template generates ids — the ACTOR builds it once and ships the whole
+  // budget. Rebuilding it from `key` on every room client would give each
+  // peer different category/account/line ids (edits then target nothing).
+  // The fallback still applies the project-timezone currency default (item 354).
+  const template = action.payload.budget
+    ?? templateBudget(action.payload.key, defaultBudgetSettingsForProject(state.present));
   return applyChange({ ...state.present, budget: template });
 }
 

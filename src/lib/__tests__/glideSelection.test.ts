@@ -103,6 +103,11 @@ describe('selectionRangeToWire', () => {
     });
   });
 
+  it('carries the cell-editor flag only when set', () => {
+    expect(selectionRangeToWire('g', { x: 0, y: 0, width: 1, height: 1 }, rows, cols)).not.toHaveProperty('editing');
+    expect(selectionRangeToWire('g', { x: 0, y: 0, width: 1, height: 1 }, rows, cols, true)).toMatchObject({ editing: true });
+  });
+
   it('is null when the range starts past the data or there is no data', () => {
     expect(selectionRangeToWire('g', { x: 0, y: 3, width: 1, height: 1 }, rows, cols)).toBeNull();
     expect(selectionRangeToWire('g', { x: 0, y: 0, width: 0, height: 1 }, rows, cols)).toBeNull();

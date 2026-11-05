@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AppWindow, Hand, X } from 'lucide-react';
-import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
+import { AppWindow, Eye, Hand, X } from 'lucide-react';
+import { usePresenceActions, usePresenceSelections, usePresenceState } from '../lib/supabase/presenceContext';
 import {
   COLLISION_DWELL_IDLE,
   cursorGlyph,
+  isItemSelection,
   sameViewPlace,
   stepCollisionDwell,
   type CollisionDwellState,
@@ -113,6 +114,7 @@ function markerPosition(
 
 export function PresenceOverlay() {
   const { peers, followingId } = usePresenceState();
+  const selections = usePresenceSelections();
   const { follow, stopFollowing, getLocalPointer, getLocalView } = usePresenceActions();
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
   /**
@@ -132,7 +134,18 @@ export function PresenceOverlay() {
    *  side / glyph / fade actually changes; positions never go through state. */
   const sigRef = useRef('');
 
-  const cursorPeers = useMemo(() => peers.filter(p => p.cursor), [peers]);
+  // A peer with an OPEN CELL EDITOR is inside a local-only overlay: their last
+  // pointer would sit over UI nobody else can see, so hide it entirely (their
+  // name tag with editing dots is the signal). Header bubbles stay.
+  const editingUsers = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of selections) if (!isItemSelection(s.selection) && s.selection.editing) ids.add(s.userId);
+    return ids;
+  }, [selections]);
+  const cursorPeers = useMemo(
+    () => peers.filter(p => p.cursor && !editingUsers.has(p.userId)),
+    [peers, editingUsers],
+  );
 
   useEffect(() => {
     if (cursorPeers.length === 0) {
@@ -319,7 +332,7 @@ export function PresenceOverlay() {
           className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[11px] font-semibold text-white shadow-lg cursor-pointer transition-[filter] hover:brightness-110"
           style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))', background: avatarColor(followed.userId) }}
         >
-          <span className="w-2 h-2 rounded-full bg-white/90 animate-pulse" />
+          <Eye className="w-3.5 h-3.5 text-white/90" aria-hidden />
           Following {followed.name}
           <X className="w-3 h-3 text-white/75" />
         </button>

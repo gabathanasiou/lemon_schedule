@@ -72,6 +72,7 @@ import { anchoredKeysFor } from '../lib/elementLinks';
 import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { GlidePeerSelectionTags } from './GlidePeerSelectionTags';
 import { effectiveGridRange } from '../lib/glideSelection';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
@@ -355,6 +356,8 @@ export function GlideBreakdownTab({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
   });
+  const [cellEditing, setCellEditing] = useState(false);
+  const headerH = Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT);
   const scriptPane = useScriptPanePref('glide');
   // Row indices change with the filter — drop the selection rather than leave
   // it pointing at different scenes.
@@ -370,11 +373,12 @@ export function GlideBreakdownTab({
   // shows in the main grid AND in a popped-out/portalled one.
   const presenceRowKeys = useMemo(() => scenes.map(s => s.id), [scenes]);
   const presenceColKeys = useMemo(() => COLUMNS.map(c => c.key), [COLUMNS]);
-  const peerHighlights = useGlidePeerSelection({
+  const peerSelectionRanges = useGlidePeerSelection({
     scope: 'breakdown-glide',
     selection: gridSelection,
     rowKeys: presenceRowKeys,
     colKeys: presenceColKeys,
+    editing: cellEditing,
   });
   const gridRef = useRef<DataEditorRef>(null);
   const portalTarget = usePortalTarget();
@@ -1100,7 +1104,12 @@ export function GlideBreakdownTab({
   const onCellActivated = useCallback((cell: Item) => {
     const content = getCellContent(cell);
     const button = isKitGlyphCell(content) ? content.data : undefined;
-    if (!button || readOnlyRef.current) return;
+    if (!button) {
+      // A normal cell activation opens the cell editor.
+      if (!readOnlyRef.current) setCellEditing(true);
+      return;
+    }
+    if (readOnlyRef.current) return;
     pressControlCell(cell, button.label);
     button.onActivate?.();
     requestAnimationFrame(() => gridRef.current?.updateCells([{ cell }]));
@@ -1244,7 +1253,7 @@ export function GlideBreakdownTab({
         data-presence-grid="breakdown-glide"
         data-glide-visible-rows={scenes.length}
         data-glide-total-rows={allScenes.length}
-        style={{ flex: 1, minHeight: 0, touchAction: 'none' }}
+        style={{ position: 'relative', flex: 1, minHeight: 0, touchAction: 'none' }}
       >
         <DataEditor
           key={fontVersion}
@@ -1261,10 +1270,9 @@ export function GlideBreakdownTab({
           getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
-          highlightRegions={peerHighlights}
           theme={createGlideTheme(fontSize)}
           rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
-          headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}
+          headerHeight={headerH}
           onKeyDown={onKeyDown}
           onDelete={onDelete}
           onPaste={handlePaste}
@@ -1272,6 +1280,7 @@ export function GlideBreakdownTab({
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
           onCellActivated={onCellActivated}
+          onFinishedEditing={() => setCellEditing(false)}
           customRenderers={controlCellRenderers}
           onHeaderContextMenu={onHeaderContextMenu}
           onVisibleRegionChanged={(range) => {
@@ -1293,6 +1302,7 @@ export function GlideBreakdownTab({
           readonly={locked}
           {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
+        <GlidePeerSelectionTags gridRef={gridRef} selections={peerSelectionRanges} headerHeight={headerH} />
       </div>
 
       {/* Context Menu */}
