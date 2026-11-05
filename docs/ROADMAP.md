@@ -1372,16 +1372,3 @@ repeat the date.
   hidden column cleanly.
 - **Verify**: extend `e2e/budget.spec.ts` Day Manager expenses step.
 - **Relations**: 351; batch with 354–358.
-
-## 360. Retire the E2E test-count cap (`[ ]`)
-
-**Request** (user 2026-11-05): the count was raised on every feature — stop
-counting. Keep the spec-file cap; keep the suite lean by judgement.
-- Remove `E2E_TEST_CAP` from `scripts/check-doc-budget.mjs` (output reports the
-  count without a cap); keep `E2E_SPEC_CAP` (extend an existing spec, never
-  multiply files).
-- `docs/TESTING.md` + AGENTS.md rule 7: update an existing test first; add one
-  only when a silent break is plausible (data loss, wrong computed value,
-  persistence). No “over doing it”.
-- **Verify**: `npm run lint`; no suite change.
-- **Relations**: supersedes the cap notes added for 338d/164.
