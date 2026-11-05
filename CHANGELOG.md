@@ -2,6 +2,25 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-11-05 — Budgets breathe, overtime moves
+
+**Features**
+- **Budget** — a new budget opens in the currency your production's timezone implies (Athens → EUR, London → GBP); money cells show the symbol, and the currency column adds the code when there's room.
+- **Budget** — narrow windows scroll sideways instead of squeezing the columns, account and category names run across the empty cells, and the category rail collapses and drag-resizes.
+- **Budget** — overtime policy for crew and cast now lives in the Budget library; the Day Manager's new Overtime section records actual call and wrap, per-department hours and multipliers, and posts the cost to expenses.
+- **Day Manager** — add a cast member, prop or any element to a day with no scene (a fitting, an agency day); it lands on the call sheet and can be removed from the row menu.
+- **Day Manager** — the expenses card no longer repeats the date.
+- **Collaboration** — peers' selected cells are outlined with their name tag while they edit.
+
+**Bug fixes**
+- **Collaboration** — a rejected change from an out-of-date room worker is surfaced instead of silently reverting; a shared budget's categories and accounts now match for everyone.
+
+**Changes**
+- **Budget** — print, export and import live in one Edit menu; the schedule review is a compact status button; the redundant Symbol box, the header add-category button and the linked-lines note are gone.
+- **Budget** — the (i) panel for categories and accounts shows budget, actual, committed and EFC; line groups are a multi-select; formulas suggest names as you type.
+- **Production** — the manager / Call Sheet / Glide switcher now reveals its label on hover and for the active view.
+- **Collaboration** — the following pill uses an eye icon, with the name tag only while someone is editing.
+
 ## 2026-11-03 — Menus keep the first tap
 
 **Features**
