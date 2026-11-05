@@ -202,21 +202,9 @@ test.describe('Budget', () => {
         await page.keyboard.press('Enter');
         const editor = page.locator('#portal textarea, #portal input').first();
         await expect(editor).toBeVisible({ timeout: 5000 });
-        // Under parallel load the overlay can open before its input takes
-        // focus — click it so the keyboard goes to the editor, not the grid.
-        await editor.click();
-        await expect.poll(
-          async () => {
-            try {
-              return await editor.evaluate((el: HTMLElement) => { el.focus(); return document.activeElement === el; });
-            } catch {
-              return false;
-            }
-          },
-          { timeout: 5000 },
-        ).toBe(true);
-        await page.keyboard.press('ControlOrMeta+A');
-        await page.keyboard.type('6000');
+        // Fill through the overlay input directly — the editor can open before
+        // its input takes focus under parallel load, and `fill` owns focus.
+        await editor.fill('6000');
         await expect(editor).toHaveValue('6000');
         // Glide's overlay needs a beat to register the last keystroke before
         // Enter commits (the editor is a React island over the canvas).
