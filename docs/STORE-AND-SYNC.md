@@ -158,6 +158,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   bounded offline buffer) + the React seam `src/lib/rooms/useRoomTransport.ts` (mounted in
   `ProjectProvider`; inert when the rooms URL is unset — prod builds only, see the dev loop below).
   The room worker runs the SAME reducer (`workers/rooms`).
+- **The action allowlist is bundled into the worker at deploy time.** The room refuses any type
+  missing from `ACTION_TYPES` (`src/store/reducer.ts`) via `isRoomActionAllowed`; the client then
+  rolls its optimistic apply back on the forced re-sync. A NEW action type therefore ships in TWO
+  places: the app release AND `npx wrangler deploy` in `workers/rooms`. A stale worker looks like
+  "the button does nothing" — the transient room note now says the edit was refused (2026-11-05:
+  the budget release hit exactly this; every budget action was rejected until the worker redeploy).
 - **Local dev loop (roadmap 246).** The dev server (`vite.config.ts` `rooms-dev` plugin, serve-only)
   auto-starts the worker after listen through ONE launcher, `tools/rooms-dev.mjs`: health-probe →
   reuse a running worker (parallel worktree dev servers share ONE worker, its `.dev.vars` and its DO

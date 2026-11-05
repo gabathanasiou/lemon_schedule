@@ -314,6 +314,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       // stacks, refusals) — the ONE transient note near the undo/redo buttons.
       showRoomNoteRef.current(message);
     },
+    onRejected: (reason) => {
+      // The optimistic apply is about to be rolled back by the forced re-sync.
+      // Never let that read as "the button did nothing": in practice this is a
+      // stale room worker (its bundled ACTION_TYPES predates the action).
+      console.warn('[rooms] action rejected:', reason);
+      showRoomNoteRef.current(`That edit was refused by the live session (${reason}) — update the room worker, then try again.`);
+    },
   });
   const roomStatusRef = useRef<RoomStatus>('closed');
   roomStatusRef.current = roomStatus;

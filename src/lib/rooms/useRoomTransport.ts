@@ -28,6 +28,10 @@ export interface UseRoomTransportOptions {
   /** The offline buffer changed (pending/dropped counts). */
   onPendingChange?: (info: RoomQueueInfo) => void;
   onUndoState?: (state: { canUndo: boolean; canRedo: boolean }) => void;
+  /** An optimistically-applied action the room refused (the client re-syncs
+   *  to the room snapshot next). The UI must say so — a rejection otherwise
+   *  looks like the edit silently vanished. */
+  onRejected?: (reason: string) => void;
   onError?: (message: string) => void;
 }
 
@@ -78,6 +82,7 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
         onReplayQueued: (action) => optsRef.current.onReplayQueued?.(action),
         onPendingChange: (info) => optsRef.current.onPendingChange?.(info),
         onUndoState: (s) => optsRef.current.onUndoState?.(s),
+        onRejected: (_actionId, reason) => optsRef.current.onRejected?.(reason),
         onError: (message) => optsRef.current.onError?.(message),
         onStatus: setStatus,
       });
