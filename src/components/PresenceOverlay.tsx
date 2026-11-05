@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AppWindow, Hand, X } from 'lucide-react';
+import { AppWindow, Eye, Hand, X } from 'lucide-react';
 import { usePresenceActions, usePresenceSelections, usePresenceState } from '../lib/supabase/presenceContext';
 import {
   COLLISION_DWELL_IDLE,
@@ -332,7 +332,7 @@ export function PresenceOverlay() {
           className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[11px] font-semibold text-white shadow-lg cursor-pointer transition-[filter] hover:brightness-110"
           style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))', background: avatarColor(followed.userId) }}
         >
-          <span className="w-2 h-2 rounded-full bg-white/90 animate-pulse" />
+          <Eye className="w-3.5 h-3.5 text-white/90" aria-hidden />
           Following {followed.name}
           <X className="w-3 h-3 text-white/75" />
         </button>
