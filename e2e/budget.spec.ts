@@ -187,9 +187,10 @@ test.describe('Budget', () => {
 
       await test.step('the cost grid edits ETC inline and clears back to auto', async () => {
         const scroller = page.locator('[data-cost-report] .dvn-scroller').first();
-        // Columns: disclosure 22, item 300, budget/actual/committed/ETC 92 each.
+        // Columns keep their designed widths (item 355): disclosure 22, item
+        // 300, budget/actual/committed/ETC 92 each — no proportional fit.
         const pointFor = (b: { x: number; y: number; width: number }) => ({
-          x: b.x + (22 + 300 + 92 * 3 + 46) / 1144 * b.width,
+          x: b.x + 22 + 300 + 92 * 3 + 46,
           y: b.y + 30 + 2 * 26 + 13,
         });
         const box = await scroller.boundingBox();
@@ -387,6 +388,7 @@ test.describe('Budget', () => {
     expect((await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary().totals.baseCents))).toBe(lockedTotal);
 
     await test.step('the Day Manager Expenses card quick-adds, edits via (i), and persists', async () => {
+      const symbol = await page.evaluate(() => (window as any).__lemonSchedule.getProject().budget?.settings?.currencySymbol || '$');
       await page.getByRole('button', { name: 'Production', exact: true }).click();
       await page.locator('[data-day-tab="expenses"]').click();
       const day = await page.evaluate(() => (window as any).__lemonSchedule.getDays().days[0]);
@@ -440,6 +442,7 @@ test.describe('Budget', () => {
     });
 
     await test.step('crew overtime computes, posts to expenses and persists', async () => {
+      const symbol = await page.evaluate(() => (window as any).__lemonSchedule.getProject().budget?.settings?.currencySymbol || '$');
       await page.locator('[data-day-tab="crew"]').click();
       const seeded = await page.evaluate(() => {
         const b = (window as any).__lemonSchedule;
