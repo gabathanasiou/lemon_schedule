@@ -93,9 +93,12 @@ persisted, never in the project JSON, never a room action.
   back with the receiver's OWN scroll/column widths/font scale (`getBounds`).
   Registered today: `breakdown-glide`, every `InlineGlideTable` instance (Day
   Manager Call Times/Crew, Precalls, the Call Sheet grids — scopes like
-  `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`) and
+  `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`, and the
+  Budget surfaces `budget:detail` / `budget:cost` / `budget:expenses`) and
   `GlideGridShell` (`crew-glide`, `locations-glide`). A cell scrolled out of
-  the grid's visible area is hidden, never painted over chrome.
+  the grid's visible area is hidden, never painted over chrome. Budget view
+  gates are the sub-tab itself (`budget` / `cost` / `expenses` / `library`), so
+  a peer on another Budget view shows no pointer or selection there.
 
 ## Visibility gates
 
@@ -170,7 +173,8 @@ persisted, never in the project JSON, never a room action.
   - **Glide grids (stage 1)**: `{ scope, anchor, extent }` — two grid hits in
     data coordinates (stable row/column KEYS plus the sender's indices as the
     clamp fallback). `breakdown-glide`, `crew-glide`, `locations-glide`,
-    `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`. Every
+    `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`, the
+    Budget grids (`budget:detail`, `budget:cost`, `budget:expenses`). Every
     MOUNTED instance publishes its own selection (multi-window = newest window
     wins per user) and paints the peers' ones itself from its own geometry via
     Glide's native `highlightRegions` (peer-colour fill + solid ring) — one
@@ -309,9 +313,10 @@ persisted, never in the project JSON, never a room action.
     offsetTops + one calibration rect) through the surface registry that
     `usePresenceScrollSurface` wires per surface. The stripboard carries a
     coarse day-block fallback for rows outside the receiver's render window
-    (land → render → re-align); the Glide grid uses its first visible cell +
-    `scrollTo`. Only the main window publishes/applies surface state — popout
-    instances stay out, parity with the live-pointer rule.
+    (land → render → re-align); the Breakdown Glide grid uses its first visible
+    cell + `scrollTo` (inline Glide tables — Day Manager, Budget — publish
+    pointers/selections but not scroll). Only the main window publishes/applies
+    surface state — popout instances stay out, parity with the live-pointer rule.
   - **User decisions (2026-10-12, corrected same day): scrolling yourself
     NEVER ends follow** — look around freely; there is no pause state, your
     scroll is simply your position until the leader's next scroll sample
