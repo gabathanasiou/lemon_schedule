@@ -6,6 +6,7 @@ import {
   isEmptyDayMeta,
   patchDayMeta,
   setCrewCall,
+  setDayExtraElement,
   pruneDayMetaRefs,
 } from '../dayMeta';
 
@@ -54,7 +55,25 @@ describe('getDayMeta / isEmptyDayMeta', () => {
     expect(isEmptyDayMeta({ crewIds: ['p1'] })).toBe(false);
     expect(isEmptyDayMeta({ departmentPrecalls: { Camera: '-30m' } })).toBe(false);
     expect(isEmptyDayMeta({ elementCalls: { cast: { '1': { arrive: '07:00' } } } })).toBe(false);
+    expect(isEmptyDayMeta({ extraElements: { cast: ['2'] } })).toBe(false);
     expect(isEmptyDayMeta({ callSheets: { design: [{ id: 'b', type: 'text', text: 'x' }] } } as any)).toBe(false);
+  });
+});
+
+describe('setDayExtraElement', () => {
+  it('adds and removes one key immutably', () => {
+    const first = setDayExtraElement(undefined, 'cast', '2', true);
+    expect(first).toEqual({ cast: ['2'] });
+    const both = setDayExtraElement(first, 'props', 'CHAIR', true);
+    expect(both).toEqual({ cast: ['2'], props: ['CHAIR'] });
+    expect(first).toEqual({ cast: ['2'] });
+    expect(setDayExtraElement(both, 'cast', '2', false)).toEqual({ props: ['CHAIR'] });
+  });
+  it('clears the field when the last key goes', () => {
+    expect(setDayExtraElement({ cast: ['2'] }, 'cast', '2', false)).toBeUndefined();
+  });
+  it('never duplicates a key (names are case-insensitive)', () => {
+    expect(setDayExtraElement({ props: ['Chair'] }, 'props', 'chair', true)).toEqual({ props: ['Chair'] });
   });
 });
 

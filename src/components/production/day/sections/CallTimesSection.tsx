@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DaySectionProps } from '../daySectionTypes';
 import { getCallTimeSettings } from '../../../../lib/callTimes';
 import { CAT_ICONS, getCustomIcon, getLabel } from '../../../../lib/categories';
+import { setDayExtraElement } from '../../../../lib/dayMeta';
 import type { DayElementEntry } from '../../../../lib/dayView';
 import DayTimesGlide from '../DayTimesGlide';
+import DayElementAddMenu from '../DayElementAddMenu';
 import InlineGlideTable, { type InlineGlideColumn } from '../../../InlineGlideTable';
 import { ContextMenuItem } from '../../../ContextMenu';
 import { createDayTimesTheme } from '../../../../lib/glideTheme';
@@ -25,8 +27,9 @@ const FALLBACK_EDITABLE = new Set<string>();
 
 /** The stage-less fallback — a read-only inline Glide grid (roadmap 107), so
  *  every category panel reads in the spreadsheet language, never the old HTML
- *  table. */
-const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?: string; onEditCallTimesSettings?: () => void }> = ({ entries, presenceScope, onEditCallTimesSettings }) => {
+ *  table. Item 164: a row added to the day (no scene) can be removed from its
+ *  context menu. */
+const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?: string; onEditCallTimesSettings?: () => void; onRemoveExtra?: (key: string) => void }> = ({ entries, presenceScope, onEditCallTimesSettings, onRemoveExtra }) => {
   const isCast = entries[0]?.category === 'cast';
   const rows = useMemo(() => entries.map(e => ({
     key: e.key,
@@ -34,7 +37,7 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?
     name: e.boardId ? `${e.boardId}. ${e.name}` : e.name,
     artiste: e.performer || '',
     swf: e.dood || '',
-    scene: String(e.firstScene),
+    scene: e.firstScene ? String(e.firstScene) : '',
     call: e.firstCallTime || '',
   })), [entries]);
 
@@ -78,6 +81,18 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?
       readOnly
       presenceScope={presenceScope}
       createTheme={createDayTimesTheme}
+      rowMenuItems={onRemoveExtra ? (rowIndex, close) => {
+        const entry = entries[rowIndex];
+        if (!entry?.added) return null;
+        return (
+          <ContextMenuItem
+            onClick={() => { close(); onRemoveExtra(entry.key); }}
+            icon={<X className="w-3.5 h-3.5" />}
+          >
+            Remove from day
+          </ContextMenuItem>
+        );
+      } : undefined}
       headerMenuItems={onEditCallTimesSettings ? close => (
         <ContextMenuItem
           onClick={() => { close(); onEditCallTimesSettings(); }}
@@ -111,12 +126,27 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     return CAT_ICONS[key] || Clock;
   };
 
+  const addElement = (category: string, key: string) =>
+    patchMeta({ extraElements: setDayExtraElement(day.meta.extraElements, category, key, true) });
+  const removeElement = (category: string, key: string) =>
+    patchMeta({ extraElements: setDayExtraElement(day.meta.extraElements, category, key, false) });
+
+  // Item 164: the add control stays available even on a day with nothing
+  // scheduled — that is exactly the fitting / agency-day case.
+  const addMenu = readOnly ? null : <DayElementAddMenu day={day} project={project} onAdd={addElement} />;
+
   if (presentCategories.length === 0) {
-    return <p className="text-xs text-[color:var(--ui-text-faint)]">No elements on this day.</p>;
+    return (
+      <div className="space-y-2">
+        {addMenu}
+        <p className="text-xs text-[color:var(--ui-text-faint)]">No elements on this day.</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {addMenu}
       {presentCategories.map(category => {
         const Icon = iconFor(category);
         const stageKeys = settings.categoryStages[category] || [];
@@ -140,6 +170,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                 project={project}
                 readOnly={readOnly}
                 onEditCallTimesSettings={actions.openCallTimesSettings}
+                onRemoveExtra={removeElement ? key => removeElement(category, key) : undefined}
                 presenceScope={`day:${day.sectionIndex}:times:${category}`}
               />
             ) : (
@@ -147,6 +178,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                 entries={entries}
                 presenceScope={`day:${day.sectionIndex}:elements:${category}`}
                 onEditCallTimesSettings={actions.openCallTimesSettings}
+                onRemoveExtra={removeElement ? key => removeElement(category, key) : undefined}
               />
             )}
           </div>
@@ -154,7 +186,8 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       })}
       <p className="text-[11px] text-[color:var(--ui-text-faint)]">
         Categories with call stages show the editable chain (override a cell to pin it — amber). Categories without
-        stages list each element with its DOOD start/work/finish letter and first scene + call time.
+        stages list each element with its DOOD start/work/finish letter and first scene + call time. Added elements
+        (a fitting, an agency day) have no scene and anchor on the day's call time.
       </p>
     </div>
   );

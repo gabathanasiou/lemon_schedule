@@ -82,6 +82,48 @@ describe('buildDayViews', () => {
     expect(entries.some(e => e.boardId === '77')).toBe(true);
   });
 
+  it('merges elements added to the day with no scene (item 164)', () => {
+    const base = build(seedProject());
+    const existingCast = base.days[0].cast[0]?.key;
+    const project = seedProject((p) => {
+      p.castMembers = [...(p.castMembers || []), { id: '99', name: 'FITTING DOUBLE' }];
+      p.breakdownElements = p.breakdownElements || {};
+      p.breakdownElements.props = [
+        ...(p.breakdownElements.props || []),
+        { id: 'FITTING CHAIR', name: 'FITTING CHAIR', boardId: '900' },
+      ];
+      for (const v of p.versions || []) {
+        const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+        if (gov) {
+          gov.daybreakMeta = {
+            ...(gov.daybreakMeta || {}),
+            extraElements: {
+              cast: ['99', '777', ...(existingCast ? [existingCast] : [])],
+              props: ['FITTING CHAIR'],
+            },
+          };
+        }
+      }
+    });
+    const day = build(project).days[0];
+    // Added, no scene, anchored on the day's base call.
+    expect(day.cast.find(c => c.key === '99')).toMatchObject({
+      added: true,
+      firstScene: 0,
+      name: 'FITTING DOUBLE',
+      firstCallTime: day.callTime,
+    });
+    // A stale key never renders a phantom row…
+    expect(day.cast.some(c => c.key === '777')).toBe(false);
+    // …and an element already in the day's scenes is not duplicated.
+    if (existingCast) expect(day.cast.filter(c => c.key === existingCast)).toHaveLength(1);
+    expect(day.elements.props?.find(e => e.key === 'FITTING CHAIR')).toMatchObject({
+      added: true,
+      firstScene: 0,
+      boardId: '900',
+    });
+  });
+
   it('reads the governing daybreak\'s master location', () => {
     const project = seedProject((p) => {
       p.locations = [{ id: 'loc-test', name: 'TEST LOCATION', type: 'set' }];

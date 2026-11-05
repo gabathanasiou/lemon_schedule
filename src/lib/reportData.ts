@@ -198,6 +198,8 @@ export interface ReportDayInfo {
   departmentReportTo?: Record<string, string>;
   /** Per-element call overrides from `daybreakMeta` (item 99 elementCallsOfDay). */
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
+  /** Item 164 — elements added to the day with no scheduled scene. */
+  extraElements?: Record<string, string[]>;
   /** The day's breaks/notes with their call-sheet inclusion flag. */
   breaks?: { label: string; time: string; include: boolean }[];
   notes?: { text: string; time: string; include: boolean }[];
@@ -309,7 +311,8 @@ export interface ReportElementCallItem {
   boardId?: string;
   /** Day-state code (status/card letter, else `W`). */
   code: string;
-  /** First scene number the element appears in (the on-set anchor). */
+  /** First scene number the element appears in (the on-set anchor). Blank for
+   *  an element added to the day with no scheduled scene (item 164). */
   firstScene: string;
   /** stage key → resolved call (override or computed). */
   callTimes: Record<string, ResolvedCall>;
@@ -784,6 +787,7 @@ export function buildReportCtx(
       reportToId: gov?.daybreakMeta?.reportToId,
       departmentReportTo: gov?.daybreakMeta?.departmentReportTo,
       elementCalls: gov?.daybreakMeta?.elementCalls,
+      extraElements: gov?.daybreakMeta?.extraElements,
       overtime: gov?.daybreakMeta?.overtime,
       breaks,
       notes,
@@ -1288,6 +1292,8 @@ export function resolveCollection(
       const sceneInfos = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
       const seen = new Set<string>();
       const out: ReportElementCallItem[] = [];
+      /** Dedupe key across the scene set AND the day's added elements. */
+      const elementKeyOf = (cat: string, key: string) => `${cat}\u0000${cat === 'cast' ? key : key.toLowerCase()}`;
       const categories = ['cast', ...allCategoryKeysOf(ctx.project).filter(k => k !== 'cast')];
       for (const cat of categories) {
         const stageKeys = settings.categoryStages[cat] || [];
@@ -1299,8 +1305,8 @@ export function resolveCollection(
             const el = getElementsFor(ctx, cat).find(e => elementMatchId(e, cat).toLowerCase() === match);
             if (!el) continue;
             const key = elementMatchId(el, cat);
-            if (seen.has(key)) continue;
-            seen.add(key);
+            if (seen.has(elementKeyOf(cat, key))) continue;
+            seen.add(elementKeyOf(cat, key));
             const overrides = day.elementCalls?.[cat]?.[key];
             out.push({
               id: key,
@@ -1313,6 +1319,28 @@ export function resolveCollection(
               details: cat === 'cast' ? el.details : undefined,
             });
           }
+        }
+        // Item 164 — elements added to the day with no scheduled scene. Their
+        // call chain anchors on the day's base call (the daybreak above it).
+        for (const raw of day.extraElements?.[cat] || []) {
+          const typed = (raw || '').trim().toLowerCase();
+          if (!typed) continue;
+          const el = getElementsFor(ctx, cat).find(e => elementMatchId(e, cat).toLowerCase() === typed);
+          if (!el) continue;
+          const key = elementMatchId(el, cat);
+          if (seen.has(elementKeyOf(cat, key))) continue;
+          seen.add(elementKeyOf(cat, key));
+          const overrides = day.elementCalls?.[cat]?.[key];
+          out.push({
+            id: key,
+            name: el.name,
+            category: cat,
+            boardId: boardIdOf(el, cat) || undefined,
+            code: elementDayCode(ctx, day, cat, key),
+            firstScene: '',
+            callTimes: computeElementCallChain(settings.stages, stageKeys, day.callTime, overrides),
+            details: cat === 'cast' ? el.details : undefined,
+          });
         }
       }
       return out;

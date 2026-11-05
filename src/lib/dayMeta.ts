@@ -65,6 +65,11 @@ export function isEmptyDayMeta(meta?: DayMeta | null): boolean {
       if (Object.keys(meta.elementCalls[category] || {}).length > 0) return false;
     }
   }
+  if (meta.extraElements) {
+    for (const category of Object.keys(meta.extraElements)) {
+      if ((meta.extraElements[category] || []).length > 0) return false;
+    }
+  }
   if (meta.callSheets && Object.keys(meta.callSheets).length > 0) return false;
   if (meta.overtime) return false;
   return true;
@@ -116,6 +121,31 @@ export function setCrewCall(
     calls.push({ personId, callTime: value });
   }
   return calls.length ? calls : undefined;
+}
+
+/**
+ * Item 164: immutably adds/removes one element key to the day's extras.
+ * Returns `undefined` when the map would be empty, so `patchMeta` can clear
+ * the field outright. The Call Times add menu and its row menu are the only
+ * writers — the key space matches `elementCalls` (cast ids, other names).
+ */
+export function setDayExtraElement(
+  extras: DayMeta['extraElements'],
+  category: string,
+  key: string,
+  present: boolean,
+): DayMeta['extraElements'] {
+  const next: Record<string, string[]> = { ...(extras || {}) };
+  const list = [...(next[category] || [])];
+  const idx = list.findIndex(k => k === key || k.toLowerCase() === key.toLowerCase());
+  if (present) {
+    if (idx < 0) list.push(key);
+  } else if (idx >= 0) {
+    list.splice(idx, 1);
+  }
+  if (list.length) next[category] = list;
+  else delete next[category];
+  return Object.keys(next).length ? next : undefined;
 }
 
 export interface DayMetaRefSets {

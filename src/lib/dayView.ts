@@ -45,6 +45,10 @@ export interface DayElementEntry {
    *  from the element's scene-work span across the active stripboard. Empty
    *  when the element doesn't work this day. */
   dood: string;
+  /** Item 164: the element was ADDED to this day by hand (a fitting) and has
+   *  no scheduled scene — `firstScene` is 0, `dood` is blank, and its call
+   *  chain anchors on the day's base call. */
+  added?: boolean;
 }
 
 export interface DayBreakEntry {
@@ -139,6 +143,12 @@ function categoryKeysOf(scene: Scene, category: string): string[] {
   const raw = (scene as any)[category];
   if (typeof raw !== 'string') return [];
   return getFieldItems(category, raw);
+}
+
+/** Dedupe key for a day's element set — cast ids are exact, names are
+ *  case-insensitive (item 164's added elements share the same set). */
+function dayElementKey(category: string, key: string): string {
+  return `${category}\u0000${category === 'cast' ? key : key.toLowerCase()}`;
 }
 
 /** The element's day-state code for the SWF column: a status/card code when
@@ -252,6 +262,8 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
       }
     }
 
+    const callTime = sectionCallTime(sections, s.index);
+
     const seen = new Map<string, DayElementEntry>();
     const cast: DayElementEntry[] = [];
     const elements: Record<string, DayElementEntry[]> = {};
@@ -259,7 +271,7 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
       if (!entry.scene) return;
       for (const category of ['cast', ...categoryKeys]) {
         for (const key of categoryKeysOf(entry.scene, category)) {
-          const mapKey = `${category}\u0000${key}`;
+          const mapKey = dayElementKey(category, key);
           if (seen.has(mapKey)) continue;
           const item: DayElementEntry = {
             category,
@@ -272,7 +284,7 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
             firstScene: idx + 1,
             firstCallTime: entry.callTime,
             code: elementDayCode(project, event, category, key),
-            dood: doodFor(date, elemWorkDates.get(mapKey)),
+            dood: doodFor(date, elemWorkDates.get(`${category}\u0000${key}`)),
           };
           seen.set(mapKey, item);
           if (category === 'cast') cast.push(item);
@@ -280,6 +292,39 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
         }
       }
     });
+
+    // Item 164 — elements added to this day with no scheduled scene (a fitting,
+    // an agency day). Stored on the governing daybreak; rendered in the same
+    // category lists so the Call Times grids and the call sheet see ONE set.
+    for (const [category, keys] of Object.entries(meta.extraElements || {})) {
+      for (const raw of keys || []) {
+        const typed = (raw || '').trim();
+        if (!typed) continue;
+        const element = category === 'cast'
+          ? (project.castMembers || []).find(m => m.id === typed)
+          : getCategoryElements(project, category).find(e => elementMatchId(e, category).toLowerCase() === typed.toLowerCase());
+        // A stale reference to a deleted element never renders a phantom row.
+        if (!element) continue;
+        const key = elementMatchId(element, category);
+        const mapKey = dayElementKey(category, key);
+        if (seen.has(mapKey)) continue;
+        const item: DayElementEntry = {
+          category,
+          key,
+          name: resolveName(key, category, project),
+          boardId: resolveBoardId(key, category, project) || undefined,
+          performer: category === 'cast' ? ((element as any).performer || '') : undefined,
+          firstScene: 0,
+          firstCallTime: callTime,
+          code: elementDayCode(project, event, category, key),
+          dood: '',
+          added: true,
+        };
+        seen.set(mapKey, item);
+        if (category === 'cast') cast.push(item);
+        else (elements[category] ||= []).push(item);
+      }
+    }
 
     const sceneLocations: string[] = [];
     for (const entry of sceneEntries) {
@@ -294,8 +339,6 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
       .filter(ref => !ref.isMaster)
       .map(ref => locationById.get(ref.id))
       .filter(Boolean) as ProjectLocation[];
-
-    const callTime = sectionCallTime(sections, s.index);
 
     const crewGroups = groupSlotsByDept(project, meta, slotsForDay(project, meta), callTime);
     const crew: DayCrewEntry[] = [];

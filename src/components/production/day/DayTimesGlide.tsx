@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DayElementEntry, DayView } from '../../../lib/dayView';
 import type { DayMeta, Project } from '../../../types';
@@ -37,6 +37,9 @@ export interface DayTimesGlideProps {
   /** Item 169: hide the first-scene hover preview while the Call Sheet's Times
    *  toggle is off (the preview is a times/durations affordance). */
   showTimes?: boolean;
+  /** Item 164: remove an element the user ADDED to the day (no scene) from its
+   *  row context menu. Omit to keep every row permanent. */
+  onRemoveExtra?: (key: string) => void;
   /** Peer-selection scope (roadmap 234) — the host names the LOGICAL grid
    *  (`day:3:times:cast`, `callsheet:3:times:cast`); omitted = out of presence. */
   presenceScope?: string;
@@ -51,7 +54,7 @@ const NAME_COL = 'name';
 const ARTISTE_COL = 'artiste';
 const SWF_COL = 'swf';
 
-const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true, presenceScope }) => {
+const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true, presenceScope, onRemoveExtra }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const stageKeys = useMemo(() => settings.categoryStages[category] || [], [settings, category]);
   const stageDefs = useMemo(
@@ -186,7 +189,20 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
             title={e.boardId ? `${e.boardId}. ${e.name}` : e.name}
             categoryLabel={getLabel(category, category, project.categoryLabels)}
             overridden={!!overrides && Object.values(overrides).some(Boolean)}
+            added={e.added}
           />
+        );
+      } : undefined}
+      rowMenuItems={onRemoveExtra ? (rowIndex, close) => {
+        const e = entries[rowIndex];
+        if (!e?.added) return null;
+        return (
+          <ContextMenuItem
+            onClick={() => { close(); onRemoveExtra(e.key); }}
+            icon={<X className="w-3.5 h-3.5" />}
+          >
+            Remove from day
+          </ContextMenuItem>
         );
       } : undefined}
       headerMenuItems={onEditCallTimesSettings ? close => (

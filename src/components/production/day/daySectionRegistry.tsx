@@ -136,13 +136,24 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     icon: <CallTimesIcon className="w-3.5 h-3.5" />,
     summary: day => {
       const n = day.meta.elementCalls ? Object.values(day.meta.elementCalls).reduce((s, c) => s + Object.keys(c).length, 0) : 0;
-      return n > 0 ? `${n} override${n !== 1 ? 's' : ''}` : 'Calculated';
+      const added = day.meta.extraElements ? Object.values(day.meta.extraElements).reduce((s, c) => s + c.length, 0) : 0;
+      const parts = [
+        n > 0 ? `${n} override${n !== 1 ? 's' : ''}` : '',
+        added > 0 ? `${added} added` : '',
+      ].filter(Boolean);
+      return parts.length ? parts.join(' · ') : 'Calculated';
     },
     Component: CallTimesSection,
     copyable: true,
     copyMode: 'replace',
     tabs: ['all', 'callTimes'],
-    extract: day => (day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : undefined),
+    extract: day => {
+      const patch = {
+        ...(day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : {}),
+        ...(day.meta.extraElements && Object.keys(day.meta.extraElements).length ? { extraElements: day.meta.extraElements } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     wide: true,

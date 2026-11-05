@@ -22,9 +22,12 @@ export interface FirstSceneTooltipProps {
   categoryLabel?: string;
   /** True when this element's call time is manually overridden. */
   overridden?: boolean;
+  /** Item 164 — the element was added to the day by hand (no scene), so its
+   *  call chain anchors on the day's base call rather than a scene turnover. */
+  added?: boolean;
 }
 
-const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, firstScene, callTime, title, categoryLabel, overridden }) => {
+const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, firstScene, callTime, title, categoryLabel, overridden, added }) => {
   const scene = day.scenes[firstScene - 1]?.scene;
   const style = scene
     ? sceneStyle(scene, project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette), project.colorPalette?.colorRules)
@@ -44,9 +47,12 @@ const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, fir
           {overridden && <span className="font-semibold text-amber-400">OVERRIDE</span>}
         </div>
         <div className="text-[11px]">
-          <span className="text-[color:var(--ui-text-muted)]">FIRST TURNOVER </span>
+          <span className="text-[color:var(--ui-text-muted)]">{added ? 'DAY CALL ' : 'FIRST TURNOVER '}</span>
           <span className="font-semibold">{callTime || '—'}</span>
         </div>
+        {added && !scene?.description && (
+          <div className="text-[10px] leading-snug text-[color:var(--ui-text-faint)]">Added to this day — no scene.</div>
+        )}
         {scene?.description && <div className="text-[10px] leading-snug text-[color:var(--ui-text-muted)] line-clamp-3">{scene.description}</div>}
       </div>
     </div>

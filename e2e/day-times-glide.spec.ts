@@ -191,4 +191,33 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ pickup: '06:00' });
     expect(await callsFor(page, cast[1])).toBeNull();
   });
+
+  test('adds an element with no scene to the day (item 164)', async ({ page }) => {
+    await openCallTimes(page);
+    const cast = await day1Cast(page);
+    // A cast member who is NOT in day 1's scenes — the picker only lists them.
+    const spare = await page.evaluate((onDay) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      const member = (p.castMembers || []).find((m: any) => !onDay.includes(m.id));
+      return member ? { id: String(member.id), name: String(member.name) } : null;
+    }, cast);
+    expect(spare).toBeTruthy();
+    if (!spare) return;
+
+    await page.locator('[data-day-element-add]').getByRole('button', { name: 'Add element…' }).click();
+    await page.getByRole('combobox', { name: 'Search cast, props, wardrobe…' }).fill(spare.name);
+    await page.getByRole('option').filter({ hasText: spare.name }).first().click();
+
+    // The element lands on the GOVERNING daybreak (pinned for day 1) as an
+    // added element, and the card counts it — one undo entry.
+    await expect.poll(() => page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      return gov?.daybreakMeta?.extraElements?.cast || [];
+    }), { timeout: 5000 }).toContain(spare.id);
+    await expect(page.locator('[data-section="callTimes"]')).toContainText('1 added');
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
+  });
 });

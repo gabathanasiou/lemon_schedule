@@ -101,6 +101,29 @@ describe('resolveCollection — day-scoped call-sheet collections', () => {
     expect(resolveCollection(ctx, 'elementCallsOfDay', undefined, undefined)).toEqual([]);
   });
 
+  it('elementCallsOfDay includes elements added to the day with no scene (item 164)', () => {
+    const project = seedProject((p) => {
+      p.castMembers = [...(p.castMembers || []), { id: '99', name: 'FITTING DOUBLE' }];
+      for (const v of p.versions || []) {
+        const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+        if (gov) {
+          gov.daybreakMeta = {
+            ...(gov.daybreakMeta || {}),
+            extraElements: { cast: ['99'] },
+          };
+        }
+      }
+    });
+    const ctx = buildCtx(project);
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const calls = resolveCollection(ctx, 'elementCallsOfDay', undefined, days[0]) as any[];
+    const added = calls.find(c => c.id === '99');
+    expect(added).toMatchObject({ name: 'FITTING DOUBLE', category: 'cast', firstScene: '' });
+    // Its chain anchors on the day's base call, so the call-sheet columns resolve.
+    expect(Object.keys(added.callTimes).length).toBeGreaterThan(0);
+    expect(Object.values(added.callTimes).every((v: any) => typeof v.time === 'string' && v.time.length > 0)).toBe(true);
+  });
+
   it('crewOfDay with no explicit crew resolves the template crew', () => {
     const ctx = buildCtx(seedProject());
     const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];

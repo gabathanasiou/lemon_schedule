@@ -235,6 +235,12 @@ export interface DayMeta {
   departmentReportTo?: Record<string, string>;
   /** category → element key → call times (item 99). */
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
+  /** Item 164: elements added to this day with no scheduled scene — a fitting,
+   *  an agency day. `category → keys` in the SAME key space as `elementCalls`
+   *  (cast = Board IDs, every other category = names). The day read model
+   *  (`dayView`) and the `elementCallsOfDay` report resolver merge these into
+   *  the day's element set, so the grid and the call sheet never diverge. */
+  extraElements?: Record<string, string[]>;
   /** Report design id → per-day callSheetEdit zone blocks (item 10). */
   callSheets?: Record<string, ReportBlock[]>;
   /** Break/NOTE row ids ticked for call-sheet inclusion (default: all). */
