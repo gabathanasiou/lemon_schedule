@@ -59,9 +59,9 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
   rail. Item 355: collapse to a 40px icon rail + drag-resize (shared
   `usePaneResize`, session-only width) — the `SidebarNav` mechanics.
 - **One sheet.** Category/account bands, line rows and markups with signed
-  totals. Item 355: columns keep their designed widths (horizontal scroll on
-  narrow windows), and category/account labels **span** the empty Qty→Cur cells.
-  Copy/paste/fill ride `InlineGlideTable` and commit as one batch.
+  totals. Item 362: fills the page when the designed columns fit, else designed
+  widths + scroll; drag boundaries to resize, header → **Fit columns to width**.
+  Copy/paste/fill ride `InlineGlideTable`; labels **span** Qty→Cur.
 
 ### Grid columns & editability
 
@@ -78,8 +78,8 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 | Total | read-only | The line's LOCAL total (line currency); category/account totals are base |
 
 - The grid is the shared **`InlineGlideTable`**, not a bespoke Glide fork:
-  natural-width columns + horizontal scroll (item 355), fill height, one commit
-  per edit, presence scope `budget:detail` keyed by row key.
+  fill-width columns with a natural narrow fallback + user resize (item 362),
+  fill height, one commit per edit, presence scope `budget:detail` keyed by row key.
 - **Colour coding is the shared grid rule** (`docs/UI-PRIMITIVES.md` §Glide
   grids / `docs/DESIGN-LANGUAGE.md`): editable cells are the white input
   surface at rest (near-white hover); read-only cells are the neutral grey

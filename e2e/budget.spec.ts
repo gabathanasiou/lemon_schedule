@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { ensureProject, waitForPersistedProject, glideCellId, waitForGlideCellSelected } from './helpers';
 
 /**
@@ -12,9 +12,16 @@ import { ensureProject, waitForPersistedProject, glideCellId, waitForGlideCellSe
 const budgetTab = '[data-presence-anchor="nav:tab:budget"]';
 const librarySubTab = '[data-presence-anchor="nav:subtab:library"]';
 
+/** Item 362 — the grid publishes its RENDERED column widths (px) so geometry
+ *  steps follow the fill/resize instead of hardcoding the designed sum. */
+async function renderedWidths(page: Page, selector: string): Promise<number[]> {
+  const raw = await page.locator(`${selector} [data-column-widths]`).first().getAttribute('data-column-widths');
+  return raw ? JSON.parse(raw) as number[] : [];
+}
+
 test.describe('Budget', () => {
-  // The natural-width sheet (item 355) keeps its designed columns; a wide
-  // viewport keeps the trailing (i)/trash lanes visible for geometry clicks.
+  // The fill-width sheet (item 362) grows to the page; a wide viewport keeps
+  // the trailing (i)/trash lanes visible for geometry clicks.
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test.describe.configure({ mode: 'serial' });
@@ -80,11 +87,14 @@ test.describe('Budget', () => {
       await page.locator('[data-presence-anchor="nav:subtab:budget"]').click();
       const box = await page.locator('[data-budget-grid] .dvn-scroller').first().boundingBox();
       expect(box).toBeTruthy();
-      // Natural column widths (item 355): the info lane follows the designed
-      // columns (22+300+54+68+88+42+58+118+96+102) — it is no longer pinned to
-      // the scroller's right edge. Actions (56px) follow the info lane (30px).
-      const contentW = 22 + 300 + 54 + 68 + 88 + 42 + 58 + 118 + 96 + 102;
-      const infoX = box!.x + contentW + 15;
+      // Item 362: the sheet fills the page; the info lane follows the RENDERED
+      // data columns, and the actions lane (56px) follows it (30px).
+      const widths = await renderedWidths(page, '[data-budget-grid]');
+      expect(widths.length).toBe(12);
+      // Item 362: fill — the rendered columns consume the measured width.
+      expect(widths.reduce((s, w) => s + w, 0)).toBeGreaterThanOrEqual(Math.floor(box!.width) - 2);
+      const contentW = widths.slice(0, -2).reduce((s, w) => s + w, 0);
+      const infoX = box!.x + contentW + widths[widths.length - 2] / 2;
       const rowY = (row: number) => box!.y + 30 + row * 26 + 13;
       const linesBefore = (await page.evaluate(() => (window as any).__lemonSchedule.budgetSummary())).lines;
 
@@ -187,15 +197,18 @@ test.describe('Budget', () => {
 
       await test.step('the cost grid edits ETC inline and clears back to auto', async () => {
         const scroller = page.locator('[data-cost-report] .dvn-scroller').first();
-        // Columns keep their designed widths (item 355): disclosure 22, item
-        // 300, budget/actual/committed/ETC 92 each — no proportional fit.
-        const pointFor = (b: { x: number; y: number; width: number }) => ({
-          x: b.x + 22 + 300 + 92 * 3 + 46,
-          y: b.y + 30 + 2 * 26 + 13,
-        });
+        // Item 362: read the RENDERED widths (the sheet fills the page); ETC is
+        // the 6th data column (disclosure · item · budget · actual · committed
+        // · ETC).
+        const widths = await renderedWidths(page, '[data-cost-report]');
+        expect(widths.length).toBe(10);
         const box = await scroller.boundingBox();
         expect(box).toBeTruthy();
-        await page.mouse.click(pointFor(box!).x, pointFor(box!).y);
+        // Item 362: fill or a natural-width narrow fallback — either way the
+        // columns consume at least the measured width.
+        expect(widths.reduce((s, w) => s + w, 0)).toBeGreaterThanOrEqual(Math.floor(box!.width) - 2);
+        const etcX = widths.slice(0, 5).reduce((s, w) => s + w, 0) + widths[5] / 2;
+        await page.mouse.click(box!.x + etcX, box!.y + 30 + 2 * 26 + 13);
         await waitForGlideCellSelected(page, glideCellId(5, 2));
         // Type-to-open (`editOnType`): the first keystroke opens the overlay
         // editor, which is more reliable than Enter before the canvas focus

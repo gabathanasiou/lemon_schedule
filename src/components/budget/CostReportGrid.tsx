@@ -5,6 +5,7 @@ import {
 } from '../InlineGlideTable';
 import { ContextMenuItem } from '../ContextMenu';
 import { textCell, disclosureGlyphCell } from '../../lib/glideCells';
+import { useGlideColumnWidths } from '../../lib/glideColumns';
 import {
   buildCostRows, collapseBudgetRows, filterBudgetRows, type CostGridRow,
 } from '../../lib/budget/gridRows';
@@ -46,10 +47,12 @@ export interface CostGridUpdate {
  * report. Print stays a DOM report table.
  */
 export function CostReportGrid({
-  report, readOnly, focusCategoryId, filter, onFilterCounts, viewEpoch = 0, onLineUpdates,
+  report, readOnly, focusCategoryId, filter, onFilterCounts, viewEpoch = 0, onLineUpdates, projectId,
   viewRestore, onViewChange,
 }: {
   report: CostReportModel;
+  /** Scope for the user's saved column widths (per project, per sheet). */
+  projectId: string;
   readOnly: boolean;
   focusCategoryId: string | null;
   /** Display-only row filter — same AND tags as the Budget sheet. */
@@ -62,6 +65,9 @@ export function CostReportGrid({
   onViewChange?: (state: GlideViewState) => void;
 }) {
   const settings = report.settings;
+  /** Item 362 — the user's column widths win over the fill sizing. */
+  const [columnWidths, , resetColumnWidths, setAllColumnWidths] = useGlideColumnWidths(`lemon_schedule_glide_cols_cost_${projectId}`);
+  const hasSavedWidths = Object.keys(columnWidths).length > 0;
   const [viewRev, bumpView] = React.useReducer((x: number) => x + 1, 0);
   const toggleCategory = React.useCallback((id: string) => {
     toggleCategoryCollapse(id);
@@ -191,8 +197,13 @@ export function CostReportGrid({
         readOnly={readOnly}
         rowThemeOverride={rowTheme}
         heightMode="fill"
-        columnSizing="natural"
+        columnSizing="fill"
+        columnWidths={columnWidths}
+        onColumnWidthsChange={setAllColumnWidths}
         rowMenuItems={rowMenuItems}
+        headerMenuItems={hasSavedWidths ? close => (
+          <ContextMenuItem onClick={() => { close(); resetColumnWidths(); }}>Fit columns to width</ContextMenuItem>
+        ) : undefined}
         baseRowHeight={26}
         baseHeaderHeight={30}
         presenceScope="budget:cost"

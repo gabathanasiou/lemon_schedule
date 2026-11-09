@@ -4,6 +4,8 @@ import {
   InlineGlideTable, type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction,
 } from '../InlineGlideTable';
 import { textCell, disclosureGlyphCell } from '../../lib/glideCells';
+import { useGlideColumnWidths } from '../../lib/glideColumns';
+import { ContextMenuItem } from '../ContextMenu';
 import { buildBudgetRows, collapseBudgetRows, filterBudgetRows, type BudgetGridRow } from '../../lib/budget/gridRows';
 import { formatMoney } from '../../lib/budget/format';
 import type { BudgetModel, ComputedBudgetLine } from '../../lib/budget/calc';
@@ -52,13 +54,15 @@ const EDITABLE = new Set(['item', 'qty', 'unit', 'rate', 'x', 'cur', 'fringes', 
  * fringes, groups); there is no second grid engine.
  */
 export function BudgetGrid({
-  model, readOnly, focusCategoryId, filter, onFilterCounts, viewEpoch = 0,
+  model, readOnly, focusCategoryId, filter, onFilterCounts, viewEpoch = 0, projectId,
   onCommit, onOpenLine, onOpenNode, onAddAccount, onQuickAddLine, onQuickAddAccountLine, onQuickAddLastLine,
   onBulkAddLines, onDuplicateLine,
   onDeleteCategory, onDeleteAccount, onDeleteLine, onDeleteMarkup,
   viewRestore, onViewChange,
 }: {
   model: BudgetModel;
+  /** Scope for the user's saved column widths (per project, per sheet). */
+  projectId: string;
   readOnly: boolean;
   focusCategoryId: string | null;
   /** Display-only row filter (roadmap 342) — comma tags AND-match. */
@@ -93,6 +97,9 @@ export function BudgetGrid({
   const fringes = model.budget.fringes || [];
   const groups = model.budget.groups || [];
   const settings = model.settings;
+  /** Item 362 — the user's column widths win over the fill sizing. */
+  const [columnWidths, , resetColumnWidths, setAllColumnWidths] = useGlideColumnWidths(`lemon_schedule_glide_cols_budget_${projectId}`);
+  const hasSavedWidths = Object.keys(columnWidths).length > 0;
 
   /** View-only disclosure state lives in the module sets; this revision bump
    *  re-renders the flattened rows (never a project/undo write). */
@@ -389,8 +396,13 @@ export function BudgetGrid({
         rowInfo={rowInfo}
         rowThemeOverride={rowTheme}
         heightMode="fill"
-        columnSizing="natural"
+        columnSizing="fill"
+        columnWidths={columnWidths}
+        onColumnWidthsChange={setAllColumnWidths}
         rowMenuItems={rowMenuItems}
+        headerMenuItems={hasSavedWidths ? close => (
+          <ContextMenuItem onClick={() => { close(); resetColumnWidths(); }}>Fit columns to width</ContextMenuItem>
+        ) : undefined}
         onAddRow={addRowFrom}
         editors={editors}
         getEditor={getEditorCfg}

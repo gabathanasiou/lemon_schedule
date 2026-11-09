@@ -150,11 +150,20 @@ export interface InlineGlideTableProps {
    *  the grid fills its measured container and scrolls its rows INSIDE Glide,
    *  keeping the column header pinned (the Budget sheet, roadmap 343). */
   heightMode?: 'content' | 'fill';
-  /** Column sizing (item 355). `fit` (default) distributes the caller's
-   *  preferred widths to the card, so the table never scrolls sideways.
-   *  `natural` keeps them and lets the grid scroll horizontally — the Budget /
-   *  Cost sheets at narrow widths. */
-  columnSizing?: 'fit' | 'natural';
+  /** Column sizing. `fit` (default) distributes the caller's preferred widths
+   *  to the card, so the table never scrolls sideways. `natural` keeps them and
+   *  lets the grid scroll horizontally. `fill` (Budget / Cost) grows the
+   *  designed widths to the page when they fit, and falls back to `natural` +
+   *  horizontal scroll when the window is narrower than the sheet. */
+  columnSizing?: 'fit' | 'natural' | 'fill';
+  /** Persisted per-column widths (unscaled px — the `useGlideColumnWidths`
+   *  shape). Non-empty = the user has taken control: these win over the sizing
+   *  mode and the sheet scrolls when they exceed the viewport. */
+  columnWidths?: Record<string, number>;
+  /** Fires while the user drags a column boundary with the COMPLETE unscaled
+   *  width map — the first drag freezes the current fill instead of snapping
+   *  the other columns back to their design widths. Omit to disable resize. */
+  onColumnWidthsChange?: (widths: Record<string, number>) => void;
   /** Presence scope (roadmap 234): the stable id of THIS logical table shared
    *  by every client (e.g. `day:3:times:cast`). Every mounted instance — main
    *  window, popped-out sheet, portalled canvas — publishes its own selection
@@ -219,6 +228,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   rowThemeOverride,
   heightMode = 'content',
   columnSizing = 'fit',
+  columnWidths,
+  onColumnWidthsChange,
   presenceScope,
   presenceRowKey,
   viewRestore,
@@ -271,9 +282,23 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       ...(rowInfo ? [INFO_COLUMN] : []),
       ...(rowActions ? [ACTIONS_COLUMN] : []),
     ];
+    // Saved widths are stored unscaled (the Breakdown contract) — the font
+    // size preference scales them, never the designed widths.
+    const widthScale = fontSize / SS_FONT_SIZE_DEFAULT;
+    const saved = columnWidths || {};
+    const hasSaved = columns.some(c => saved[c.key] != null);
+    if (hasSaved) {
+      return withTrailing(columns.map(c => ({
+        ...c,
+        width: saved[c.key] != null ? Math.max(40, Math.round(saved[c.key] * widthScale)) : Math.round(c.width * widthScale),
+      })));
+    }
     if (columnSizing === 'natural') return withTrailing(columns);
     if (!gridWidth || gridWidth <= 0 || total <= 0) return withTrailing(columns);
     const target = Math.max(120, Math.floor(gridWidth) - 1) - trailingWidth;
+    // `fill` grows the designed sheet to the page, but never shaves columns
+    // below their designed width: a narrow window keeps natural + x-scroll.
+    if (columnSizing === 'fill' && target < total) return withTrailing(columns);
     const flexIdx = Math.min(1, columns.length - 1);
     const widths = columns.map(c => Math.max(40, Math.floor((c.width / total) * target)));
     let sum = widths.reduce((s, w) => s + w, 0);
@@ -286,7 +311,29 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (rowInfo) out.push(INFO_COLUMN);
     if (rowActions) out.push(ACTIONS_COLUMN);
     return out;
-  }, [columns, gridWidth, rowActions, rowInfo, columnSizing]);
+  }, [columns, gridWidth, rowActions, rowInfo, columnSizing, columnWidths, fontSize]);
+
+  /** Glide's native header drag → the host persists the WHOLE map, so the
+   *  first drag freezes the current fill instead of collapsing the other
+   *  columns back to their designed widths. */
+  const handleColumnResize = useCallback((_column: GridColumn, newSize: number, colIndex: number) => {
+    if (!onColumnWidthsChange) return;
+    const key = COLUMNS[colIndex]?.key;
+    if (!key || key === INFO_COLUMN.key || key === ACTIONS_COLUMN.key) return;
+    const widthScale = fontSize / SS_FONT_SIZE_DEFAULT;
+    const next: Record<string, number> = {};
+    for (const c of COLUMNS) {
+      if (c.key === INFO_COLUMN.key || c.key === ACTIONS_COLUMN.key) continue;
+      next[c.key] = Math.round(c.width / widthScale);
+    }
+    next[key] = Math.round(newSize / widthScale);
+    onColumnWidthsChange(next);
+  }, [COLUMNS, onColumnWidthsChange, fontSize]);
+
+  const columnsWidth = COLUMNS.reduce((s, c) => s + c.width, 0);
+  /** Horizontal scroll: natural sheets always, and any sheet whose saved
+   *  widths (or a too-narrow window) exceed the measured container. */
+  const scrollX = columnSizing === 'natural' || (!!gridWidth && columnsWidth > gridWidth);
 
   const glideColumns: GridColumn[] = useMemo(
     () => COLUMNS.map(c => ({ title: c.label.toUpperCase(), width: c.width })),
@@ -1029,9 +1076,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   return (
     <div
       ref={wrapperRef}
-      className={`inline-glide-table${heightMode === 'fill' ? ' inline-glide-table--scroll flex-1 min-h-0 flex flex-col' : ''}${columnSizing === 'natural' ? ' inline-glide-table--x-scroll' : ''}`}
+      className={`inline-glide-table${heightMode === 'fill' ? ' inline-glide-table--scroll flex-1 min-h-0 flex flex-col' : ''}${scrollX ? ' inline-glide-table--x-scroll' : ''}`}
       {...(dataAttr ? { [dataAttr]: '' } : {})}
       {...(dataCategory ? { 'data-category': dataCategory } : {})}
+      data-column-widths={JSON.stringify(COLUMNS.map(c => c.width))}
       data-presence-grid={presenceScope}
       onKeyDownCapture={(e) => {
         // Shift+Enter = quick-add (roadmap 337). Captured BEFORE Glide's
@@ -1111,6 +1159,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}
             onHeaderContextMenu={onHeaderContextMenu}
+            onColumnResize={onColumnWidthsChange ? handleColumnResize : undefined}
             onVisibleRegionChanged={(range) => {
               visibleRegionRef.current = { x: range.x, y: range.y };
               presenceScroll.notify();

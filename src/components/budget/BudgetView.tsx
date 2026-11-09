@@ -541,6 +541,7 @@ export function BudgetView({
             costReport ? (
               <CostReportGrid
                 report={costReport}
+                projectId={project.id}
                 readOnly={readOnly}
                 focusCategoryId={focusCategoryId}
                 filter={rowFilter}
@@ -558,6 +559,7 @@ export function BudgetView({
           ) : (
             <BudgetGrid
               model={model}
+              projectId={project.id}
               readOnly={readOnly}
               focusCategoryId={focusCategoryId}
               filter={rowFilter}

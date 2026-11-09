@@ -74,11 +74,16 @@ auto-repaint.
 
 ## `InlineGlideTable` (`src/components/InlineGlideTable.tsx`)
 
-- The shared compact grid for page cards (Day Manager Call Times + Crew): columns auto-fit the card,
-  the grid is content-height with no scrollbars, EDITABLE cells carry a light-blue fill that deepens
-  on the hovered row while read-only cells stay plain with faint text + a neutral hover (never a
-  gray box; fully read-only grids don't tint), and each edit/paste/fill/clear commits ONCE via
-  `onCommit`.
+- The shared compact grid for page cards (Day Manager Call Times + Crew): `columnSizing` is `fit`
+  (default — scale the caller's widths to the card), `natural` (designed widths + horizontal scroll)
+  or `fill` (Budget/Cost — use the page width when the designed columns fit; a narrow window falls
+  back to natural + scroll). Pass `columnWidths` + `onColumnWidthsChange` to persist user-dragged
+  boundaries (`useGlideColumnWidths`); the first drag freezes the WHOLE rendered map so the other
+  columns never snap back. The grid is content-height with no scrollbars, EDITABLE cells carry a
+  light-blue fill that deepens on the hovered row while read-only cells stay plain with faint text +
+  a neutral hover (never a gray box; fully read-only grids don't tint), and each edit/paste/fill/clear
+  commits ONCE via `onCommit`. The wrapper exposes `data-column-widths` (rendered px) for geometry
+  tests.
 - Same repaint gotcha — a full-grid `updateCells` effect on `rows`/`COLUMNS` (without it the canvas
   looks stale until an interaction). Reuse it for manager pages instead of forking a grid.
 - Optional `rowTooltip`/`onRowHover` drive the Call Sheet editor's first-scene hover tooltip +
