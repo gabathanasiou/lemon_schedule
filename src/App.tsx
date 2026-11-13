@@ -1185,9 +1185,9 @@ function AppContent() {
         <ReportPrintDialog
           design={customReportPrint.design}
           initialDaySectionIndex={customReportPrint.daySectionIndex}
-          onPrint={(scopes, printOptions) => {
+          onPrint={(scopes, printOptions, budget) => {
             setCustomReportPrint(null);
-            handleReportPrint(customReportPrint.design, { scopes }, printOptions);
+            handleReportPrint(customReportPrint.design, { scopes, budget }, printOptions);
           }}
           onClose={() => setCustomReportPrint(null)}
         />

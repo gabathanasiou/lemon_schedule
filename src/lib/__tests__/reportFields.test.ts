@@ -17,6 +17,9 @@ import {
   searchReportFields,
 } from '../reportFields';
 import { tableFieldScope } from '../reportBlocks';
+import { makeBlankProject } from '../../store/reducer';
+import { featureBudget } from '../budget/templates';
+import { activeBudgetVersion, makeBudgetLine } from '../budget/model';
 import type { ReportBlock, ReportCollection } from '../../types';
 
 describe('applyItemAffixes', () => {
@@ -402,5 +405,71 @@ describe('cast performer details', () => {
     expect(performer.get({} as any, { details: { performer: 'James Stewart' } } as any, undefined)).toBe('James Stewart');
     expect(performer.get({} as any, {} as any, undefined)).toBe('');
     expect(callArtiste.get({} as any, { details: { performer: 'Donna Reed' } } as any, undefined)).toBe('Donna Reed');
+  });
+});
+
+describe('budget fields and lookups (roadmap 363)', () => {
+  const project = (() => {
+    const p = makeBlankProject('Budget Fields');
+    p.budget = featureBudget();
+    const atl = p.budget.accounts.find(a => a.number === '1100')!;
+    const version = activeBudgetVersion(p.budget)!;
+    version.lines = [makeBudgetLine({ accountId: atl.id, description: 'Screenplay', qty: 1, rateCents: 600000 })];
+    return p;
+  })();
+  const defs = getReportFieldDefs(project);
+  const keys = (scope: string | undefined) => fieldsForScope(defs, scope).map(f => f.key);
+
+  it('offers only fields the budget level can read', () => {
+    const category = keys('budgetCategories');
+    expect(category).toContain('budgetCategoryName');
+    expect(category).toContain('budgetLineTotal');
+    expect(category).not.toContain('budgetQty');
+    expect(category).not.toContain('budgetAccountName');
+
+    const account = keys('budgetAccounts');
+    expect(account).toContain('budgetAccountName');
+    expect(account).toContain('budgetLineTotal');
+    expect(account).not.toContain('budgetQty');
+
+    const line = keys('budgetLines');
+    expect(line).toEqual(expect.arrayContaining(['budgetDescription', 'budgetQty', 'budgetRate', 'budgetLineTotal', 'budgetFringeTotal']));
+  });
+
+  it('keeps document totals at the top level and drops line-only fields', () => {
+    const top = keys(undefined);
+    expect(top).toContain('budgetGrandTotal');
+    expect(top).toContain('budgetFringes');
+    expect(top).not.toContain('budgetQty');
+    expect(top).not.toContain('budgetLineTotal');
+  });
+
+  it('resolves the table picker scope through the raw budget level', () => {
+    const scope = tableFieldScope({ type: 'table', collection: 'budgetLines' } as ReportBlock, 'budgetAccounts');
+    expect(scope).toBe('budgetLines');
+    expect(fieldsForScope(defs, scope).map(f => f.key)).toContain('budgetDescription');
+  });
+
+  it('adds budget categories/accounts/lines to the @ reference catalogue', () => {
+    expect(lookupIdentityField('budgetCategories')).toBe('budgetCategoryName');
+    expect(lookupIdentityField('budgetAccounts')).toBe('budgetAccountName');
+    expect(lookupIdentityField('budgetLines')).toBe('budgetDescription');
+
+    const items = buildLookupTokens(project, []);
+    expect(items.find(t => t.collection === 'budgetCategories')?.label).toContain('Above the Line');
+    expect(items.find(t => t.collection === 'budgetAccounts')?.label).toContain('Story & Rights');
+    expect(items.find(t => t.collection === 'budgetLines')?.label).toBe('Screenplay');
+  });
+
+  it('offers only item attributes on a budget reference', () => {
+    const attrs = lookupAttributeFields(defs, 'budgetLines').map(f => f.key);
+    expect(attrs).toContain('budgetLineTotal');
+    expect(attrs).toContain('budgetFringes');
+    expect(attrs).not.toContain('budgetGrandTotal');
+    expect(attrs).not.toContain('budgetDescription'); // the identity chip itself
+    const categoryAttrs = lookupAttributeFields(defs, 'budgetCategories').map(f => f.key);
+    expect(categoryAttrs).toContain('budgetCategoryNumber');
+    expect(categoryAttrs).not.toContain('budgetCategoryName'); // identity chip
+    expect(categoryAttrs).not.toContain('budgetQty');
   });
 });

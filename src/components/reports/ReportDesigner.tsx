@@ -17,8 +17,9 @@ import {
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint, designIsDayScoped,
   tableItemCollection, dayGridOffenders, isDayGridBlock, collectRibbonBlocks, countCallSheetZones,
-  findDesignCallSheetZone, ribbonTimeOverrides,
+  findDesignCallSheetZone, ribbonTimeOverrides, contextualCollectionsFor, budgetTableOffenders, BUDGET_COLLECTIONS,
 } from '../../lib/reportBlocks';
+import { makeBudgetHierarchyBlock } from '../../lib/budget/reportPresets';
 import { fieldScopeFor } from '../../lib/reportLookup';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useDayViews } from '../../lib/dayView';
@@ -50,11 +51,23 @@ import Button from '../Button';
 import { ToolButton, TB_BTN_ICON, ThemeScope } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
 
-function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
+function payloadToBlock(p: PaletteDropPayload, scope: ReportCollection | null): ReportBlock {
+  // Composite starter: the nested budget hierarchy (categories → accounts → lines).
+  if (p.preset === 'budgetHierarchy') return makeBudgetHierarchyBlock();
   // Palette attributes become text blocks with the {{field}} token embedded —
   // an attribute block is just a text block with one token already in it.
   if (p.field) return makeReportBlock('text', { text: `{{${p.field}}}` });
-  return makeReportBlock((p.type || 'text') as ReportBlock['type']);
+  const type = (p.type || 'text') as ReportBlock['type'];
+  if (type === 'repeat' || type === 'table') {
+    // Budget hierarchy only: a nested Repeat/Table starts at the contextual
+    // child (categories → accounts → lines). Other collections keep the legacy
+    // Scenes default — tables auto-resolve their contextual child at render
+    // time, and repeats stay explicit so the existing menus stay predictable.
+    const budgetContext = !!scope && BUDGET_COLLECTIONS.has(scope);
+    const collection = p.collection ?? (budgetContext ? contextualCollectionsFor(scope)[0] ?? scope! : 'scenes');
+    return makeReportBlock(type, { collection, ...(p.category ? { category: p.category } : {}) });
+  }
+  return makeReportBlock(type);
 }
 
 /** Zone mode (item 10): edit ONE `callSheetEdit` zone's blocks for a single
@@ -399,6 +412,14 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(introduced[1]) });
       return;
     }
+    // `budgetTable` prints the WHOLE project budget; inside a repeat it would
+    // print once per item. Same one-way safety net (legacy designs stay editable).
+    const beforeBudgetTables = budgetTableOffenders(listOfZone(zone));
+    const introducedBudgetTable = [...budgetTableOffenders(next)].find(([id]) => !beforeBudgetTables.has(id));
+    if (introducedBudgetTable) {
+      dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(introducedBudgetTable[1]) });
+      return;
+    }
     // Invariant (roadmap 212): ONE per-day edit zone per design. The day page
     // swaps exactly that block for the live canvas; a second zone would
     // duplicate the day's content. Same safety net — only NEWLY introduced
@@ -590,7 +611,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     guardInsert(payload, id ? parentCollectionOf(listOfZone(zoneOf(id)), id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => {
       const zone = zoneOf(id);
       const list = listOfZone(zone);
-      const b = payloadToBlock(payload, insertScopeFor(list, id));
+      const ambient = id ? parentCollectionOf(list, id) : null;
+      const b = payloadToBlock(payload, ambient);
       const next = id ? insertAfter(list, id, b) : [...list, b];
       commit(next, zone);
       setSelId(b.id);
@@ -598,10 +620,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     });
   };
 
-  const insertIntoSelected = () => {
+  const insertIntoSelected = (type: ReportBlock['type'] = 'text') => {
     if (!selId) return;
-    const b = makeReportBlock('text');
-    commitZone(selId, list => insertInto(list, selId, b));
+    const list = listOfZone(zoneOf(selId));
+    const b = payloadToBlock({ kind: 'block', type }, insertScopeFor(list, selId));
+    commitZone(selId, l => insertInto(l, selId, b));
     setSelId(b.id);
     markAutoEdit(b);
   };
@@ -1058,8 +1081,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               }}
               editorMode={editorMode}
               onMoveTableColumn={moveTableColumnBy}
-              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
-              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, id ? parentCollectionOf(list, id) : null); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, id ? parentCollectionOf(list, id) : null); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
               onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
               onMoveInto={(containerId, moveId) => {
                 const zone = zoneOf(containerId);
@@ -1132,7 +1155,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                 if (!payload.moveId && !guardAllowed(payload, parentCollectionOf(list, targetId), true)) return;
                 const dropped = payload.moveId
                   ? findBlock(listOfZone(zoneOf(payload.moveId)), payload.moveId)?.block ?? null
-                  : payloadToBlock(payload, insertScopeFor(list, targetId));
+                  : payloadToBlock(payload, parentCollectionOf(list, targetId));
                 if (!dropped) return;
                 if (payload.moveId && payload.duplicate) {
                   commit(wrapWithColumns(list, targetId, cloneBlock(dropped), side), zone);

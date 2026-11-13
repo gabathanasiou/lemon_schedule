@@ -48,6 +48,12 @@ export interface ReportFieldDef {
   linkKind?: 'url' | 'mailto' | 'tel';
   /** Anchor text for url link fields (defaults to the URL). */
   linkLabel?: (ctx: ReportCtx, item?: any) => string;
+  /** Budget item fields: which budget item kinds can read this field. Unset =
+   *  document-level total (top-level text only). */
+  budgetKinds?: ('category' | 'account' | 'line')[];
+  /** Offer this budget field at the top-level document too (a dual
+   *  document/item field such as per-line fringes). */
+  budgetDocument?: boolean;
   get: (ctx: ReportCtx, item?: any, aux?: FieldAux) => string;
 }
 
@@ -675,7 +681,9 @@ function budgetCategoryItem(it: any): ReportBudgetCategoryItem | undefined {
 }
 
 function budgetMoney(ctx: ReportCtx, cents: number | undefined, symbol?: string): string {
-  if (!ctx.budget) return '';
+  // Wrong-context fields (a line field read on a category, an item field at
+  // top level) must blank, not print a formatted zero.
+  if (!ctx.budget || cents == null) return '';
   return formatMoney(cents, symbol ? { ...ctx.budget.settings, currencySymbol: symbol } : ctx.budget.settings);
 }
 
@@ -701,12 +709,19 @@ const BUDGET_FIELDS: ReportFieldDef[] = [
   { key: 'budgetAtl', label: 'Above the Line', group: 'Budget', scope: 'budget', align: 'right', money: true, defaultWidth: 12, separator: true, get: (ctx) => budgetMoney(ctx, ctx.budget?.totals.byGroup.atl) },
   { key: 'budgetBtl', label: 'Below the Line', group: 'Budget', scope: 'budget', align: 'right', money: true, defaultWidth: 12, get: (ctx) => budgetMoney(ctx, ctx.budget?.totals.byGroup.btl) },
   { key: 'budgetPost', label: 'Post Production', group: 'Budget', scope: 'budget', align: 'right', money: true, defaultWidth: 12, get: (ctx) => budgetMoney(ctx, ctx.budget?.totals.byGroup.post) },
-  { key: 'budgetFringes', label: 'Fringes', group: 'Budget', scope: 'budget', align: 'right', money: true, multiValue: true, defaultWidth: 12, separator: true, get: (ctx, it) => {
+  { key: 'budgetFringes', label: 'Fringes', group: 'Budget', scope: 'budget', budgetKinds: ['line'], budgetDocument: true, align: 'right', money: true, multiValue: true, defaultWidth: 12, separator: true, get: (ctx, it) => {
     const line = budgetLineItem(it);
     // Per-line use prints the applied fringe names; document use prints the
     // budget's fringe total (one field, context-aware like the smart family).
     if (line) return line.fringes.map(f => f.name).join(', ');
     return budgetMoney(ctx, ctx.budget?.totals.fringeCents);
+  } },
+  { key: 'budgetFringeTotal', label: 'Fringe Total', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], align: 'right', money: true, defaultWidth: 12, get: (ctx, it) => {
+    const line = budgetLineItem(it);
+    if (line) return budgetMoney(ctx, line.fringeCents);
+    const account = budgetAccountItem(it);
+    if (account) return budgetMoney(ctx, account.totals.fringeCents);
+    return budgetMoney(ctx, budgetCategoryItem(it)?.totals.fringeCents);
   } },
   { key: 'budgetContingency', label: 'Contingency & Markups', group: 'Budget', scope: 'budget', align: 'right', money: true, defaultWidth: 12, get: (ctx) => budgetMoney(ctx, ctx.budget?.totals.markupCents) },
   // Credits/incentives are a later phase — Net equals the grand total today.
@@ -717,7 +732,7 @@ const BUDGET_FIELDS: ReportFieldDef[] = [
     return days > 0 && grand != null ? budgetMoney(ctx, Math.round(grand / days)) : '';
   } },
   // Per-item fields (budget category/account/line collections).
-  { key: 'budgetCategoryNumber', label: 'Category #', group: 'Budget Items', scope: 'budget', align: 'center', defaultWidth: 8, get: (_c, it) => {
+  { key: 'budgetCategoryNumber', label: 'Category #', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], align: 'center', defaultWidth: 8, get: (_c, it) => {
     const line = budgetLineItem(it);
     if (line) return s(line.category.number);
     const account = budgetAccountItem(it);
@@ -725,59 +740,59 @@ const BUDGET_FIELDS: ReportFieldDef[] = [
     const category = budgetCategoryItem(it);
     return s(category?.category.number);
   } },
-  { key: 'budgetCategoryName', label: 'Category', group: 'Budget Items', scope: 'budget', defaultWidth: 22, get: (_c, it) => {
+  { key: 'budgetCategoryName', label: 'Category', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], defaultWidth: 22, get: (_c, it) => {
     const line = budgetLineItem(it);
     if (line) return s(line.category.name);
     const account = budgetAccountItem(it);
     if (account) return s(account.category.name);
     return s(budgetCategoryItem(it)?.category.name);
   } },
-  { key: 'budgetAccountNumber', label: 'Account #', group: 'Budget Items', scope: 'budget', align: 'center', defaultWidth: 8, get: (_c, it) => s(budgetEntryOf(it).number) },
-  { key: 'budgetAccountName', label: 'Account', group: 'Budget Items', scope: 'budget', defaultWidth: 24, get: (_c, it) => s(budgetEntryOf(it).name) },
-  { key: 'budgetDescription', label: 'Description', group: 'Budget Items', scope: 'budget', defaultWidth: 28, get: (_c, it) => {
+  { key: 'budgetAccountNumber', label: 'Account #', group: 'Budget Items', scope: 'budget', budgetKinds: ['account', 'line'], align: 'center', defaultWidth: 8, get: (_c, it) => s(budgetEntryOf(it).number) },
+  { key: 'budgetAccountName', label: 'Account', group: 'Budget Items', scope: 'budget', budgetKinds: ['account', 'line'], defaultWidth: 24, get: (_c, it) => s(budgetEntryOf(it).name) },
+  { key: 'budgetDescription', label: 'Description', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], defaultWidth: 28, get: (_c, it) => {
     const line = budgetLineItem(it);
     if (line) return s(line.line.description);
     const account = budgetAccountItem(it);
     if (account) return s(account.account.name);
     return s(budgetCategoryItem(it)?.category.name);
   } },
-  { key: 'budgetQty', label: 'Qty', group: 'Budget Items', scope: 'budget', align: 'right', defaultWidth: 6, get: (_c, it) => {
+  { key: 'budgetQty', label: 'Qty', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], align: 'right', defaultWidth: 6, get: (_c, it) => {
     const line = budgetLineItem(it);
     return line ? s(line.qty) : '';
   } },
-  { key: 'budgetUnit', label: 'Unit', group: 'Budget Items', scope: 'budget', align: 'center', defaultWidth: 7, get: (ctx, it) => {
+  { key: 'budgetUnit', label: 'Unit', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], align: 'center', defaultWidth: 7, get: (ctx, it) => {
     const line = budgetLineItem(it);
     if (!line) return '';
     const unit = (ctx.budget?.budget.units || []).find(u => u.id === line.line.unit);
     return s(unit?.name || line.line.unit);
   } },
-  { key: 'budgetRate', label: 'Rate', group: 'Budget Items', scope: 'budget', align: 'right', money: true, defaultWidth: 10, get: (ctx, it) => {
+  { key: 'budgetRate', label: 'Rate', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], align: 'right', money: true, defaultWidth: 10, get: (ctx, it) => {
     const line = budgetLineItem(it);
     return line ? budgetMoney(ctx, line.rateCents, line.currencySymbol) : '';
   } },
-  { key: 'budgetMultiplier', label: 'Multiplier', group: 'Budget Items', scope: 'budget', align: 'right', defaultWidth: 7, get: (_c, it) => {
+  { key: 'budgetMultiplier', label: 'Multiplier', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], align: 'right', defaultWidth: 7, get: (_c, it) => {
     const line = budgetLineItem(it);
     return line ? s(line.multiplier) : '';
   } },
-  { key: 'budgetCurrency', label: 'Currency', group: 'Budget Items', scope: 'budget', align: 'center', defaultWidth: 7, get: (_c, it) => {
+  { key: 'budgetCurrency', label: 'Currency', group: 'Budget Items', scope: 'budget', budgetKinds: ['line'], align: 'center', defaultWidth: 7, get: (_c, it) => {
     const line = budgetLineItem(it);
     return line ? s(line.currency) : '';
   } },
-  { key: 'budgetLineTotal', label: 'Total', group: 'Budget Items', scope: 'budget', align: 'right', money: true, defaultWidth: 12, separator: true, get: (ctx, it) => {
+  { key: 'budgetLineTotal', label: 'Total', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], align: 'right', money: true, defaultWidth: 12, separator: true, get: (ctx, it) => {
     const line = budgetLineItem(it);
     if (line) return budgetMoney(ctx, line.totalCents);
     const account = budgetAccountItem(it);
     if (account) return budgetMoney(ctx, account.totals.totalCents);
     return budgetMoney(ctx, budgetCategoryItem(it)?.totals.totalCents);
   } },
-  { key: 'budgetLineTotalBase', label: 'Total (base)', group: 'Budget Items', scope: 'budget', align: 'right', money: true, defaultWidth: 12, get: (ctx, it) => {
+  { key: 'budgetLineTotalBase', label: 'Total (base)', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], align: 'right', money: true, defaultWidth: 12, get: (ctx, it) => {
     const line = budgetLineItem(it);
     if (line) return budgetMoney(ctx, line.baseCents);
     const account = budgetAccountItem(it);
     if (account) return budgetMoney(ctx, account.totals.baseCents);
     return budgetMoney(ctx, budgetCategoryItem(it)?.totals.baseCents);
   } },
-  { key: 'budgetPercentOfGrand', label: '% of Grand Total', group: 'Budget Items', scope: 'budget', align: 'right', defaultWidth: 10, get: (ctx, it) => {
+  { key: 'budgetPercentOfGrand', label: '% of Grand Total', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], align: 'right', defaultWidth: 10, get: (ctx, it) => {
     const line = budgetLineItem(it);
     if (line) return budgetPercent(ctx, line.totalCents);
     const account = budgetAccountItem(it);
@@ -785,7 +800,7 @@ const BUDGET_FIELDS: ReportFieldDef[] = [
     const category = budgetCategoryItem(it);
     return category ? formatPercent(category.totals.percentOfGrand, 1) : '';
   } },
-  { key: 'budgetNotes', label: 'Notes', group: 'Budget Items', scope: 'budget', defaultWidth: 24, get: (_c, it) => {
+  { key: 'budgetNotes', label: 'Notes', group: 'Budget Items', scope: 'budget', budgetKinds: ['category', 'account', 'line'], defaultWidth: 24, get: (_c, it) => {
     const line = budgetLineItem(it);
     if (line) return s(line.line.notes || '');
     return s(budgetEntryOf(it).notes || '');
@@ -1061,6 +1076,7 @@ export {
   applyItemAffixes, TOKEN_RE, parseToken, composeTokenKey,
   resolveReportTokens, resolveReportTokensHtml,
   fieldChipColor, tokenChipCss, tokenTagCss,
+  decodeHtmlEntities,
   parseCellRefKey, composeCellRefKey, composeRelativeCellRefKey, cellRefTarget,
   cellRefChipMeta, cellRefAttributeItems, cellRefChain,
 } from './reportTokens';

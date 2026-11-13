@@ -16,6 +16,11 @@ import {
   removeCustomRowAt,
   duplicateBlockWithId,
   dayGridOffenders,
+  budgetTableOffenders,
+  validCollections,
+  collectBudgetBlocks,
+  tableMenuCollections,
+  tableFieldScope,
   blockAllowedIn,
   blockPlacementHint,
   countCallSheetZones,
@@ -301,5 +306,61 @@ describe('ribbonTimeOverrides (item 114 — view-only Times aid)', () => {
       showNotes: false, showBreaks: true, showDayBreaks: true,
     });
     expect(out.r2).toMatchObject({ showCallTimes: true, showDurations: true, showNotes: true, showBreaks: false });
+  });
+});
+
+describe('budget collections in the report tree (roadmap 363)', () => {
+  it('gates budget collections to the top level or their own hierarchy', () => {
+    expect(new Set(validCollections('budgetCategories'))).toEqual(new Set(['budgetAccounts', 'budgetLines']));
+    expect(new Set(validCollections('budgetAccounts'))).toEqual(new Set(['budgetLinesOfAccount', 'budgetLines']));
+    expect(validCollections('budgetLines')).toEqual([]);
+    // Budget databases do not appear inside schedule repeats.
+    expect(validCollections('scenes')).not.toContain('budgetCategories');
+    expect(validCollections('days')).not.toContain('budgetLines');
+    // ...but are available at the top level.
+    expect(validCollections()).toContain('budgetCategories');
+    expect(validCollections()).toContain('purchaseOrders');
+  });
+
+  it('puts the contextual child first in the nested table menu', () => {
+    expect(tableMenuCollections(b('t', 'table', { collection: 'scenes' }), 'budgetCategories')[0]).toBe('budgetAccounts');
+    expect(tableMenuCollections(b('t', 'table', { collection: 'scenes' }), 'budgetAccounts')[0]).toBe('budgetLinesOfAccount');
+  });
+
+  it('keeps the raw budget level in tableFieldScope so field pickers can filter', () => {
+    expect(tableFieldScope(b('t', 'table', { collection: 'budgetLines' }), 'budgetAccounts')).toBe('budgetLines');
+    expect(tableFieldScope(b('t', 'table', { collection: 'budgetAccounts' }), 'budgetCategories')).toBe('budgetAccounts');
+  });
+
+  it('seeds budget tables with useful columns summing to 100', () => {
+    const table = makeReportBlock('table', { collection: 'budgetLines' });
+    expect(table.columns?.map(c => c.field)).toEqual([
+      'budgetDescription', 'budgetQty', 'budgetUnit', 'budgetRate', 'budgetMultiplier', 'budgetLineTotal',
+    ]);
+    expect(table.columns?.reduce((sum, c) => sum + c.width, 0)).toBe(100);
+  });
+
+  it('flags a budget table nested inside any repeat', () => {
+    const nested = b('cat', 'repeat', {
+      collection: 'budgetCategories',
+      children: [b('bt', 'budgetTable')],
+    });
+    expect([...budgetTableOffenders([nested]).keys()]).toEqual(['bt']);
+    expect(budgetTableOffenders([b('bt', 'budgetTable')]).size).toBe(0);
+    expect(budgetTableOffenders([b('col', 'columns', { cols: [{ id: 'c1', width: 100, blocks: [b('bt', 'budgetTable')] }] })]).size).toBe(0);
+  });
+});
+
+describe('collectBudgetBlocks (print scope coverage)', () => {
+  it('finds budget tables, budget repeats and nested budget tables', () => {
+    const design = [
+      b('bt', 'budgetTable'),
+      b('cat', 'repeat', { collection: 'budgetCategories', children: [
+        b('acc', 'repeat', { collection: 'budgetAccounts', children: [b('lines', 'table', { collection: 'budgetLines' })] }),
+      ] }),
+      b('scenes', 'repeat', { collection: 'scenes', children: [b('bt2', 'budgetTable')] }),
+      b('cols', 'columns', { cols: [{ id: 'c1', width: 100, blocks: [b('bt3', 'budgetTable')] }] }),
+    ];
+    expect(collectBudgetBlocks(design).map(x => x.id)).toEqual(['bt', 'cat', 'acc', 'lines', 'bt2', 'bt3']);
   });
 });

@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Printer, ChevronDown, Check } from 'lucide-react';
-import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
+import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign, BudgetGroupKind } from '../../types';
 import { ReportScope, reportItemKey, reportItemLabel, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
+import type { BudgetFilter } from '../../lib/budget/calc';
 import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { useReportCtx } from '../../lib/useReportCtx';
-import { COLLECTION_LABELS, collectRibbonBlocks } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, collectRibbonBlocks, collectBudgetBlocks, isBudgetPrintCollection } from '../../lib/reportBlocks';
 import { useCellBorders, CellBorders } from '../../lib/persist';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -24,15 +25,26 @@ import { RibbonDummyPreview } from './ReportRibbonView';
 // always START from the block's own properties; only the page-size override
 // persists per project.
 
-const TOP_LEVEL_COLLECTIONS: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'locations', 'locationTypes'];
+const TOP_LEVEL_COLLECTIONS: ReportCollection[] = [
+  'scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'locations', 'locationTypes',
+  // Cost tracking repeats keep their item checklist; budget hierarchy repeats
+  // are covered by the one Budget scope card below (roadmap 363).
+  'costReport', 'expenses', 'purchaseOrders',
+];
 
-/** Top-level REPEAT blocks only — tables always print everything. */
+/** Top-level REPEAT blocks only — tables always print everything. Budget
+ *  hierarchy repeats deliberately return null: their categories/accounts/
+ *  groups are the unified Budget scope card. */
 function scopeFor(block: ReportBlock): { collection: ReportCollection; category?: string } | null {
   if (block.type !== 'repeat') return null;
   const coll = block.collection || 'scenes';
-  if (!TOP_LEVEL_COLLECTIONS.includes(coll as any)) return null;
+  if (!TOP_LEVEL_COLLECTIONS.includes(coll as any) || isBudgetPrintCollection(coll as ReportCollection)) return null;
   return { collection: coll as ReportCollection, category: block.category };
 }
+
+const CATEGORY_GROUP_LABELS: Record<BudgetGroupKind, string> = {
+  atl: 'ATL', btl: 'BTL', post: 'Post', other: 'Other',
+};
 
 function itemLabel(collection: ReportCollection, it: any): string {
   return reportItemLabel(collection, it);
@@ -44,7 +56,7 @@ interface ReportPrintDialogProps {
    *  top-level `days` repeat starts with only this production day checked
    *  (the user can re-check others). */
   initialDaySectionIndex?: number;
-  onPrint: (scopes: ReportScope[], printOptions: ReportPrintOptions) => void;
+  onPrint: (scopes: ReportScope[], printOptions: ReportPrintOptions, budget?: BudgetFilter) => void;
   onClose: () => void;
 }
 
@@ -66,6 +78,96 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
       const items = ctx ? (resolveCollectionItems(ctx, sc.collection, sc.category, undefined, undefined, b) as any[]) : [];
       return { block: b, scope: sc, items, keys: items.map((it, i) => sc.collection === 'crew' ? i : reportItemKey(sc.collection, it)) };
     }), [design.blocks, ctx]);
+
+  // ---- budget scope (roadmap 363) -------------------------------------------
+  // ONE card for every budget repeat/table in the design. The print context is
+  // rebuilt from a filtered `computeBudget` model, so nested repeats and
+  // budgetTable blocks print the SAME subset and the same recomputed totals.
+  const budgetBlocks = useMemo(() => collectBudgetBlocks([
+    ...(design.blocks || []),
+    ...(design.header || []),
+    ...(design.footer || []),
+  ]), [design]);
+  const budgetModel = ctx?.budget;
+  const budgetCategories = budgetModel?.categories ?? [];
+  const budgetAccounts = useMemo(
+    () => budgetCategories.flatMap(c => c.accounts.map(a => ({ category: c.category, account: a.account }))),
+    [budgetCategories],
+  );
+  const budgetGroups = project?.budget?.groups ?? [];
+  const hasBudgetContent = budgetBlocks.length > 0 && !!budgetModel;
+
+  type BudgetSelection = { cats: string[]; accounts: string[]; groups: string[] };
+  const allBudgetSelection = (): BudgetSelection => ({
+    cats: budgetCategories.map(c => c.category.id),
+    accounts: budgetAccounts.map(a => a.account.id),
+    groups: budgetGroups.map(g => g.id),
+  });
+  const [budgetSel, setBudgetSel] = useState<BudgetSelection>(allBudgetSelection);
+  const visibleBudgetAccounts = budgetAccounts.filter(a => budgetSel.cats.includes(a.category.id));
+  const allCatsOn = budgetCategories.length > 0 && budgetCategories.every(c => budgetSel.cats.includes(c.category.id));
+  const allAccountsOn = visibleBudgetAccounts.length > 0 && visibleBudgetAccounts.every(a => budgetSel.accounts.includes(a.account.id));
+  const allGroupsOn = budgetGroups.length === 0 || budgetGroups.every(g => budgetSel.groups.includes(g.id));
+
+  const toggleBudgetCategory = (id: string) => {
+    setBudgetSel(prev => {
+      const on = prev.cats.includes(id);
+      const accountIds = budgetAccounts.filter(a => a.category.id === id).map(a => a.account.id);
+      return {
+        ...prev,
+        cats: on ? prev.cats.filter(x => x !== id) : [...prev.cats, id],
+        accounts: on
+          ? prev.accounts.filter(x => !accountIds.includes(x))
+          : [...new Set([...prev.accounts, ...accountIds])],
+      };
+    });
+  };
+  const toggleBudgetCategoryGroup = (group: BudgetGroupKind) => {
+    setBudgetSel(prev => {
+      const catIds = budgetCategories.filter(c => c.category.group === group).map(c => c.category.id);
+      if (catIds.length === 0) return prev;
+      const on = catIds.every(id => prev.cats.includes(id));
+      const accountIds = budgetAccounts.filter(a => catIds.includes(a.category.id)).map(a => a.account.id);
+      return {
+        ...prev,
+        cats: on ? prev.cats.filter(id => !catIds.includes(id)) : [...new Set([...prev.cats, ...catIds])],
+        accounts: on
+          ? prev.accounts.filter(id => !accountIds.includes(id))
+          : [...new Set([...prev.accounts, ...accountIds])],
+      };
+    });
+  };
+  const toggleAllBudgetCategories = () => {
+    setBudgetSel(prev => allCatsOn
+      ? { ...prev, cats: [], accounts: [] }
+      : { ...prev, cats: budgetCategories.map(c => c.category.id), accounts: budgetAccounts.map(a => a.account.id) });
+  };
+  const toggleBudgetAccount = (id: string) => {
+    setBudgetSel(prev => {
+      const next = new Set(prev.accounts);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { ...prev, accounts: [...next] };
+    });
+  };
+  const toggleAllBudgetAccounts = () => {
+    setBudgetSel(prev => {
+      const ids = visibleBudgetAccounts.map(a => a.account.id);
+      const on = ids.length > 0 && ids.every(id => prev.accounts.includes(id));
+      return { ...prev, accounts: on ? prev.accounts.filter(id => !ids.includes(id)) : [...new Set([...prev.accounts, ...ids])] };
+    });
+  };
+  const toggleBudgetGroup = (id: string) => {
+    setBudgetSel(prev => {
+      const next = new Set(prev.groups);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { ...prev, groups: [...next] };
+    });
+  };
+  const toggleAllBudgetGroups = () => {
+    setBudgetSel(prev => allGroupsOn
+      ? { ...prev, groups: [] }
+      : { ...prev, groups: budgetGroups.map(g => g.id) });
+  };
 
   // per-block explicit include lists — pre-checked with ALL items; unchecking
   // any item limits that repeat to the remaining selection. A day-scoped
@@ -149,6 +251,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
       return next;
     });
     setPage('inherit');
+    setBudgetSel(allBudgetSelection());
     setRibbonOverrides(prev => {
       const next = { ...prev };
       for (const b of ribbonBlocks) next[b.id] = defaultsFor(b);
@@ -158,12 +261,22 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
   };
 
   const doPrint = () => {
+    // Only pass lists that actually narrow: all categories/accounts = no
+    // restriction; all groups = no group restriction (ungrouped lines stay in).
+    const budgetFilter: BudgetFilter | undefined = hasBudgetContent
+      ? {
+        categories: budgetSel.cats.length === budgetCategories.length ? undefined : budgetSel.cats,
+        accounts: budgetSel.accounts.length === budgetAccounts.length ? undefined : budgetSel.accounts,
+        groups: budgetGroups.length === 0 || budgetSel.groups.length === budgetGroups.length ? undefined : budgetSel.groups,
+      }
+      : undefined;
     onPrint(
       resolved.map(r => ({ collection: r.scope.collection, category: r.scope.category, include: include[r.block.id] ?? [] })),
       {
         ribbonOverrides,
         page: page === 'inherit' ? undefined : page,
       },
+      budgetFilter,
     );
   };
 
@@ -213,7 +326,101 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
           </div>
         </div>
 
-        {resolved.length === 0 && ribbonBlocks.length === 0 && (
+        {hasBudgetContent && (
+          <div className="space-y-3 border-t border-[color:var(--ui-border)] pt-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Budget scope</span>
+              <span className="text-[10px] text-[color:var(--ui-text-muted)]">
+                {allCatsOn && allAccountsOn && allGroupsOn
+                  ? 'All budget rows'
+                  : `${budgetSel.cats.length}/${budgetCategories.length} categories · ${visibleBudgetAccounts.filter(a => budgetSel.accounts.includes(a.account.id)).length}/${budgetAccounts.length} accounts${budgetGroups.length > 0 ? ` · ${budgetSel.groups.length}/${budgetGroups.length} line groups` : ''}`}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {(['atl', 'btl', 'post', 'other'] as const)
+                .filter(group => budgetCategories.some(c => c.category.group === group))
+                .map(group => {
+                  const ids = budgetCategories.filter(c => c.category.group === group).map(c => c.category.id);
+                  const on = ids.length > 0 && ids.every(id => budgetSel.cats.includes(id));
+                  return (
+                    <button
+                      key={group}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleBudgetCategoryGroup(group)}
+                      className={`px-2.5 py-1 rounded border text-[11px] font-semibold transition-colors ${on
+                        ? 'bg-[var(--ui-input-bg)] border-[color:var(--ui-border-strong)] text-[color:var(--ui-text-strong)]'
+                        : 'border-[color:var(--ui-border)] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:border-[color:var(--ui-border-strong)]'}`}
+                    >
+                      {on ? '✓ ' : ''}{CATEGORY_GROUP_LABELS[group]}
+                    </button>
+                  );
+                })}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Categories</div>
+                <Checklist
+                  theme="dark"
+                  items={budgetCategories.map(c => ({ id: c.category.id, label: `${c.category.number} ${c.category.name}`.trim() }))}
+                  selected={budgetSel.cats}
+                  onToggle={id => toggleBudgetCategory(String(id))}
+                  onToggleAll={toggleAllBudgetCategories}
+                  allSelected={allCatsOn}
+                  toggleAllLabel={allCatsOn ? 'Deselect all' : `Select all (${budgetCategories.length})`}
+                  maxHeight={160}
+                  emptyHint="No budget categories."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Accounts</div>
+                <Checklist
+                  theme="dark"
+                  items={visibleBudgetAccounts.map(a => ({
+                    id: a.account.id,
+                    label: `${a.category.number} · ${a.account.number} ${a.account.name}`.trim(),
+                  }))}
+                  selected={budgetSel.accounts}
+                  onToggle={id => toggleBudgetAccount(String(id))}
+                  onToggleAll={toggleAllBudgetAccounts}
+                  allSelected={allAccountsOn}
+                  toggleAllLabel={allAccountsOn ? 'Deselect all' : `Select all (${visibleBudgetAccounts.length})`}
+                  maxHeight={160}
+                  emptyHint="No accounts in the selected categories."
+                />
+              </div>
+            </div>
+
+            {budgetGroups.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Line groups</div>
+                <Checklist
+                  theme="dark"
+                  items={budgetGroups.map(g => ({ id: g.id, label: g.name }))}
+                  selected={budgetSel.groups}
+                  onToggle={id => toggleBudgetGroup(String(id))}
+                  onToggleAll={toggleAllBudgetGroups}
+                  allSelected={allGroupsOn}
+                  toggleAllLabel={allGroupsOn ? 'Deselect all' : `Select all (${budgetGroups.length})`}
+                  maxHeight={120}
+                />
+                <div className="text-[10px] text-[color:var(--ui-text-faint)]">
+                  {allGroupsOn
+                    ? 'All lines print, grouped and ungrouped.'
+                    : 'Only lines in the selected groups print; ungrouped lines are excluded.'}
+                </div>
+              </div>
+            )}
+
+            <div className="text-[10px] text-[color:var(--ui-text-faint)]">
+              The design’s own budget filters still apply. Totals follow this print scope.
+            </div>
+          </div>
+        )}
+
+        {resolved.length === 0 && ribbonBlocks.length === 0 && !hasBudgetContent && (
           <div className="text-sm text-[color:var(--ui-text-muted)]">This report has no repeated content — it prints as-is.</div>
         )}
 

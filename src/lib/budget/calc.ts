@@ -195,6 +195,42 @@ export interface ComputeBudgetOptions {
   quantities?: ScheduleQuantities;
   /** Precomputed system globals (derived from the quantities when omitted). */
   systemGlobals?: Record<string, number>;
+  /** Print/scope narrowing (roadmap 363). Totals and markups recompute from
+   *  the included categories/accounts/lines — never a filtered view of the
+   *  full totals. */
+  filter?: BudgetFilter;
+}
+
+/** Budget print/scope filter. Omitted list = no restriction; an empty list
+ *  selects none (the same unset-vs-empty contract as the report block). */
+export interface BudgetFilter {
+  /** Category group quick-scope (ATL/BTL/Post/Other). */
+  categoryGroups?: BudgetGroupKind[];
+  /** Category ids. */
+  categories?: string[];
+  /** Account ids. */
+  accounts?: string[];
+  /** Library line-group ids; a line matches when it carries ANY selected group. */
+  groups?: string[];
+}
+
+export function budgetCategoryMatches(filter: BudgetFilter | undefined, category: BudgetCategory): boolean {
+  if (!filter) return true;
+  if (filter.categoryGroups && !filter.categoryGroups.includes(category.group)) return false;
+  if (filter.categories && !filter.categories.includes(category.id)) return false;
+  return true;
+}
+
+export function budgetAccountMatches(filter: BudgetFilter | undefined, category: BudgetCategory, account: BudgetAccount): boolean {
+  if (!budgetCategoryMatches(filter, category)) return false;
+  if (filter?.accounts && !filter.accounts.includes(account.id)) return false;
+  return true;
+}
+
+export function budgetLineMatches(filter: BudgetFilter | undefined, category: BudgetCategory, account: BudgetAccount, line: BudgetLine): boolean {
+  if (!budgetAccountMatches(filter, category, account)) return false;
+  if (filter?.groups && !(line.groups || []).some(g => filter.groups!.includes(g))) return false;
+  return true;
 }
 
 export function computeBudget(project: Project, options: ComputeBudgetOptions = {}): BudgetModel | null {
@@ -213,14 +249,24 @@ export function computeBudget(project: Project, options: ComputeBudgetOptions = 
   const errors: BudgetError[] = [];
   const groupInBudget = new Map((budget.groups || []).map(g => [g.id, g.inBudget !== false]));
   const accountById = new Map(budget.accounts.map(a => [a.id, a]));
+  const categoryById = new Map(budget.categories.map(c => [c.id, c]));
+  const filter = options.filter;
+  const categoryMatches = (category: BudgetCategory) => budgetCategoryMatches(filter, category);
+  const accountMatches = (category: BudgetCategory, account: BudgetAccount) => budgetAccountMatches(filter, category, account);
+  const lineMatches = (category: BudgetCategory, account: BudgetAccount, line: BudgetLine) => budgetLineMatches(filter, category, account, line);
 
   const linesByAccount = new Map<string, BudgetLine[]>();
   const validLines: BudgetLine[] = [];
   for (const line of version.lines || []) {
-    if (!accountById.has(line.accountId)) {
+    const account = accountById.get(line.accountId);
+    if (!account) {
       errors.push({ message: `Line "${line.description}" points at a missing account`, lineId: line.id });
       continue;
     }
+    // Scope filtering happens BEFORE fringe-range bases so a filtered print
+    // recomputes ranges from the included lines only.
+    const category = categoryById.get(account.categoryId);
+    if (category && !lineMatches(category, account, line)) continue;
     validLines.push(line);
     if (!linesByAccount.has(line.accountId)) linesByAccount.set(line.accountId, []);
     linesByAccount.get(line.accountId)!.push(line);
@@ -272,10 +318,11 @@ export function computeBudget(project: Project, options: ComputeBudgetOptions = 
   const categories: ComputedBudgetCategory[] = [];
   const sortedCategories = [...budget.categories].sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number));
   for (const category of sortedCategories) {
+    if (filter && !categoryMatches(category)) continue;
     const catErrors: BudgetError[] = [];
     const accounts: ComputedBudgetAccount[] = [];
     const catAccounts = budget.accounts
-      .filter(a => a.categoryId === category.id)
+      .filter(a => a.categoryId === category.id && (!filter || accountMatches(category, a)))
       .sort((a, b) => a.sort - b.sort || a.number.localeCompare(b.number));
     for (const account of catAccounts) {
       const lines: ComputedBudgetLine[] = [];

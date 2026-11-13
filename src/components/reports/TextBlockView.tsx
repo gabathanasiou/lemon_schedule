@@ -3,6 +3,7 @@ import { ReportBlock, ReportCollection, ReportViewMode } from '../../types';
 import type { ReportCtx } from '../../lib/reportData';
 import {
   FieldAux, ReportFieldDef, buildLookupTokens, fieldChipColor, fieldsForScope, getReportFieldDefs, resolveReportTokensHtml,
+  decodeHtmlEntities,
 } from '../../lib/reportFields';
 import { stripRichText, htmlProp } from '../../lib/richText';
 import { sanitizeStoredReportHtml } from '../../lib/reportSanitize';
@@ -233,7 +234,7 @@ const TextBlockView: React.FC<TextBlockViewProps> = ({ block, ctx, fieldMap, aux
   // Roadmap 274: stored markup is sanitized BEFORE resolution — token chips
   // are injected with styles outside the kit allowlist and must survive.
   const html = resolveReportTokensHtml(ctx, fieldMap, sanitizeStoredReportHtml(block.text || ''), item, aux, { showUnresolved });
-  const text = stripRichText(html);
+  const text = decodeHtmlEntities(stripRichText(html));
   if (!visibleFor(block, text)) return null;
   const st: React.CSSProperties = { ...baseStyle };
   if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';

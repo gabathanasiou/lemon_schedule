@@ -1,5 +1,5 @@
 import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CastMember, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayOvertime, DayWeatherOverride, ElementCallTimes, BudgetAccount, BudgetCategory, Expense, PurchaseOrder } from '../types';
-import { computeBudget, flatBudgetLines, type BudgetModel, type ComputedBudgetAccount, type ComputedBudgetCategory, type ComputedBudgetLine } from './budget/calc';
+import { computeBudget, flatBudgetLines, type BudgetFilter, type BudgetModel, type ComputedBudgetAccount, type ComputedBudgetCategory, type ComputedBudgetLine } from './budget/calc';
 import { computeCostReport, expensesOfDay as expensesForDay, flatCostRows, type CostReportModel, type CostRow } from './budget/costReport';
 import { computeDayOvertime, type OvertimeDayResult } from './budget/overtime';
 import { resolveRoleCategories } from './crewCatalog';
@@ -438,6 +438,10 @@ export interface ReportScope {
  */
 export interface ReportScopeFilter {
   scopes: ReportScope[];
+  /** Print-time budget scope (categories/accounts/groups). The print context
+   *  is rebuilt from a filtered `computeBudget` model, so nested budget
+   *  repeats and budgetTable blocks agree on the same totals. */
+  budget?: BudgetFilter;
 }
 
 /** Print-time overrides for ONE ribbon block (custom report print dialog).
@@ -702,6 +706,7 @@ export function buildReportCtx(
   version: ScheduleVersion,
   calendarVersion: CalendarVersion,
   daybreak: ReportDaybreakData,
+  budgetFilter?: BudgetFilter,
 ): ReportCtx {
   const { sections, computedRows } = daybreak;
 
@@ -965,8 +970,9 @@ export function buildReportCtx(
 
   const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
   // ONE budget computation per report context (`computeBudget` is pure); the
-  // cost model reuses it instead of re-deriving the chart.
-  const budget = computeBudget(project) ?? undefined;
+  // cost model reuses it instead of re-deriving the chart. A print budget
+  // scope rebuilds the model filtered, so every budget block agrees on totals.
+  const budget = computeBudget(project, budgetFilter ? { filter: budgetFilter } : undefined) ?? undefined;
   // Comparison mode may read any two versions; memoise each distinct version
   // in this context so a block never re-runs the engine per render.
   const budgetByVersion = new Map<string, BudgetModel | undefined>();
@@ -976,7 +982,7 @@ export function buildReportCtx(
     const exists = !!project.budget?.versions.some(v => v.id === versionId);
     // Guard the engine's active-version fallback: a missing compare id must
     // render a hint, never a silent self-comparison.
-    const model = exists ? computeBudget(project, { versionId }) ?? undefined : undefined;
+    const model = exists ? computeBudget(project, { versionId, ...(budgetFilter ? { filter: budgetFilter } : {}) }) ?? undefined : undefined;
     budgetByVersion.set(versionId, model);
     return model;
   };
@@ -1537,13 +1543,31 @@ export const SKIP_EMPTY_TEST: Partial<Record<ReportCollection, (item: ReportColl
   categories: (c: any) => c.elementCount > 0,
   locationTypes: (t: any) => (t as ReportLocationTypeInfo).count > 0,
   dayTypes: (t: any) => (t as ReportDayTypeInfo).dayCount > 0,
+  // Budget hierarchy: hide empty bands like the budgetTable's showZero=false.
+  // A zero-rate line still counts as a line (the item exists, it just costs 0).
+  // The repeat ITEM is `{ category|account, totals }`, so the children hang off
+  // `totals` — never off the item itself.
+  budgetCategories: (c: any) => (c.totals?.accounts || []).some((a: any) => (a.lines || []).length > 0),
+  budgetAccounts: (a: any) => (a.totals?.lines || []).length > 0,
 };
 
 export const SKIP_EMPTY_LABEL: Partial<Record<ReportCollection, string>> = {
   categories: 'Skip categories with no elements',
   locationTypes: 'Skip types with no locations',
   dayTypes: 'Skip types with no days',
+  budgetCategories: 'Skip categories with no lines',
+  budgetAccounts: 'Skip accounts with no lines',
 };
+
+/** Shape of a budget report item (category/account/line all carry `category`,
+ *  so the specific child identifies the kind). */
+function budgetItemKindOf(item: any): 'category' | 'account' | 'line' | null {
+  if (!item) return null;
+  if (item.line && item.account) return 'line';
+  if (item.account) return 'account';
+  if (item.category && item.totals) return 'category';
+  return null;
+}
 
 export function resolveCollectionItems(
   ctx: ReportCtx,
@@ -1556,6 +1580,22 @@ export function resolveCollectionItems(
 ): ReportCollectionItem[] {
   let items = resolveCollection(ctx, collection, category, parentItem, parentCategory);
   if (block && block.scopedToParent !== false && collection && ancestors && ancestors.length > 0) {
+    /* Budget hierarchy (roadmap 363): categories → accounts → lines is a direct
+       record relation, not a scene intersection. A nested account/line
+       collection narrows to the NEAREST budget ancestor (ancestors are
+       nearest-first), so a table over Budget Accounts inside a Budget
+       Categories repeat only shows that category's accounts. */
+    const budgetAncestor = ancestors.find(a => budgetItemKindOf(a) !== null);
+    const budgetKind = budgetItemKindOf(budgetAncestor);
+    if (collection === 'budgetAccounts' && budgetKind === 'category') {
+      items = items.filter((a: any) => a.category?.id === (budgetAncestor as any).category?.id);
+    } else if (collection === 'budgetLines') {
+      if (budgetKind === 'account') {
+        items = items.filter((l: any) => l.account?.id === (budgetAncestor as any).account?.id);
+      } else if (budgetKind === 'category') {
+        items = items.filter((l: any) => l.category?.id === (budgetAncestor as any).category?.id);
+      }
+    }
     const sceneSets = ancestors
       .filter(a => ruleBearingAncestor(a))
       .map(a => parentScenesOf(ctx, a));

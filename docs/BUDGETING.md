@@ -35,7 +35,7 @@ overtime or budget-report code.
   missing sources and resolves dead links — it never changes a rate.
 - **Reports use the Reports Designer engine**: one `budgetTable` leaf + budget
   collections/fields; no second report engine. Modes are `topsheet` /
-  `accounts` / `lines` / `costReport`; `hotCost` / `cashflow` / `comparison`
+  `accounts` / `lines` / `costReport` / `comparison`; `hotCost` / `cashflow`
   fall back to `topsheet` until their engines land.
 - **Formula input is a small arithmetic evaluator** with safe functions, not
   the rich-text token editor (no `eval`, no cross-line refs). **The editable
@@ -149,7 +149,7 @@ each other directly.
 | `format.ts` | `formatMoney`, `parseMoney`, `formatPercent`, `currencySymbolOf` |
 | `templates/index.ts` | `templateBudget('blank'|'feature')`, feature chart, 10% contingency markup |
 | `templates/fromSchedule.ts` | Preview counts + `buildBudgetFromSchedule` |
-| `reportTemplates.ts` | Four transient `ReportDesign`s (Top Sheet, Account Detail, Budget Health, Cost Report) |
+| `reportTemplates.ts` | Five transient `ReportDesign`s (Top Sheet, Account Detail, Budget Health, Cost Report, Version Comparison when two versions exist) |
 | `export.ts` | CSV + lossless JSON export, JSON import/parse, filename, cost-report CSV |
 | `expenseCsv.ts` | Expense CSV export + tolerant import (aliases, unmatched → Unallocated) |
 | `costReport.ts` | **`computeCostReport(project, {asOf, from, to})`** — the ONE cost read model: Actual/Committed/ETC/EFC/Variance/% used rows + expense/day rollups |

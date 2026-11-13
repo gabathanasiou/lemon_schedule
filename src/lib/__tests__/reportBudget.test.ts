@@ -5,7 +5,9 @@ import { activeBudgetVersion, makeBudgetLine } from '../budget/model';
 import { computeBudget } from '../budget/calc';
 import { budgetReportColumnDefs, budgetReportMode, buildBudgetReport, buildComparisonReport, buildCostReportReport } from '../reportBudget';
 import { makeExpense } from '../budget/model';
-import { buildReportCtx, resolveCollection } from '../reportData';
+import { buildReportCtx, resolveCollection, resolveCollectionItems } from '../reportData';
+import { getReportFieldMap, resolveReportTokens, composeLookupKey } from '../reportFields';
+import { formatMoney } from '../budget/format';
 
 function makeBudgetProject() {
   const project = makeBlankProject('Budget Report Test');
@@ -100,6 +102,44 @@ describe('budget report read model', () => {
 
     const ofAccount = resolveCollection(ctx, 'budgetLinesOfAccount', undefined, atlStory) as any[];
     expect(ofAccount.map(l => l.line.description)).toEqual(['Screenplay']);
+  });
+
+  it('narrows nested budget collections through the category → account → line chain', () => {
+    const project = makeBudgetProject();
+    const ctx = buildReportCtx(project, project.versions[0], project.calendarVersions[0], { sections: [], computedRows: [] });
+    const block = {} as any;
+
+    const categories = resolveCollectionItems(ctx, 'budgetCategories', undefined, undefined, undefined) as any[];
+    const atlCategory = categories.find(c => c.category.number === '1000')!;
+    const btlCategory = categories.find(c => c.category.number === '2000')!;
+
+    // Accounts inside a category repeat narrow to that category.
+    const atlAccounts = resolveCollectionItems(ctx, 'budgetAccounts', undefined, atlCategory, undefined, block, [atlCategory]) as any[];
+    expect(atlAccounts.length).toBeGreaterThan(0);
+    expect(atlAccounts.every(a => a.category.number === '1000')).toBe(true);
+    const btlAccounts = resolveCollectionItems(ctx, 'budgetAccounts', undefined, btlCategory, undefined, block, [btlCategory]) as any[];
+    expect(btlAccounts.every(a => a.category.number === '2000')).toBe(true);
+
+    // Lines inside an account repeat narrow to that account.
+    const story = atlAccounts.find(a => a.account.number === '1100')!;
+    const storyLines = resolveCollectionItems(ctx, 'budgetLines', undefined, story, undefined, block, [story, atlCategory]) as any[];
+    expect(storyLines.map(l => l.line.description)).toEqual(['Screenplay']);
+
+    // Lines directly inside a category repeat narrow to the whole category.
+    const atlLines = resolveCollectionItems(ctx, 'budgetLines', undefined, atlCategory, undefined, block, [atlCategory]) as any[];
+    expect(atlLines.length).toBe(1);
+    expect(atlLines.every(l => l.category.number === '1000')).toBe(true);
+
+    // Scoping off restores the whole flat collection (legacy escape hatch).
+    const allAccounts = resolveCollectionItems(ctx, 'budgetAccounts', undefined, atlCategory, undefined, { scopedToParent: false, skipEmptyCategories: false } as any, [atlCategory]) as any[];
+    expect(allAccounts.length).toBe(project.budget!.accounts.length);
+
+    // Skip-empty (default on) hides bands with no lines — the item carries its
+    // children on `totals`, not on the item itself.
+    const nonEmptyCategories = resolveCollectionItems(ctx, 'budgetCategories', undefined, undefined, undefined, {} as any) as any[];
+    expect(nonEmptyCategories.map(c => c.category.number)).toEqual(['1000', '2000']);
+    const nonEmptyAccounts = resolveCollectionItems(ctx, 'budgetAccounts', undefined, atlCategory, undefined, {} as any, [atlCategory]) as any[];
+    expect(nonEmptyAccounts.map(a => a.account.number)).toEqual(['1100']);
   });
 
   it('renders the costReport mode from the cost read model', () => {
@@ -216,5 +256,42 @@ describe('budget version comparison', () => {
     // An unknown id renders a hint, never a silent self-comparison.
     expect(ctx.budgetForVersion?.('missing')).toBeUndefined();
     expect(project.budget!.activeVersionId).toBe(primary.version.id);
+  });
+});
+
+
+describe('budget tokens and references (roadmap 363)', () => {
+  it('resolves document totals, item fields and @ references', () => {
+    const project = makeBudgetProject();
+    const ctx = buildReportCtx(project, project.versions[0], project.calendarVersions[0], { sections: [], computedRows: [] });
+    const map = getReportFieldMap(project);
+    const settings = ctx.budget!.settings;
+    const atlStory = (resolveCollectionItems(ctx, 'budgetAccounts', undefined, undefined, undefined) as any[])
+      .find(a => a.account.number === '1100')!;
+
+    expect(resolveReportTokens(ctx, map, '{{budgetGrandTotal}}', undefined)).toBe(formatMoney(ctx.budget!.totals.grandTotalCents, settings));
+    expect(resolveReportTokens(ctx, map, '{{budgetLineTotal}}', undefined)).toBe('');
+
+    const accountRef = composeLookupKey('budgetAccounts', 'budgetLineTotal', atlStory.account.id);
+    expect(resolveReportTokens(ctx, map, `{{${accountRef}}}`, undefined)).toBe(formatMoney(atlStory.totals.totalCents, settings));
+    expect(resolveReportTokens(ctx, map, `{{${composeLookupKey('budgetAccounts', 'budgetLineTotal', 'missing')}}}`, undefined)).toBe('#REF!');
+
+    const line = (resolveCollection(ctx, 'budgetLines', undefined, undefined) as any[])[0];
+    expect(resolveReportTokens(ctx, map, '{{budgetDescription}}', line)).toBe('Screenplay');
+    expect(resolveReportTokens(ctx, map, '{{budgetLineTotal}}', line)).toBe(formatMoney(line.totalCents, settings));
+  });
+});
+
+describe('budget print context (roadmap 363)', () => {
+  it('builds the report context from the filtered budget model', () => {
+    const project = makeBudgetProject();
+    const atlCategory = project.budget!.categories.find(c => c.number === '1000')!;
+    const ctx = buildReportCtx(project, project.versions[0], project.calendarVersions[0], { sections: [], computedRows: [] }, {
+      categories: [atlCategory.id],
+    });
+    expect(ctx.budget?.categories.map(c => c.category.number)).toEqual(['1000']);
+    expect(ctx.budget?.totals.baseCents).toBe(600000);
+    expect(ctx.budget?.totals.grandTotalCents).toBe(660000);
+    expect((resolveCollectionItems(ctx, 'budgetAccounts', undefined, undefined, undefined) as any[]).every(a => a.category.number === '1000')).toBe(true);
   });
 });

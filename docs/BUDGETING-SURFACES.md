@@ -269,39 +269,36 @@ Top-to-bottom, one scroll surface:
 
 ### Block + inspector
 
-`ReportBlock.type` includes `'budgetTable'`; it is a project-wide LEAF like
-`callTimes`/`crewTable` — top level, inside `columns` or any non-day container,
-**never inside a `days` repeat or a Call Sheet zone** (`blockAllowedIn` rejects
-both). Palette: "Budget Table" (Wallet) in the Budget group; `makeReportBlock`
-defaults `budgetMode: 'topsheet'`.
+`ReportBlock.type` includes `'budgetTable'`; it is a project-wide LEAF — top
+level or inside `columns`, **never inside any repeat** (the commit guard
+`budgetTableOffenders` rejects it) or a Call Sheet zone. Palette: "Budget Table"
+first, then the "Budget View" starter (Repeat Categories → Accounts → Lines);
+`makeReportBlock` defaults `budgetMode: 'topsheet'`.
 
 ```ts
 budgetMode?: 'topsheet' | 'accounts' | 'lines' | 'costReport' | 'hotCost' | 'cashflow' | 'comparison';
-budgetCategories?: string[];   // selected category ids; unset = all
-budgetAccounts?: string[];     // selected account ids; unset = all
-budgetColumns?: string[];      // subset of the mode's columns
-budgetVersionId?: string;      // comparison: primary (unset = active)
-budgetCompareVersionId?: string; // comparison: original/compare version
-showZero?: boolean;            // default false
-showFringes?: boolean;         // default true
-showNotes?: boolean;           // default false
-showPercent?: boolean;         // default true
-costAsOf?: string; costPeriod?: { from; to };   // typed, phase 2 only
+budgetCategories?: string[]; budgetAccounts?: string[];   // unset = all
+budgetColumns?: string[];                                  // subset of mode columns
+budgetVersionId?: string; budgetCompareVersionId?: string; // comparison
+showZero?: boolean; showFringes?: boolean; showNotes?: boolean; showPercent?: boolean;
+costAsOf?: string; costPeriod?: { from; to };
 ```
 
-`BudgetBlockControls.tsx`: Mode Seg (Top Sheet / Accounts / Lines / Compare /
-Cost Report), category/account/column checklists, Zero rows / % / Fringes /
-Notes toggles (Fringes+Notes hidden in Cost Report + Compare), As-of/Period in
-Cost Report, Budget/Compare-to `ItemManagerDropdown`s in Compare; `hotCost`/
-`cashflow` stay reserved and fall back to `topsheet`.
+`BudgetBlockControls.tsx`: Mode Seg, category/account/column checklists, Zero
+rows / % / Fringes / Notes toggles, As-of/Period, Budget/Compare-to picks;
+`hotCost`/`cashflow` stay reserved and fall back to `topsheet`.
+
+**Print scope:** `ReportPrintDialog` shows ONE Budget scope card for every
+budget table/repeat — ATL/BTL/Post, categories, accounts, Library line groups.
+The print context rebuilds from `computeBudget(project, { filter })`, so nested
+repeats and tables print the same subset and recomputed totals (markups too).
 
 ### Read model (`src/lib/reportBudget.ts`)
 
 `buildBudgetReport` shapes rows/columns from `computeBudget` (never re-derives money); `budgetReportMode()` is the ONE gate.
-- **topsheet** — one row per category + subtotal/markups/grand total; `#`,
-  Account, %, Subtotal, Fringes, Total.
-- **accounts** — category header + one row per account + totals; `#`, Account, %, Base, Fringes, (Notes), Total.
-- **lines** — category + account headers, line rows, account subtotal (only when >1 visible line), totals; Account, Description, Qty, Unit, Rate, X, Cur, Fringes, %, (Notes), Total (base).
+- **topsheet** — one category row per category + subtotal/markups/grand; `#`, Account, %, Subtotal, Fringes, Total.
+- **accounts** — category header + account rows + totals; `#`, Account, %, Base, Fringes, (Notes), Total.
+- **lines** — category/account headers, line rows, account subtotal (>1 line), totals; Account, Description, Qty, Unit, Rate, X, Cur, Fringes, %, (Notes), Total (base).
 - **costReport** — `buildCostReportReport` on `computeCostReport`: category/
   account/line rows + Unallocated; Budget/Actual/Committed/ETC/EFC/Variance/
   % Used/Reason. `costAsOf`/`costPeriod` narrow Actual only.
@@ -310,35 +307,38 @@ Cost Report, Budget/Compare-to `ItemManagerDropdown`s in Compare; `hotCost`/
   subtotal/markups/grand with `#`, Account, Original, Budget, Variance
   (`budget − original`, signed cents), Var % (blank when original 0). Read-only.
 
-`showZero` hides zero rows; `showFringes`/`showPercent` drop columns;
-`showNotes` adds Notes. Category selection filters all modes; account selection
-does not hide a top-sheet category. Line rate cells keep the line currency;
-totals are base cents. `ReportBudgetTable.tsx` renders the shared
-`.report-table-cols`/`.rm-row` recipe with header repetition + keep-with-next;
-money right-aligns via the budget settings, percent one decimal. No budget →
-designer hint; print renders nothing (compare hints when a version is missing).
+`showZero` hides zero rows; `showFringes`/`showPercent` drop columns; `showNotes`
+adds Notes. Category selection filters all modes; account selection does not hide
+a top-sheet category. `ReportBudgetTable.tsx` renders the shared
+`.report-table-cols`/`.rm-row` recipe (header repeat + keep-with-next; budget
+money settings). No budget → designer hint; print renders nothing (compare hints).
 
 ### Collections + fields (`reportData.ts`, `reportFields.ts`)
 
 Collections: `budgetCategories`, `budgetAccounts`, `budgetLines`,
 `budgetLinesOfAccount` (child), plus `costReport`, `expenses`, `expensesOfDay`
 (child of `days`) and `purchaseOrders` — all carry canonical computed totals.
-Document fields: `budgetGrandTotal/BaseTotal/Atl/Btl/Post/Fringes/Contingency/
-Net/CostPerShootDay`. Item fields: `budgetCategoryNumber/Name`, `budgetAccountNumber/
-Name`, `budgetDescription/Qty/Unit/Rate/Multiplier/Currency/LineTotal/
-LineTotalBase/PercentOfGrand/Notes`. Cost fields (`cr*`/`expense*`/`po*`/day
-totals) are in `docs/REPORTS-DESIGNER.md`. `ReportFieldDef.money` drives
-alignment; `ctx.budget`/`ctx.costReport` compute ONCE in `buildReportCtx`;
-`ctx.budgetForVersion` memoizes extra versions for comparison.
+Nested Accounts/Lines narrow through the record chain (category → account →
+line); budget collections are gated to the top level or their own hierarchy,
+and `budgetKinds` filters the one field family per level. Budget categories/
+accounts/lines are also `@` reference items (stage 2 offers only item fields).
+
+**Custom view:** Repeat Budget Categories → Repeat Budget Accounts → Table
+Budget Lines (or the "Budget View" starter). Tables are leaves, so the line
+table sits INSIDE the accounts repeat; print groups/lines filters apply.
+Fields: document totals (`budgetGrandTotal/BaseTotal/Atl/Btl/Post/Fringes/
+Contingency/Net/CostPerShootDay`), per-level item fields (`budgetCategory*`,
+`budgetAccount*`, `budgetDescription/Qty/Unit/Rate/Multiplier/Currency/
+LineTotal/LineTotalBase/PercentOfGrand/Notes`), plus `cr*`/`expense*`/`po*` in
+`docs/REPORTS-DESIGNER.md`. `ctx.budget`/`ctx.costReport` compute ONCE in
+`buildReportCtx`; `ctx.budgetForVersion` memoizes comparisons.
 
 ### Built-in transient prints (`src/lib/budget/reportTemplates.ts`)
 
-`budgetReportDesigns(budget)` returns fresh designs (never seeded): **Top
-Sheet**, **Account Detail**, **Budget Health**, **Cost Report — Budget vs
-Actual**, and **Version Comparison** (landscape, previous vs active) when a
-second version exists. The Print menu passes a design to `onPrintDesign` →
-`setCustomReportPrint` → `ReportPrintDialog` (never `window.print()`); **Save as
-design** clones it via `ADD_REPORT_DESIGN`.
+`budgetReportDesigns(budget)` returns fresh designs (never seeded): Top Sheet,
+Account Detail, Budget Health, Cost Report — Budget vs Actual and Version
+Comparison (two versions). Print passes one to `ReportPrintDialog` (never
+`window.print()`); Save as design clones it via `ADD_REPORT_DESIGN`.
 
 ## 6. Schedule-driven budget (live links + reviewed sync)
 

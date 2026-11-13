@@ -3,7 +3,7 @@ import type { BudgetLine, Project, Scene } from '../../types';
 import { makeBlankProject, reducer } from '../../store/reducer';
 import { evaluateFormula, evaluateGlobals } from '../budget/formula';
 import { formatMoney, parseMoney } from '../budget/format';
-import { computeBudget } from '../budget/calc';
+import { computeBudget, flatBudgetLines } from '../budget/calc';
 import { featureBudget, templateBudget } from '../budget/templates';
 import { buildBudgetFromSchedule, previewBudgetFromSchedule } from '../budget/templates/fromSchedule';
 import { activeBudgetVersion, cloneBudgetVersion, makeBudgetLine, pruneBudgetVersionTrash } from '../budget/model';
@@ -360,5 +360,52 @@ describe('budget store actions', () => {
     expect(next.present.budget!.versions[0].lines[0].accountId).toBe(to);
     const gone = reducer(next, { type: 'DELETE_BUDGET_ACCOUNT', payload: { id: to } });
     expect(gone.present.budget!.versions[0].lines).toHaveLength(0);
+  });
+});
+
+describe('computeBudget scope filter (roadmap 363)', () => {
+  function makeFilterProject() {
+    const p = makeBlankProject('Budget Filter');
+    p.budget = featureBudget();
+    const atl = p.budget.accounts.find(a => a.number === '1100')!;
+    const btl = p.budget.accounts.find(a => a.number === '2100')!;
+    const groups = p.budget.groups || [];
+    const version = activeBudgetVersion(p.budget)!;
+    version.lines = [
+      makeBudgetLine({ accountId: atl.id, description: 'A', qty: 1, rateCents: 100000, groups: [groups[0].id] }),
+      makeBudgetLine({ accountId: btl.id, description: 'B', qty: 1, rateCents: 200000, groups: [groups[1].id] }),
+    ];
+    return { p, atl, btl, groups, atlCategory: p.budget.categories.find(c => c.number === '1000')! };
+  }
+
+  it('filters categories and recomputes markups/totals from the selected rows', () => {
+    const { p, atlCategory } = makeFilterProject();
+    const model = computeBudget(p, { filter: { categories: [atlCategory.id] } })!;
+    expect(model.categories.map(c => c.category.id)).toEqual([atlCategory.id]);
+    expect(flatBudgetLines(model).map(l => l.line.description)).toEqual(['A']);
+    expect(model.totals.baseCents).toBe(100000);
+    expect(model.totals.grandTotalCents).toBe(110000); // 10% contingency on the filtered base
+  });
+
+  it('filters accounts', () => {
+    const { p, atl } = makeFilterProject();
+    const model = computeBudget(p, { filter: { accounts: [atl.id] } })!;
+    expect(flatBudgetLines(model).map(l => l.line.description)).toEqual(['A']);
+    expect(model.totals.baseCents).toBe(100000);
+  });
+
+  it('filters library line groups', () => {
+    const { p, groups } = makeFilterProject();
+    const model = computeBudget(p, { filter: { groups: [groups[0].id] } })!;
+    expect(flatBudgetLines(model).map(l => l.line.description)).toEqual(['A']);
+    expect(model.totals.baseCents).toBe(100000);
+  });
+
+  it('treats an empty list as selecting none', () => {
+    const { p } = makeFilterProject();
+    const model = computeBudget(p, { filter: { categories: [] } })!;
+    expect(model.categories).toEqual([]);
+    expect(flatBudgetLines(model)).toEqual([]);
+    expect(model.totals.grandTotalCents).toBe(0);
   });
 });

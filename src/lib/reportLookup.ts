@@ -5,6 +5,7 @@ import { formatDateCustom } from './utils';
 import { getDayTypes } from './dayTypes';
 import { resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, parentScenesOf, ancestorSceneScope, projectDepartmentItems, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
 import type { ReportFieldDef, FieldAux } from './reportFields';
+import { activeBudgetVersion } from './budget/model';
 
 // Item lookup + reference navigation for the Reports Designer (roadmaps 100,
 // 121, 195, 196; split out of reportTokens.ts): the lookup token grammar
@@ -206,6 +207,9 @@ const LOOKUP_SPECS: LookupSpec[] = [
   { collection: 'dayTypes', label: 'Day Types', identityField: 'dayTypeLabel' },
   { collection: 'scenes', label: 'Scenes', identityField: 'sceneLabel' },
   { collection: 'elements', label: 'Elements', identityField: 'elementName' },
+  { collection: 'budgetCategories', label: 'Budget Categories', identityField: 'budgetCategoryName' },
+  { collection: 'budgetAccounts', label: 'Budget Accounts', identityField: 'budgetAccountName' },
+  { collection: 'budgetLines', label: 'Budget Lines', identityField: 'budgetDescription' },
 ];
 
 /** A lightweight day reference for the picker (avoids needing a full ReportCtx). */
@@ -270,6 +274,25 @@ function lookupItemsFor(project: Project, collection: ReportCollection, days: Lo
         }
       }
       return out;
+    }
+    case 'budgetCategories':
+      return (project.budget?.categories || [])
+        .slice()
+        .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.number.localeCompare(b.number, undefined, { numeric: true }))
+        .map(c => ({ key: c.id, label: `${c.number} ${c.name}`.trim(), hint: 'Budget category' }));
+    case 'budgetAccounts': {
+      const categoryName = new Map((project.budget?.categories || []).map(c => [c.id, c.name]));
+      return (project.budget?.accounts || [])
+        .slice()
+        .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }) || a.name.localeCompare(b.name))
+        .map(a => ({ key: a.id, label: `${a.number} ${a.name}`.trim(), hint: categoryName.get(a.categoryId) || 'Budget account' }));
+    }
+    case 'budgetLines': {
+      const accountName = new Map((project.budget?.accounts || []).map(a => [a.id, a.name]));
+      return (activeBudgetVersion(project.budget)?.lines || [])
+        .slice()
+        .sort((a, b) => a.sort - b.sort)
+        .map(l => ({ key: l.id, label: l.description || l.id, hint: accountName.get(l.accountId) || 'Budget line' }));
     }
     default:
       return [];
@@ -361,8 +384,22 @@ export function fieldsForScope(
   // per-iteration, so elementsOfCategory admits the identity fields always).
   if (scope === 'elementsOfCategory' || category === 'cast') scopeSet.add('cast');
   const dayScope = mapped === 'days';
+  /* Budget fields are one registry family but three item shapes. The raw
+     collection tells us which shape this context reads: category fields for a
+     categories repeat, account fields for accounts, line fields for lines.
+     Unset `budgetKinds` = a document total; `budgetDocument` opts a dual
+     field (per-line fringes) back into the top-level palette. */
+  const budgetKind: 'category' | 'account' | 'line' | undefined =
+    scope === 'budgetCategories' ? 'category'
+      : scope === 'budgetAccounts' ? 'account'
+        : (scope === 'budgetLines' || scope === 'budgetLinesOfAccount') ? 'line'
+          : undefined;
   return fields.filter(f => {
-    if (scopeSet.has(f.scope)) return true;
+    if (scopeSet.has(f.scope)) {
+      if (f.scope !== 'budget') return true;
+      if (budgetKind) return !f.budgetKinds || f.budgetKinds.includes(budgetKind);
+      return !f.budgetKinds || f.budgetDocument === true;
+    }
     // Breakdown attributes (scene-scope) resolve per-day inside a day context
     // (roadmap 22) — the only scene fields pickable in a day context.
     if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
@@ -391,6 +428,9 @@ export function lookupAttributeFields(allFields: ReportFieldDef[], collection: s
   return fieldsForScope(allFields, collection, category).filter(f =>
     f.key !== identity
     && !GLOBAL_FIELD_SCOPES.has(f.scope)
+    // Budget document totals are not attributes OF a budget item; only the
+    // per-item budget fields (carrying `budgetKinds`) drill from a reference.
+    && !(f.scope === 'budget' && !f.budgetKinds)
     && (f.scope !== 'smart' || SMART_LOOKUP_COLLECTIONS.has(collection)),
   );
 }

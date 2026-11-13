@@ -10,7 +10,7 @@ import { CollectionMenuItems } from './CollectionMenu';
 import { useReportControlContext } from './blockControls';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider, ContextMenuSub } from '../ContextMenu';
 import {
-  AlignLeft, ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Check, CopyPlus, CornerDownRight,
+  AlignLeft, ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Check, CopyPlus,
   ImageOff, LocateFixed, MapPinOff, MoveDown, MoveLeft, MoveRight, MoveUp, Repeat, Table2, Trash2, Type,
 } from 'lucide-react';
 
@@ -32,7 +32,7 @@ interface ReportContextMenuProps {
   onChangeField: (field: string) => void;
   onInsertAbove: () => void;
   onInsertBelow: () => void;
-  onAddChild: () => void;
+  onAddChild: (type?: ReportBlock['type']) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onColumnInsertAt: (colIndex: number) => void;
@@ -195,9 +195,17 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({
           )}
           {canAddInside && (
             <>
-              <ContextMenuItem icon={itemIcon(<CornerDownRight className="w-3.5 h-3.5" />)} onClick={() => { onAddChild(); onClose(); }}>
-                Add block inside ({insideLabel})
-              </ContextMenuItem>
+              <ContextMenuSub id="add-inside" label={`Add block inside (${insideLabel})`} width="w-44">
+                <ContextMenuItem icon={itemIcon(<Type className="w-3.5 h-3.5" />)} onClick={() => { onAddChild('text'); onClose(); }}>
+                  Text
+                </ContextMenuItem>
+                <ContextMenuItem icon={itemIcon(<Repeat className="w-3.5 h-3.5" />)} onClick={() => { onAddChild('repeat'); onClose(); }}>
+                  Repeat
+                </ContextMenuItem>
+                <ContextMenuItem icon={itemIcon(<Table2 className="w-3.5 h-3.5" />)} onClick={() => { onAddChild('table'); onClose(); }}>
+                  Table
+                </ContextMenuItem>
+              </ContextMenuSub>
               <ContextMenuDivider />
             </>
           )}

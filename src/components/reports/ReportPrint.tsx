@@ -22,7 +22,7 @@ interface ReportPrintProps {
 }
 
 const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, calendarVersion, design, daybreak, scopeFilter, printOptions, callSheetBlocks, onReady }) => {
-  const ctx = useMemo(() => buildReportCtx(project, version, calendarVersion, daybreak), [project, version, calendarVersion, daybreak]);
+  const ctx = useMemo(() => buildReportCtx(project, version, calendarVersion, daybreak, scopeFilter?.budget), [project, version, calendarVersion, daybreak, scopeFilter?.budget]);
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const page = printOptions?.page || design.page;
   const pages = useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);

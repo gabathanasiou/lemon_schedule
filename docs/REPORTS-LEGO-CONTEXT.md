@@ -190,7 +190,16 @@ nested picks respected — a Days table under a Scenes repeat offers day fields)
 | dayTypesOfElement | `dayTypes` |
 | crewOfDay | `crew` |
 | elementCallsOfDay / departmentCallsOfDay | themselves |
+| budgetCategories / budgetAccounts / budgetLines / budgetLinesOfAccount | `budget` + `budgetKinds` (category/account/line fields); `tableFieldScope` returns the RAW budget collection so the picker can filter |
 | everything else | itself |
+
+**Budget nesting (roadmap 363):** the budget collections form a direct record
+chain, not a scene rule — a nested Budget Accounts repeat narrows to the parent
+category and Budget Lines narrows to the category/account. Menus gate budget
+collections to the top level or their own hierarchy; `@` also lists budget
+categories/accounts/lines (stage 2 offers only item fields). A print budget
+scope rebuilds `ctx.budget` from `computeBudget(project, { filter })`, so nested
+repeats and `budgetTable` blocks share the same subset and recomputed totals.
 
 Plus always: `production` / `project` / `document` / `smart`.
 

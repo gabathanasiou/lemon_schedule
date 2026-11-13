@@ -78,15 +78,44 @@ export const REPORT_BLOCK_TYPES: ReportBlock['type'][] = [
   'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable', 'precalls', 'budgetTable',
 ];
 
+/** Starter columns for the budget hierarchy (roadmap 363): a table over
+ *  Budget Lines should arrive usable, not with two blank columns. */
+export function budgetDefaultColumns(collection: ReportCollection): ReportTableColumn[] | null {
+  const col = (field: string, width: number, align?: 'left' | 'center' | 'right'): ReportTableColumn => ({ id: blockId(), field, width, ...(align ? { align } : {}) });
+  switch (collection) {
+    case 'budgetCategories':
+      return [col('budgetCategoryNumber', 15, 'center'), col('budgetCategoryName', 55), col('budgetLineTotal', 30, 'right')];
+    case 'budgetAccounts':
+      return [col('budgetCategoryNumber', 15, 'center'), col('budgetAccountNumber', 15, 'center'), col('budgetAccountName', 40), col('budgetLineTotal', 30, 'right')];
+    case 'budgetLines': case 'budgetLinesOfAccount':
+      return [
+        col('budgetDescription', 50),
+        col('budgetQty', 8, 'right'),
+        col('budgetUnit', 8, 'center'),
+        col('budgetRate', 14, 'right'),
+        col('budgetMultiplier', 6, 'right'),
+        col('budgetLineTotal', 14, 'right'),
+      ];
+    default:
+      return null;
+  }
+}
+
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {  const base: ReportBlock = { id: blockId(), type };
   switch (type) {
     case 'text': base.text = partial.text ?? ''; break;
     case 'field': base.field = partial.field ?? undefined; break;
     case 'repeat': base.collection = partial.collection ?? 'scenes'; base.children = []; base.gap = partial.gap ?? 8; break;
-    case 'table': base.collection = partial.collection ?? 'scenes'; base.columns = partial.columns ?? [
-      { id: blockId(), field: '', width: 50 },
-      { id: blockId(), field: '', width: 50 },
-    ]; base.showHeader = true; break;
+    case 'table': {
+      const collection = partial.collection ?? 'scenes';
+      base.collection = collection;
+      base.columns = partial.columns ?? budgetDefaultColumns(collection) ?? [
+        { id: blockId(), field: '', width: 50 },
+        { id: blockId(), field: '', width: 50 },
+      ];
+      base.showHeader = true;
+      break;
+    }
     case 'columns': base.cols = []; break;
     case 'ribbon': break;
     case 'spacer': base.height = partial.height ?? 16; base.spacerThickness = partial.spacerThickness ?? 1; break;
@@ -567,8 +596,52 @@ export const BUDGET_COLLECTIONS = new Set<ReportCollection>([
   'budgetCategories', 'budgetAccounts', 'budgetLines', 'costReport', 'expenses', 'purchaseOrders',
 ]);
 
+/** Nested collections allowed inside a budget-tab parent. The budget hierarchy
+ *  is a direct record chain — unrelated databases would print a flat list per
+ *  item with no scoping. */
+const BUDGET_PARENT_CHILDREN: Partial<Record<ReportCollection, ReportCollection[]>> = {
+  budgetCategories: ['budgetAccounts', 'budgetLines'],
+  budgetAccounts: ['budgetLinesOfAccount', 'budgetLines'],
+  budgetLines: [],
+  budgetLinesOfAccount: [],
+  costReport: [],
+  expenses: [],
+  purchaseOrders: [],
+};
+
+function isBudgetParent(collection: ReportCollection | undefined): boolean {
+  return !!collection && (BUDGET_COLLECTIONS.has(collection) || collection === 'budgetLinesOfAccount');
+}
+
+/** Collections whose print scope is the unified Budget panel (categories /
+ *  accounts / line groups) instead of a per-repeat item checklist. */
+export const BUDGET_PRINT_COLLECTIONS = new Set<ReportCollection>([
+  'budgetCategories', 'budgetAccounts', 'budgetLines', 'budgetLinesOfAccount', 'costReport',
+]);
+export function isBudgetPrintCollection(collection: ReportCollection | undefined): boolean {
+  return !!collection && BUDGET_PRINT_COLLECTIONS.has(collection);
+}
+
+/** Every budget block in a design (top level, repeats/relative, columns,
+ *  header/footer) — the print dialog's one Budget scope card covers all of
+ *  them. Budget tables are included even though they are leaves. */
+export function collectBudgetBlocks(list: ReportBlock[] | undefined, out: ReportBlock[] = []): ReportBlock[] {
+  if (!list) return out;
+  for (const b of list) {
+    if (b.type === 'budgetTable' || ((b.type === 'repeat' || b.type === 'table') && isBudgetPrintCollection(b.collection))) out.push(b);
+    if (b.children?.length) collectBudgetBlocks(b.children, out);
+    if (b.type === 'columns') for (const col of b.cols || []) collectBudgetBlocks(col.blocks || [], out);
+  }
+  return out;
+}
+
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
+    if (parentCollection && isBudgetParent(parentCollection)) {
+      return (BUDGET_PARENT_CHILDREN[parentCollection] || []).includes(c);
+    }
+    // Budget databases are top-level views or budget-hierarchy children only.
+    if (parentCollection && BUDGET_COLLECTIONS.has(c)) return false;
     if (c === 'scenesOfDay' || c === 'crewOfDay' || c === 'elementCallsOfDay' || c === 'departmentCallsOfDay' || c === 'locationsOfDay' || c === 'expensesOfDay') return parentCollection === 'days';
     if (c === 'scenesOfElement') return parentCollection === 'elements' || parentCollection === 'elementsOfCategory';
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
@@ -591,6 +664,7 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
 export const TYPED_PARENT_COLLECTIONS: { parent: ReportCollection; child: ReportCollection }[] = [
   { parent: 'categories', child: 'elementsOfCategory' },
   { parent: 'locationTypes', child: 'locationsOfType' },
+  { parent: 'budgetCategories', child: 'budgetAccounts' },
   { parent: 'budgetAccounts', child: 'budgetLinesOfAccount' },
 ];
 
@@ -674,21 +748,22 @@ export function repeatMenuCollections(
   parentCategory: string | undefined,
 ): ReportCollection[] {
   const effective = current || 'scenes';
+  const contextual = contextualCollectionsFor(parentCollection);
   const list = [
-    ...contextualCollectionsFor(parentCollection),
-    ...baseValidCollections(parentCollection).filter(c => c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory)),
+    ...contextual,
+    ...baseValidCollections(parentCollection).filter(c => !contextual.includes(c) && c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory)),
   ];
   if (effective !== 'cast' && !list.includes(effective)) list.push(effective);
   return list;
 }
 
-/** Table "Table over" menu collections — BASE collections only, legacy
- *  explicit contextual picks preserved. */
+/** Table "Table over" menu collections — contextual children first (so a
+ *  nested table's default is visible + ticked), then base collections. */
 export function tableMenuCollections(block: ReportBlock, parentCollection?: ReportCollection, parentCategory?: string): ReportCollection[] {
   if (!parentCollection) return baseValidCollections().filter(c => c !== 'cast');
   const contextual = contextualCollectionsFor(parentCollection);
-  const collections: ReportCollection[] = [];
-  const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
+  const collections: ReportCollection[] = [...contextual];
+  const preserved = block.collection && !contextual.includes(block.collection) && !baseValidCollections(parentCollection).includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
     ? block.collection
     : null;
   if (preserved) collections.push(preserved);
@@ -781,7 +856,12 @@ export function tableItemCollection(block: ReportBlock, parentCollection?: Repor
  *  table explicitly over Days under a Scenes repeat offers day fields; the
  *  default elements-of-scene table offers element fields. */
 export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): string | undefined {
-  return fieldScopeFor(tableItemCollection(block, parentCollection));
+  const collection = tableItemCollection(block, parentCollection);
+  /* Budget collections share one `budget` field scope, but the picker needs
+     the RAW level (categories/accounts/lines) so `fieldsForScope` can filter
+     the one family to the fields that level can read. */
+  if (BUDGET_COLLECTIONS.has(collection as ReportCollection) || collection === 'budgetLinesOfAccount') return collection;
+  return fieldScopeFor(collection);
 }
 
 /** Human label for where a nested table gets its rows. */
@@ -944,6 +1024,26 @@ export function dayGridOffenders(blocks: ReportBlock[], parentCollection?: Repor
   return out;
 }
 
+/** `budgetTable` is project-wide: it must never repeat per item. The commit
+ *  safety net behind drags/moves (the insert paths keep the palette enabled
+ *  and explain the rule). */
+export function budgetTableOffenders(blocks: ReportBlock[], inRepeat = false): Map<string, ReportBlock['type']> {
+  const out = new Map<string, ReportBlock['type']>();
+  for (const b of blocks) {
+    if (b.type === 'budgetTable' && inRepeat) out.set(b.id, b.type);
+    const childInRepeat = inRepeat || b.type === 'repeat' || b.type === 'relative';
+    if (b.children?.length) {
+      for (const [id, type] of budgetTableOffenders(b.children, childInRepeat)) out.set(id, type);
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (const col of b.cols) {
+        for (const [id, type] of budgetTableOffenders(col.blocks || [], inRepeat)) out.set(id, type);
+      }
+    }
+  }
+  return out;
+}
+
 /** Placement context beyond the collection scope. */
 export interface BlockPlacementOptions {
   /** Editing the per-day call-sheet zone (roadmap 212): day-grid blocks live
@@ -994,7 +1094,7 @@ export function blockPlacementHint(type: ReportBlock['type'], opts?: BlockPlacem
     return 'A call sheet has one edit zone — edit the existing zone’s blocks instead.';
   }
   if (isDayGridBlock(type)) return 'This block only works inside a Repeat over Days.';
-  if (type === 'budgetTable') return 'The Budget Table prints the project budget — it can’t sit inside a Days repeat.';
+  if (type === 'budgetTable') return 'The Budget Table prints the whole project budget — put it at top level (or inside Columns), not inside a Repeat.';
   return 'This block isn’t allowed here.';
 }
 

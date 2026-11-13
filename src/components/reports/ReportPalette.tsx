@@ -14,6 +14,8 @@ export interface PaletteDropPayload {
   category?: string;
   moveId?: string;
   duplicate?: boolean;
+  /** Composite starter (e.g. the nested budget hierarchy). */
+  preset?: 'budgetHierarchy';
 }
 
 export const DROP_MIME = 'application/x-report-block';
@@ -40,9 +42,15 @@ const CALL_SHEET_BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: R
   { type: { kind: 'block', type: 'precalls' }, label: 'Precalls', icon: <Timer className="w-3.5 h-3.5" /> },
 ];
 
-/** Budget print blocks (roadmap 334) — their own family, like Call Sheet. */
+/** Budget print blocks (roadmap 334) — their own family, like Call Sheet.
+ *  The hierarchy starters make a custom budget view composable without
+ *  knowing the collection chain first (roadmap 363). */
 const BUDGET_BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactNode }[] = [
   { type: { kind: 'block', type: 'budgetTable' }, label: 'Budget Table', icon: <Wallet className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', preset: 'budgetHierarchy' }, label: 'Budget View', icon: <Wallet className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'repeat', collection: 'budgetCategories' }, label: 'Budget Categories', icon: <Repeat className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'repeat', collection: 'budgetAccounts' }, label: 'Budget Accounts', icon: <Repeat className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'table', collection: 'budgetLines' }, label: 'Budget Lines', icon: <Table2 className="w-3.5 h-3.5" /> },
 ];
 
 const ALL_BLOCK_ITEMS = [...BLOCK_ITEMS, ...CALL_SHEET_BLOCK_ITEMS, ...BUDGET_BLOCK_ITEMS];

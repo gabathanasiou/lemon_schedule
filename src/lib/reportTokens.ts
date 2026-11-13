@@ -300,17 +300,24 @@ function errorSpan(error: string): string {
   return `<span class="report-cell-error">${error}</span>`;
 }
 
-/** DOM-free visible text of a rich-text string (the kit's stripRichText needs
- *  a document — unit tests run in node). Emptiness + chip-label checks only. */
-function plainText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
+/** Decode the entities token resolution escapes into a plain-text branch.
+ *  (Rich text values are escaped on the way out; a block whose resolved HTML
+ *  contains no tags renders as text, so leaving `&amp;` there prints it
+ *  literally.) */
+export function decodeHtmlEntities(text: string): string {
+  return text
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+    .replace(/&#39;/gi, "'");
+}
+
+/** DOM-free visible text of a rich-text string (the kit's stripRichText needs
+ *  a document — unit tests run in node). Emptiness + chip-label checks only. */
+function plainText(html: string): string {
+  return decodeHtmlEntities(html.replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ')
     .trim();
 }
