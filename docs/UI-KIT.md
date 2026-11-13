@@ -111,10 +111,12 @@ Before building any of these by hand again, check the kit first:
 
 **v0.2.14 (rich-text editor chrome on tokens — roadmap 313)**: `EditorChrome` `TB_*`, `FormatToolbar`, its menus/buttons and the `RichTextEditor` root now read `--ui-*` tokens and the ambient mode/accent (`data-mode`/`data-accent` are written on the editor root; menus no longer force dark). ProseMirror content styles and staged-token behaviour are unchanged.
 
+**v0.2.15 (a11y + CSS plumbing — Modern Web Guidance audit)**: `Tooltip` gains keyboard focus, Escape dismissal, a hoverable bubble and `role="tooltip"` + `aria-describedby`; `SearchMenu` uses per-instance ids (`[data-search-panel]`, `aria-activedescendant`) instead of the hardcoded `#search-menu-panel`; `ContextMenu` takes a `label` for its accessible name; `isImeConfirm` is exported from the package root (the app's `src/lib/keys.ts` is now a thin adapter over it); the pill Checkbox has a focus ring; `RichTextEditor` accepts `label`/`labelledBy`; `tokens.css` sets `color-scheme` per theme scope and standard `scrollbar-width`/`scrollbar-color`; `NumberInput` stepper hit areas reach 24 px without moving the chevrons. The app's `:root` stays light and wins over the kit's `:root` dark default by import order.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)
-- Install: `npm install github:gabathanasiou/ui-kit#v0.2.14` (bump the `#v0.x.y` ref when you update it)
+- Install: `npm install github:gabathanasiou/ui-kit#v0.2.15` (bump the `#v0.x.y` ref when you update it)
 - Setup: import `@gabriel/ui-kit/ui-kit.css` + `@source` the package in Tailwind + the `@custom-variant hover` gate — full steps in the kit's README.
 
 ## Making changes / improvements
