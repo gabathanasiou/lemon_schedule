@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronUp, ExternalLink, Eye, FileText, FileUp, MoreHorizontal, Ruler, Scissors, Search, Sparkles, Tag as TagIcon, X } from 'lucide-react';
 import { useProject } from '../store';
@@ -293,14 +293,24 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     });
   }, [doc, navRows, sceneByIdentity, projectScenes, castNameById]);
 
+  // Search (audit P8): the input itself stays urgent; the whole-screenplay scan
+  // and the highlight it feeds follow the settled query through a deferred
+  // value, so a keystroke never queues behind ~90 ms of block matching (roadmap
+  // 163's perf harness measures "Search typing ×6"). Blocks are lowercased once
+  // per document instead of once per keystroke.
   const q = query.trim();
+  const deferredQ = useDeferredValue(q);
+  const lowerBlocks = useMemo(
+    () => doc?.scenes.map(scene => scene.blocks.map(([type, text]) => (type === 'page_break' ? '' : text.toLowerCase()))),
+    [doc],
+  );
   const matches = useMemo(() => {
-    if (!q || !doc) return [];
-    const lq = q.toLowerCase();
-    return doc.scenes
-      .map((scene, i) => ({ i, count: scene.blocks.filter(([t, text]) => t !== 'page_break' && text.toLowerCase().includes(lq)).length }))
+    if (!deferredQ || !lowerBlocks) return [];
+    const lq = deferredQ.toLowerCase();
+    return lowerBlocks
+      .map((blocks, i) => ({ i, count: blocks.reduce((n, text) => n + (text.includes(lq) ? 1 : 0), 0) }))
       .filter(m => m.count > 0);
-  }, [q, doc]);
+  }, [deferredQ, lowerBlocks]);
 
   // Only scenes that actually contain the query get a `highlight` prop — the
   // rest keep `undefined` and their memoized block tree bails out, so typing in
@@ -386,12 +396,12 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     },
   });
 
-  // Jump to the first match whenever the query changes.
+  // Jump to the first match whenever the settled query changes.
   useEffect(() => {
     setMatchPos(0);
     if (matches.length > 0) jumpTo(matches[0].i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [deferredQ]);
 
   const stepMatch = useCallback((delta: number) => {
     if (matches.length === 0) return;
@@ -676,7 +686,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                       scene={scene}
                       theme="light"
                       fontClass={READ_FONT_CLASS}
-                      highlight={matchIndexSet.has(i) ? q : undefined}
+                      highlight={matchIndexSet.has(i) ? deferredQ : undefined}
                       sceneNumber={scene.sceneNumber}
                       annotations={showTags ? tagging.annotationsForScene(match?.id) : NO_ANNOTATIONS}
                       sceneId={match?.id}
