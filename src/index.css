@@ -239,6 +239,17 @@ input, textarea, [contenteditable] {
   }
 }
 
+/* Typography wrapping (audit MWG-17): balance short headings, pretty longer
+   body copy so a last line never strands a single word. Scoped on purpose —
+   never `*` (layout cost, and balance only helps short blocks), never table
+   cells, ribbon cells or the fixed-width print row grid. */
+h1, h2, h3, .print-title {
+  text-wrap: balance;
+}
+p, li {
+  text-wrap: pretty;
+}
+
 .scrollbar-custom::-webkit-scrollbar {
   width: 6px;
 }
