@@ -324,6 +324,28 @@ on every dispatch/keystroke, so the tax lands on EDITING, the exact area the
 earlier perf passes optimized. Not worth it while the mount already runs behind an
 already-gliding pill, time-sliced and non-blocking.
 
+## Follow-up: boot & loading (2026-11-13, Modern Web Guidance audit)
+
+Source: [`docs/audits/2026-11-13-modern-web-guidance-perf.md`](audits/2026-11-13-modern-web-guidance-perf.md).
+Only the audit's "additive safe" bucket landed here; the structural tab
+code-splitting (P1) is still open.
+
+| Change | Where | Invariant to keep |
+|---|---|---|
+| First-paint shell: a static CSS-only zinc-950 lockup inside `#root` paints before the bundle runs | `index.html` | HTML + CSS only (`script-src` has no inline); React's `createRoot` clears it on the first render — **never** remove it from script, never make it interactive |
+| Resource hints | `index.html` (`accounts.google.com`, static), `src/main.tsx` + `src/lib/supabase/client.ts` (Supabase, env-driven) | No `preload` of `gsi/client` (Google versions the URL); keep the count at ≤2 preconnects; new origins still go through `src/lib/csp.ts` |
+| `CHANGELOG.md?raw` on demand | `src/lib/changelogData.ts` (one shared promise), `ProjectManagerBoot`, `WhatsNewModal` | The boot lockup renders the version immediately and the newest title when the chunk lands; What's New suspends on a fallback. Never re-import the raw file statically — it re-inlines ~95 KB into the entry chunk |
+| Script search deferred | `ScriptView.tsx` (`useDeferredValue` + one lowercased copy of the blocks per document) | The input and the match counter stay urgent; only the scan and the highlight follow the deferred query. Do not defer `activeIndex`/`jumpTo` |
+| `useChunkResize` rAF-coalesced | `src/lib/virtualChunk.ts` | One measurement per frame; the rAF runs after the frame's resize step, so the last event of a burst is exact. No debounce timer (it would leave chunks unrendered while the viewport settles) |
+| Connectivity probe pauses while hidden | `src/store/provider.tsx` | Only the interval tick checks `document.hidden`; explicit probes (boot, focus, online, visibility return) still run. `no-store` and the 10 s visible cadence stay |
+
+Bundle effect of the changelog split (prod build, 2026-11-13): entry
+`4 117.16 kB / 1 200.56 kB gzip` plus a `CHANGELOG` chunk of
+`95.15 kB / 32.79 kB gzip` fetched only when the boot lockup or What's New
+mounts. Re-measure the search-typing workload with the Script-tab harness
+(`@perf script tab`) — it now exercises the deferred scan, so the keystroke
+task should be flat and the highlight may trail a frame.
+
 ## How to re-run
 
 ```bash
