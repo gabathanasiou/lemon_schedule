@@ -69,18 +69,32 @@ export function applyChunkVisibility(scroller: HTMLElement, mode: 'offset' | 're
   }
 }
 
-/** Registers a resize listener so the buffer follows viewport changes. */
+/** Registers a resize listener so the buffer follows viewport changes.
+ *
+ *  Coalesced to one measurement per frame (audit P12): iPad fires dozens of
+ *  `resize` events while the keyboard animates, and each pass re-measures every
+ *  chunk. The rAF runs after the frame's resize step, so the last event of a
+ *  burst still measures the settled viewport exactly — no trailing timer needed
+ *  (a debounce would leave chunks un-rendered while the viewport settles). */
 export function useChunkResize(scrollerRef: React.RefObject<HTMLElement | null>, mode: 'offset' | 'rect' = 'offset'): void {
   const ref = useRef(scrollerRef);
   ref.current = scrollerRef;
   const modeRef = useRef(mode);
   modeRef.current = mode;
   useEffect(() => {
+    let raf = 0;
     const onResize = () => {
-      const el = ref.current?.current;
-      if (el) applyChunkVisibility(el, modeRef.current);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = ref.current?.current;
+        if (el) applyChunkVisibility(el, modeRef.current);
+      });
     };
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 }
