@@ -45,12 +45,13 @@ owns the screens + `budgetTable` — read it before changing `src/components/bud
 - **Layout:** KPI strip, category rail on the left, one always-expanded sheet in
   the centre and a footer totals line. Category and account rows are inline
   bands (grey), line rows white; markup rows sit beneath with signed totals.
-- **Toolbar:** Add Markup, the **schedule review** status button (item 356:
-  icon-only while up to date, the label when there are updates; roadmap 348),
-  and ONE **Edit** menu (Print designs, Save as design, Export CSV/JSON,
-  Import). The linked-lines summary and the header Add Category are gone — the
-  rail owns new categories. No automatic sync, no View/columns menu, no
-  Templates menu after creation (templates live in the empty state).
+- **Toolbar:** Add Markup, the **schedule review** status button (item 356: icon-only
+  while up to date, the label when there are updates; roadmap 348), and separate
+  **Print / Save as / Export** menus plus **Import** (roadmap 363): icon-first buttons
+  (glyph at rest, label on hover/focus/open, no chevron), each menu holding only its
+  own variants. The linked-lines summary and the header Add Category are gone — the
+  rail owns new categories. No automatic sync, no View/columns menu, no Templates
+  menu after creation (templates live in the empty state).
 - **KPI strip:** Grand total, ATL, BTL, Post, Fringes, Contingency via
   `formatMoney(model.settings)`; `SectionTile` stays view-local.
 - **Left rail:** "All categories" + one button per category (number, name, % of
@@ -221,9 +222,8 @@ Top-to-bottom, one scroll surface:
   bands, the account "Unallocated" child and project bucket, with Budget,
   Actual, Committed, ETC, EFC, Variance, % Used and Reason columns. No second
   table renderer.
-- Toolbar: as-of date, period menu, counts, and the shared **Edit** menu
-  (Print Cost Report via `ReportPrintDialog`, Save as design, Export CSV —
-  item 356).
+- Toolbar: as-of date, period menu, counts, and separate icon-first **Print**
+  (`ReportPrintDialog`), **Save as design** and **Export CSV** buttons (roadmap 363).
 - `computeCostReport(project, { asOf, from, to })` feeds every number. **A
   period narrows Actual only — EFC/variance/% used stay as-of.** Out-of-budget
   categories show a "not in budget" cue; variance is colour + arrow + text.

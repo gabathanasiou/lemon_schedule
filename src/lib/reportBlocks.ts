@@ -559,6 +559,14 @@ export const COLLECTION_LABELS: Record<string, string> = {
 
 export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'budgetCategories', 'budgetAccounts', 'budgetLines', 'costReport', 'expenses', 'purchaseOrders', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'expensesOfDay', 'budgetLinesOfAccount', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
+/** Budget-tab collections — rendered under one `Budget` group header in the
+ *  repeat/table "over" pickers so the schedule and cost options never read as
+ *  one flat list (roadmap 363). `budgetLinesOfAccount` is a contextual child
+ *  and stays ungrouped (it only appears inside a Budget Accounts repeat). */
+export const BUDGET_COLLECTIONS = new Set<ReportCollection>([
+  'budgetCategories', 'budgetAccounts', 'budgetLines', 'costReport', 'expenses', 'purchaseOrders',
+]);
+
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
     if (c === 'scenesOfDay' || c === 'crewOfDay' || c === 'elementCallsOfDay' || c === 'departmentCallsOfDay' || c === 'locationsOfDay' || c === 'expensesOfDay') return parentCollection === 'days';

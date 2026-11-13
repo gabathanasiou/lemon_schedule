@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ReportCollection } from '../../types';
-import { COLLECTION_LABELS, scopedCollectionLabel } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, BUDGET_COLLECTIONS, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
@@ -101,7 +101,12 @@ export const CollectionMenuItems: React.FC<CollectionMenuItemsProps> = ({
           );
         }
         return (
-          <DropdownItem key={c} onClick={() => onPick(c)} icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          <DropdownItem
+            key={c}
+            group={BUDGET_COLLECTIONS.has(c) ? 'Budget' : undefined}
+            onClick={() => onPick(c)}
+            icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
             {COLLECTION_LABELS[c] || c}
           </DropdownItem>
         );

@@ -47,7 +47,7 @@ import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells'
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, CalendarDays, Clock } from 'lucide-react';
 import Button from '../Button';
-import { ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
+import { ToolButton, TB_BTN_ICON, ThemeScope } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
@@ -926,14 +926,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   );
 
   return (
-    <div
-      className="flex-1 flex flex-col bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] select-none min-h-0 min-w-0"
-      // Commit-on-blur (roadmap 251): a text editor losing focus — or Escape
-      // ending an edit session (capture: the editor stops propagation) — is the
-      // commit point for the deferred store write.
-      onBlur={e => { if (isTextEditingElement(e.target as Element)) flushPendingText(); }}
-      onKeyDownCapture={e => { if (e.key === 'Escape') flushPendingText(); }}
-    >
+    <ThemeScope mode="dark" surface="neutral" className="contents">
+      <div
+        className="flex-1 flex flex-col bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] select-none min-h-0 min-w-0"
+        // Commit-on-blur (roadmap 251): a text editor losing focus — or Escape
+        // ending an edit session (capture: the editor stops propagation) — is the
+        // commit point for the deferred store write.
+        onBlur={e => { if (isTextEditingElement(e.target as Element)) flushPendingText(); }}
+        onKeyDownCapture={e => { if (e.key === 'Escape') flushPendingText(); }}
+      >
       <DelegatedTooltip />
       {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header data-chrome-bar="report-designer-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)]`}>{headerContent}</header>)}
 
@@ -1274,7 +1275,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           }}
         />
       )}
-    </div>
+      </div>
+    </ThemeScope>
   );
 }
 

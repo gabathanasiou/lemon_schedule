@@ -1,4 +1,5 @@
 import React from 'react';
+import { Download, Printer, Save } from 'lucide-react';
 import type { Project, ReportDesign } from '../../types';
 import type { CostReportModel } from '../../lib/budget/costReport';
 import { costReportFilename, downloadFile, exportCostReportCsv } from '../../lib/budget/export';
@@ -8,7 +9,7 @@ import Button from '../Button';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DateField from '../DateField';
-import { BudgetEditMenu } from './BudgetEditMenu';
+import { BudgetActionButton } from './BudgetToolbarActions';
 
 export interface CostPeriodState {
   asOf: string;
@@ -85,13 +86,25 @@ export function CostReportToolbar({
         {report?.periodApplied ? 'Actual is the selected period · EFC stays as-of' : `${report?.expenseCount || 0} expenses · ${report?.purchaseOrderCount || 0} POs`}
       </span>
       <div className="ml-auto flex items-center gap-1">
-        <BudgetEditMenu
-          printActions={onPrintDesign ? [{ label: 'Print Cost Report', onClick: () => onPrintDesign(costReportDesign()) }] : []}
-          saveActions={[{ label: 'Save as design', onClick: onSaveDesign }]}
-          exportActions={[{
-            label: 'Export CSV',
-            onClick: () => { if (report) downloadFile(exportCostReportCsv(report), costReportFilename(project), 'text/csv'); },
-          }]}
+        <BudgetActionButton
+          icon={<Printer className="w-3.5 h-3.5" />}
+          label="Print"
+          onClick={() => { if (onPrintDesign) onPrintDesign(costReportDesign()); }}
+          disabled={!onPrintDesign}
+          title="Print the Cost Report"
+        />
+        <BudgetActionButton
+          icon={<Save className="w-3.5 h-3.5" />}
+          label="Save as design"
+          onClick={onSaveDesign}
+          title="Save this Cost Report as a report design"
+        />
+        <BudgetActionButton
+          icon={<Download className="w-3.5 h-3.5" />}
+          label="Export CSV"
+          onClick={() => { if (report) downloadFile(exportCostReportCsv(report), costReportFilename(project), 'text/csv'); }}
+          disabled={!report}
+          title="Export the Cost Report as CSV"
         />
       </div>
     </>

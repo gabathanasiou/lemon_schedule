@@ -1,18 +1,19 @@
 import React from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Download, FileUp, Plus, Printer, RefreshCw, Save } from 'lucide-react';
 import type { ReportDesign } from '../../types';
 import type { ScheduleBudgetDiff } from '../../lib/budget/diff';
 import Button from '../Button';
 import { GlideFilter } from '../GlideFilter';
-import { BudgetEditMenu, type BudgetEditAction } from './BudgetEditMenu';
+import { BudgetActionButton, BudgetMenuButton, type BudgetAction } from './BudgetToolbarActions';
 
 /**
  * The Budget mode's authoring actions (roadmap 334 + 348). A fragment so the
  * page can host it beside the Budget|Cost switch in ONE toolbar row.
  *
  * Item 356: the schedule-review status is a compact contextual button (icon
- * only while there is nothing to review, full label when there is), the
- * linked-lines label is gone, and Print/Export/Import live in ONE Edit menu.
+ * only while there is nothing to review, full label when there is).
+ * Roadmap 363: Print / Save as / Export / Import are separate buttons; the
+ * menus only hold their own variants, so no menu is a dumping ground.
  */
 export function BudgetToolbar({
   readOnly, reviewDiff, rowFilter, onRowFilterChange, filterCounts,
@@ -42,13 +43,13 @@ export function BudgetToolbar({
       ? `${reviewDiff.counts.check} to check from the schedule`
       : `${updates} update${updates === 1 ? '' : 's'} from the schedule`;
 
-  const printActions: BudgetEditAction[] = onPrintDesign
+  const printActions: BudgetAction[] = onPrintDesign
     ? printDesigns.map(design => ({
       label: `Print ${design.name.replace('Budget — ', '')}`,
       onClick: () => onPrintDesign(design),
     }))
     : [];
-  const saveActions: BudgetEditAction[] = printDesigns.map(design => ({
+  const saveActions: BudgetAction[] = printDesigns.map(design => ({
     label: `Save as ${design.name.replace('Budget — ', '')}`,
     onClick: () => onSaveDesign(design),
   }));
@@ -75,16 +76,39 @@ export function BudgetToolbar({
       >
         {reviewLabel}
       </Button>
-      <div className="ml-auto flex items-center gap-1">
-        <BudgetEditMenu
-          printActions={printActions}
-          saveActions={saveActions}
-          exportActions={[
+      <div className="ml-auto flex items-center gap-1 flex-wrap justify-end">
+        {printActions.length > 0 && (
+          <BudgetMenuButton
+            icon={<Printer className="w-3.5 h-3.5" />}
+            label="Print"
+            actions={printActions}
+            width="w-72"
+            title="Print a budget report"
+          />
+        )}
+        <BudgetMenuButton
+          icon={<Save className="w-3.5 h-3.5" />}
+          label="Save as"
+          actions={saveActions}
+          width="w-72"
+          title="Save a budget report template as a report design"
+        />
+        <BudgetMenuButton
+          icon={<Download className="w-3.5 h-3.5" />}
+          label="Export"
+          actions={[
             { label: 'Export CSV', onClick: onExportCsv },
             { label: 'Export JSON', onClick: onExportJson },
           ]}
-          onImport={onImport}
-          importDisabled={readOnly}
+          width="w-40"
+          title="Export the budget"
+        />
+        <BudgetActionButton
+          icon={<FileUp className="w-3.5 h-3.5" />}
+          label="Import"
+          onClick={onImport}
+          disabled={readOnly}
+          title="Import a budget JSON file"
         />
       </div>
     </>

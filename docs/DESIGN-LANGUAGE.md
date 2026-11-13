@@ -294,6 +294,7 @@ Every chrome control DECIDES what it really is, then uses the shared face — ne
 
 | Surface | Decision | Why |
 |---|---|---|
+| Budget toolbar Print / Save as / Export / Import | **Adopt** icon-first action buttons (`BudgetActionButton` / `BudgetMenuButton`) | Separate actions, never one Edit menu; glyph at rest, label on hover/focus/open. No chevron or arrow animation (user decision 2026-11-13) — the glyph names the action. |
 | Budget toolbar row filter | **Adopt** `GlideFilter` + kit `MorphSearchField` | Button → field, term survives, `shown/total`; no inline search in the toolbar. |
 | Expenses → account filter | **Adopt** kit `SearchMenu` (`expandable`, `expandableGroups`, `groupExpandMode="single"`, `leadingActions` for All/Unallocated) | A grouped catalogue: accordion categories + morph trigger, replacing an always-inline searchable `DropdownMenu`. |
 | Expenses → day filter | **Adopt** `DayPickerList` inside a light `DropdownMenu` (`allLabel`) | The shared day list (week groups) — no second day selector. |
