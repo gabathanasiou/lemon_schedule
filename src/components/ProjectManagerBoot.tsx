@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProjectManager } from './ProjectManager';
 import { APP_VERSION } from '../lib/appVersion';
 import { usePhoneDevice } from '../lib/device';
-import changelogRaw from '../../CHANGELOG.md?raw';
-import { parseChangelog } from '../lib/changelog';
+import { loadLatestChangelogTitle } from '../lib/changelogData';
 import WhatsNewModal from './WhatsNewModal';
 
 /* The no-project-open screen: the ProjectManager modal floats on a flat zinc-950
@@ -18,7 +17,15 @@ import WhatsNewModal from './WhatsNewModal';
 export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => void }) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const phoneDevice = usePhoneDevice();
-  const latest = useMemo(() => parseChangelog(changelogRaw)[0], []);
+  // The changelog is a lazy chunk (audit P7): the lockup paints with the version
+  // immediately and the newest title joins it once the file has parsed.
+  const [latestTitle, setLatestTitle] = useState<string>();
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadLatestChangelogTitle().then(title => { if (!cancelled) setLatestTitle(title); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     document.body.classList.add('pm-boot');
@@ -48,10 +55,10 @@ export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => vo
           className="flex min-w-0 items-baseline gap-1.5 text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors"
         >
           <span className="shrink-0">v{APP_VERSION}</span>
-          {latest?.title && (
+          {latestTitle && (
             <>
               <span className="shrink-0 text-zinc-800">·</span>
-              <span className="max-w-[46vw] truncate">{latest.title}</span>
+              <span className="max-w-[46vw] truncate">{latestTitle}</span>
             </>
           )}
         </button>

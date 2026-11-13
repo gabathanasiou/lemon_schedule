@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { Suspense, use, useRef, useState } from 'react';
 import { Bug, ChevronRight, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import changelogRaw from '../../CHANGELOG.md?raw';
-import { parseChangelog, formatChangelogDate, parseInline, parseLeadTag } from '../lib/changelog';
+import { loadChangelogDays } from '../lib/changelogData';
+import { formatChangelogDate, parseInline, parseLeadTag } from '../lib/changelog';
 
 interface WhatsNewModalProps {
   onClose: () => void;
@@ -57,9 +57,36 @@ function BulletText({ text }: { text: string }) {
   );
 }
 
-/** File → Help → What's New: the public CHANGELOG.md, newest first, one day open at a time. */
+/** File → Help → What's New: the public CHANGELOG.md, newest first, one day open
+ *  at a time. The file is a lazy chunk (audit P7): the modal chrome paints at
+ *  once and the list suspends until the shared changelog promise resolves. */
 export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
-  const days = useMemo(() => parseChangelog(changelogRaw), []);
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="What's New"
+      icon={<Sparkles className="w-4 h-4" />}
+      width="max-w-2xl"
+      footer={
+        <ModalFooter>
+          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
+        </ModalFooter>
+      }
+    >
+      <Suspense
+        fallback={
+          <p className="px-5 py-8 text-center text-sm text-[color:var(--ui-text-faint)]">Loading updates…</p>
+        }
+      >
+        <ChangelogDays />
+      </Suspense>
+    </Modal>
+  );
+}
+
+function ChangelogDays() {
+  const days = use(loadChangelogDays());
   const [openDate, setOpenDate] = useState<string | null>(() => days[0]?.date ?? null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stripRef = useRef<HTMLDivElement | null>(null);
@@ -88,74 +115,61 @@ export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
   };
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title="What's New"
-      icon={<Sparkles className="w-4 h-4" />}
-      width="max-w-2xl"
-      footer={
-        <ModalFooter>
-          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
-        </ModalFooter>
-      }
-    >
-      <div ref={scrollRef} className="max-h-[65vh] overflow-y-auto">
-        <div ref={stripRef} className="sticky top-0 z-10 flex items-center justify-between px-5 py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)]">
-          <span className="text-[11px] text-[color:var(--ui-text-faint)]">Newest first</span>
-          <span className="text-[11px] text-[color:var(--ui-text-faint)]">{days.length} days</span>
-        </div>
-        {days.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-[color:var(--ui-text-faint)]">No updates yet.</p>
-        ) : (
-          days.map(day => {
-            const isOpen = openDate === day.date;
-            return (
-              <div key={day.date} className="border-b border-[color:var(--ui-border)] last:border-b-0">
-                <button
-                  onClick={e => toggle(day.date, e.currentTarget)}
-                  aria-expanded={isOpen}
-                  className="w-full flex items-center gap-2 px-5 py-2.5 text-left hover:bg-[var(--ui-card-bg)] transition-colors"
-                >
-                  <ChevronRight className={`w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)] transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                  <span className="shrink-0 text-sm font-semibold text-[color:var(--ui-text-strong)]">{formatChangelogDate(day.date)}</span>
-                  <span className="shrink-0 text-[10px] text-[color:var(--ui-text-faint)]">{day.groups.reduce((n, g) => n + g.items.length, 0)}</span>
-                  <span className="flex-1" />
-                  {day.title && <span className="min-w-0 truncate text-right text-xs text-[color:var(--ui-text-muted)]">{day.title}</span>}
-                </button>
-                <div
-                  aria-hidden={!isOpen}
-                  className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-                >
-                  <div className="overflow-hidden">
-                    <div className="px-5 pb-4 pl-10 space-y-3.5">
-                      {day.groups.map(group => {
-                        const style = GROUP_STYLES[group.heading] ?? GROUP_FALLBACK;
-                        const Icon = style.icon;
-                        return (
-                          <div key={group.heading} className={`border-l-2 pl-3 ${style.rail}`}>
-                            <div className={`flex items-center gap-1.5 mb-1.5 ${style.label}`}>
-                              <Icon className="w-3 h-3 shrink-0" />
-                              <h4 className="text-[10px] font-semibold uppercase tracking-wider">{group.heading}</h4>
-                            </div>
-                            <ul className="space-y-1.5 list-disc pl-4 marker:text-[color:var(--ui-text-faint)]">
-                              {group.items.map((item, i) => (
-                                <li key={i} className="text-sm text-[color:var(--ui-text)] leading-relaxed">
-                                  <BulletText text={item} />
-                                </li>
-                              ))}
-                            </ul>
+    <div ref={scrollRef} className="max-h-[65vh] overflow-y-auto">
+      <div ref={stripRef} className="sticky top-0 z-10 flex items-center justify-between px-5 py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)]">
+        <span className="text-[11px] text-[color:var(--ui-text-faint)]">Newest first</span>
+        <span className="text-[11px] text-[color:var(--ui-text-faint)]">{days.length} days</span>
+      </div>
+      {days.length === 0 ? (
+        <p className="px-5 py-8 text-center text-sm text-[color:var(--ui-text-faint)]">No updates yet.</p>
+      ) : (
+        days.map(day => {
+          const isOpen = openDate === day.date;
+          return (
+            <div key={day.date} className="border-b border-[color:var(--ui-border)] last:border-b-0">
+              <button
+                onClick={e => toggle(day.date, e.currentTarget)}
+                aria-expanded={isOpen}
+                className="w-full flex items-center gap-2 px-5 py-2.5 text-left hover:bg-[var(--ui-card-bg)] transition-colors"
+              >
+                <ChevronRight className={`w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)] transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                <span className="shrink-0 text-sm font-semibold text-[color:var(--ui-text-strong)]">{formatChangelogDate(day.date)}</span>
+                <span className="shrink-0 text-[10px] text-[color:var(--ui-text-faint)]">{day.groups.reduce((n, g) => n + g.items.length, 0)}</span>
+                <span className="flex-1" />
+                {day.title && <span className="min-w-0 truncate text-right text-xs text-[color:var(--ui-text-muted)]">{day.title}</span>}
+              </button>
+              <div
+                aria-hidden={!isOpen}
+                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+              >
+                <div className="overflow-hidden">
+                  <div className="px-5 pb-4 pl-10 space-y-3.5">
+                    {day.groups.map(group => {
+                      const style = GROUP_STYLES[group.heading] ?? GROUP_FALLBACK;
+                      const Icon = style.icon;
+                      return (
+                        <div key={group.heading} className={`border-l-2 pl-3 ${style.rail}`}>
+                          <div className={`flex items-center gap-1.5 mb-1.5 ${style.label}`}>
+                            <Icon className="w-3 h-3 shrink-0" />
+                            <h4 className="text-[10px] font-semibold uppercase tracking-wider">{group.heading}</h4>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <ul className="space-y-1.5 list-disc pl-4 marker:text-[color:var(--ui-text-faint)]">
+                            {group.items.map((item, i) => (
+                              <li key={i} className="text-sm text-[color:var(--ui-text)] leading-relaxed">
+                                <BulletText text={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
-    </Modal>
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }
