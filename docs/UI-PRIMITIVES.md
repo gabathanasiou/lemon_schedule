@@ -10,7 +10,7 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - Top tabs (App header, roadmap 258): breakdown, schedule, calendar, design, rules, production,
   reports with per-tab `TAB_ICONS` (`AppHeader.tsx`). Shift+click / right-click = pop-out (desktop
   only, `!IS_COARSE`); ⌘/Ctrl+1…7 jumps (`TAB_ORDER`, `src/lib/appNav.ts` → the `requestTabSwitch`
-  effect in `App.tsx`).
+  effect in `App.tsx`); the active tab of both faces carries `aria-current="page"` — places, not a `tablist`.
   **Icon dock**: when the FULL labels do not fit the row, the tabs dock — only the active tab shows
   text (the kit `Button` drops the icon whenever the label shows: `iconWithLabel={false}`), the rest
   rest as icon-only pills and reveal their label on hover/focus; icon and label are NEVER combined.

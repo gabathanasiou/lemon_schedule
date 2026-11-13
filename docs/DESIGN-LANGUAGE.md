@@ -836,6 +836,32 @@ alone — pair red with icons/text (violation `Flag`, error icon + message). Key
 pointer action must have a keyboard path (documented in `HelpModal.tsx`). New shortcuts/controls
 MUST be added to `HelpModal.tsx` (AGENTS.md rule).
 
+**Platform obligations** (audit `docs/audits/2026-11-13-modern-web-guidance-ui.md`, all landed):
+
+- **Enter handlers go through `isImeConfirm`** (`src/lib/keys.ts`): an IME candidate confirm must
+  never commit/submit half-converted text — every custom keydown Enter path uses it.
+- **Labels are programmatic**: `htmlFor`/`id` for native controls, `aria-label` where the design has
+  no visible label (auth fields), `role="group" aria-labelledby` for custom field groups
+  (`RuleEditorPanel` `FieldBox`, icon grids, colour rows). A bare `<label>` with no control is a bug.
+- **Status lives in live regions**: transient banners and offers carry `role="status"
+  aria-live="polite"` (the `RoomNote` pattern, e.g. `OfflineStatus`, the S3.5 reload offer);
+  controls stay controls and get a visually hidden announcer when the state change is theirs.
+  `assertive` only for destructive interruptions.
+- **Tabs are places**: the active tab carries `aria-current="page"` (`CoarseTabButton`); a real
+  tablist (`role=tab` + `aria-selected`) is only for panels (Day Manager category tabs).
+  `App.tsx` keeps `document.title` and one visually hidden `h1` in step with the place.
+- **Tables**: app-authored data tables carry `<th scope="col">` and an `sr-only` `<caption>`;
+  layout tables (ribbon rows, print strips) stay plain.
+- **Hit targets**: dense chrome keeps its visual size and grows the POINTER target with a
+  pseudo-element (`.report-ct-btn`, `.report-ct-colgrip`, `.report-ct-rowtab`, `.row-action-hit`)
+  — 24px fine / 28px coarse where the row allows; WCAG 2.5.8's non-intersection exception is the
+  documented fallback inside the designer.
+- **Native controls follow the theme**: `color-scheme` is root-light and per-scope via
+  `[data-mode]` (kit `ThemeScope`) — never hardcode a scheme.
+- **Motion & type**: `prefers-reduced-motion` slows spinners (3s; never stops them);
+  `text-wrap: balance` on h1-h3/`.print-title`, `pretty` on `p`/`li` — never `*`, never
+  table/ribbon cells.
+
 ## Anti-patterns (MUST NOT)
 
 1. **Never write a second copy of a primitive** — kit first, then the app shim re-export; fix bugs
