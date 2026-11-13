@@ -15,9 +15,36 @@
          variant) — not written here. -->
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Lemon Schedule</title>
+    <!-- First-paint shell (audit P2). Critical CSS for the static lockup below:
+         it paints from the HTML alone, so a cold load shows the branded zinc-950
+         canvas instead of a white page while the entry bundle downloads and
+         boots. `style-src` allows inline styles; `script-src` does not, so this
+         stays pure HTML + CSS. Mirrors ProjectManagerBoot's backdrop + bottom-
+         right lockup so the handover is invisible. Text only — no images, no
+         fonts, no extra requests. -->
+    <style>
+      #boot-shell {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 0 max(1.25rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) 0;
+        background: #09090b;
+        color: #52525b;
+        font: 600 10px/1 "Helvetica Neue", Helvetica, sans-serif;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        user-select: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- React clears the container on its first render (createRoot) — never
+           remove this from script, and never add anything interactive here. -->
+      <div id="boot-shell" aria-hidden="true">Lemon Schedule</div>
+    </div>
     <div id="portal" style="position: fixed; left: 0; top: 0; z-index: 9999;" />
     <script type="module" src="/src/main.tsx"></script>
   </body>
