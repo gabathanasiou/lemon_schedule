@@ -22,13 +22,18 @@ import { X, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
 /** Modal-style field box (label above, bordered panel). Module scope — an
  *  inline definition would be a NEW component type every render, remounting
  *  the whole field tree (type menu, cast chips, date picker) on each form
- *  change. */
-const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string; labelClass?: string }> = ({ label, children, className, labelClass = '' }) => (
-  <div className={`border border-[color:var(--ui-border-strong)] rounded-lg p-3 space-y-3 ${className ?? ''}`}>
-    <span className={`${labelClass} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider block`}>{label}</span>
-    {children}
-  </div>
-);
+ *  change. The box is a labelled group so its controls are announced under
+ *  their field name even though the controls are custom (dropdown triggers,
+ *  entity pickers, date pickers). */
+const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string; labelClass?: string }> = ({ label, children, className, labelClass = '' }) => {
+  const labelId = React.useId();
+  return (
+    <div role="group" aria-labelledby={labelId} className={`border border-[color:var(--ui-border-strong)] rounded-lg p-3 space-y-3 ${className ?? ''}`}>
+      <span id={labelId} className={`${labelClass} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider block`}>{label}</span>
+      {children}
+    </div>
+  );
+};
 
 /** The shared dark rule editor (roadmap 46's shared shell) — one copy used by
  *  the Calendar's Day Events modal (inline, pre-seeded with the day) AND the
@@ -67,6 +72,8 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   });
   const [error, setError] = useState('');
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const groupAId = React.useId();
+  const groupBId = React.useId();
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
   const { XSZ, CREM_LABEL } = sizes;
@@ -130,11 +137,13 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   const timeInput = (
     value: string,
     setter: (v: string) => void,
+    label: string,
   ) => (
     <input
       type="time"
       value={value || ''}
       onChange={e => setter(e.target.value)}
+      aria-label={label}
       className={`${sizes.CREM_TEXT} px-2 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] outline-none focus:border-[color:var(--ui-input-focus-border)]`}
     />
   );
@@ -194,12 +203,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       <FieldBox label={form.type === 'CAST_CONFLICT' || form.type === 'CAST_SCENE_FLAG' ? 'Cast' : 'Board IDs'} labelClass={CREM_LABEL}>
       {form.type === 'CAST_CONFLICT' ? (
         <div className="space-y-2">
-          <div>
-            <label className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</label>
+          <div role="group" aria-labelledby={`${groupAId}`}>
+            <span id={groupAId} className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</span>
             {castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), 'e.g. 1, 2')}
           </div>
-          <div>
-            <label className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</label>
+          <div role="group" aria-labelledby={`${groupBId}`}>
+            <span id={groupBId} className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</span>
             {castField(form.conflictCastIds, v => setForm(f => ({ ...f, conflictCastIds: v })), 'e.g. 3, 4')}
           </div>
         </div>
@@ -247,6 +256,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
             type="number"
             min={0.5}
             step={0.5}
+            aria-label="Max hours per day"
             value={form.maxHours}
             onChange={e => setForm(f => ({ ...f, maxHours: e.target.value }))}
             className={`${sizes.CREM_TEXT} w-24 px-2.5 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] outline-none focus:border-[color:var(--ui-input-focus-border)]`}
@@ -275,21 +285,21 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
           </div>
           {form.windowMode === 'range' && (
             <div className="flex items-center gap-2">
-              {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'range', windowStart: v })))}
+              {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'range', windowStart: v })), 'Window start')}
               <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)]`}>to</span>
-              {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'range', windowEnd: v })))}
+              {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'range', windowEnd: v })), 'Window end')}
             </div>
           )}
           {form.windowMode === 'after' && (
             <div className="flex items-center gap-2">
               <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] w-10`}>From</span>
-              {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'after', windowStart: v })))}
+              {timeInput(form.windowStart, v => setForm(f => ({ ...f, windowMode: 'after', windowStart: v })), 'From')}
             </div>
           )}
           {form.windowMode === 'before' && (
             <div className="flex items-center gap-2">
               <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] w-10`}>Until</span>
-              {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'before', windowEnd: v })))}
+              {timeInput(form.windowEnd, v => setForm(f => ({ ...f, windowMode: 'before', windowEnd: v })), 'Until')}
             </div>
           )}
           {form.windowMode === 'allday' && (

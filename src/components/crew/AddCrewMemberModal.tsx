@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { UserPlus, ChevronDown } from 'lucide-react';
 import { useProject } from '../../store';
 import { crewRoleGroup, CREW_DEPARTMENT_NAMES } from '../../lib/crewCatalog';
@@ -42,6 +42,7 @@ function slugifyRole(label: string, existing: Set<string>): string {
 export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose, defaultRole, defaultName, onCreated }) => {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
+  const uid = useId();
   const crewRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
 
   const [name, setName] = useState(defaultName || '');
@@ -111,8 +112,9 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
       >
         <div className="p-6 space-y-4">
           <div>
-            <label className={LABEL}>Name</label>
+            <label htmlFor={`${uid}-name`} className={LABEL}>Name</label>
             <input
+              id={`${uid}-name`}
               ref={nameRef}
               className={`${INPUT} uppercase`}
               value={name}
@@ -123,7 +125,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
             />
           </div>
           <div>
-            <label className={LABEL}>Role</label>
+            <span id={`${uid}-role`} className={LABEL}>Role</span>
             <DropdownMenu
               open={roleOpen}
               onOpenChange={setRoleOpen}
@@ -131,7 +133,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
               searchPlaceholder="Search roles…"
               width="w-72"
               trigger={
-                <button type="button" disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_TOKEN_TRIGGER_CLASS}`}>
+                <button type="button" aria-labelledby={`${uid}-role`} disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_TOKEN_TRIGGER_CLASS}`}>
                   <span className={selectedRoleLabel ? '' : 'text-[color:var(--ui-text-faint)]'}>{selectedRoleLabel || 'Select a role…'}</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                 </button>
@@ -159,12 +161,12 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={LABEL}>Phone</label>
-              <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
+              <label htmlFor={`${uid}-phone`} className={LABEL}>Phone</label>
+              <input id={`${uid}-phone`} className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
             </div>
             <div>
-              <label className={LABEL}>Email</label>
-              <input className={INPUT} value={email} onChange={e => setEmail(e.target.value)} placeholder="Optional" />
+              <label htmlFor={`${uid}-email`} className={LABEL}>Email</label>
+              <input id={`${uid}-email`} type="email" className={INPUT} value={email} onChange={e => setEmail(e.target.value)} placeholder="Optional" />
             </div>
           </div>
         </div>

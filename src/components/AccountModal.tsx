@@ -174,6 +174,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
                 autoFocus
                 type="text"
                 autoComplete="name"
+                aria-label="Your name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}
@@ -187,6 +188,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
               autoFocus={view !== 'signup'}
               type="email"
               autoComplete="email"
+              aria-label="Email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}
@@ -199,6 +201,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
               <input
                 type="password"
                 autoComplete={view === 'signup' ? 'new-password' : 'current-password'}
+                aria-label={view === 'signup' ? 'Password (at least 6 characters)' : 'Password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}

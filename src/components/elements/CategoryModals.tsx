@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Plus, Pencil, ChevronDown } from 'lucide-react';
 import { IconGrid } from './IconGrid';
 import Modal from '../Modal';
@@ -30,6 +30,7 @@ interface CategoryFormProps {
 }
 
 function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNameChange, catIcon, onIconChange, multiValue, onMultiValueChange, onSubmit, withValueType, group, groupOptions, onGroupChange }: CategoryFormProps) {
+  const uid = useId();
   const [groupOpen, setGroupOpen] = useState(false);
   if (!open) return null;
   return (
@@ -43,8 +44,9 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
     >
       <div className="p-6 space-y-4">
         <div>
-          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">{withValueType ? 'Name' : 'New label'}</label>
+          <label htmlFor={`${uid}-name`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">{withValueType ? 'Name' : 'New label'}</label>
           <input
+            id={`${uid}-name`}
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
@@ -56,14 +58,14 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
         </div>
         {groupOptions && groupOptions.length > 0 && (
           <div>
-            <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Section</label>
+            <span id={`${uid}-section`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Section</span>
             <DropdownMenu
               open={groupOpen}
               onOpenChange={setGroupOpen}
               width="w-56"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
+                <button type="button" aria-labelledby={`${uid}-section`} className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
                   <span className="truncate">{group || 'Other'}</span>
                   <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
@@ -79,15 +81,16 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
         )}
         {withValueType && (
           <>
-            <div>
-              <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</label>
+            <div role="group" aria-labelledby={`${uid}-icon`}>
+              <span id={`${uid}-icon`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</span>
               <IconGrid value={catIcon} onChange={onIconChange} />
             </div>
-            <div>
-              <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Value Type</label>
+            <div role="group" aria-labelledby={`${uid}-value-type`}>
+              <span id={`${uid}-value-type`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Value Type</span>
               <div className="mt-1 flex gap-1">
                 <button
                   type="button"
+                  aria-pressed={multiValue}
                   onClick={() => onMultiValueChange(true)}
                   className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${multiValue ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)]'}`}
                 >
@@ -95,6 +98,7 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
                 </button>
                 <button
                   type="button"
+                  aria-pressed={!multiValue}
                   onClick={() => onMultiValueChange(false)}
                   className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!multiValue ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)]'}`}
                 >

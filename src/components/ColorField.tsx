@@ -10,6 +10,8 @@ interface ColorFieldProps {
   swatchClass?: string;
   className?: string;
   defaultValue?: string;
+  /** Accessible name for the colour inputs (the visible label is a sibling). */
+  ariaLabel?: string;
 }
 
 function normalizeHex(raw: string): string | null {
@@ -29,6 +31,7 @@ export default function ColorField({
   swatchClass = '',
   className = '',
   defaultValue,
+  ariaLabel,
 }: ColorFieldProps) {
   const [hexText, setHexText] = useState(value);
   useEffect(() => { setHexText(value); }, [value]);
@@ -58,6 +61,7 @@ export default function ColorField({
         type="color"
         value={value}
         onChange={e => onChange(e.target.value)}
+        aria-label={ariaLabel}
         className={`${swatchBase} ${swatchSizeClass} ${swatchClass}`}
       />
       <input
@@ -68,6 +72,7 @@ export default function ColorField({
         onFocus={e => e.target.select()}
         onMouseUp={e => e.preventDefault()}
         onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur(); }}
+        aria-label={ariaLabel ? `${ariaLabel} hex value` : undefined}
         placeholder="#000000"
         spellCheck={false}
         className={`${hexClass} text-[color:var(--ui-input-text)] bg-[var(--ui-seg-track-bg)] border border-[color:var(--ui-card-border)] rounded-md outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)] transition-colors`}

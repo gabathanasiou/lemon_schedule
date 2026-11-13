@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Plus, Pencil, Link2 } from 'lucide-react';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -24,6 +24,7 @@ interface DayTypeFormProps {
 }
 
 function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChange, icon, onIconChange, color, onColorChange, attachable, onAttachableChange, onSubmit }: DayTypeFormProps) {
+  const uid = useId();
   if (!open) return null;
   return (
     <Modal open onClose={onClose} title={title} width="max-w-md"
@@ -36,8 +37,9 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
     >
       <div className="p-6 space-y-4">
         <div>
-          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Name</label>
+          <label htmlFor={`${uid}-name`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Name</label>
           <input
+            id={`${uid}-name`}
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
@@ -47,20 +49,20 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
             placeholder="e.g. Rehearsal, Wrap, Tech Scout..."
           />
         </div>
-        <div>
-          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</label>
+        <div role="group" aria-labelledby={`${uid}-icon`}>
+          <span id={`${uid}-icon`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</span>
           <IconGrid value={icon} onChange={onIconChange} />
         </div>
-        <div>
-          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Color</label>
+        <div role="group" aria-labelledby={`${uid}-color`}>
+          <span id={`${uid}-color`} className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Color</span>
           <div className="mt-1">
-            <ColorField value={color || '#000000'} onChange={onColorChange} size="sm" hexVariant="sm" />
+            <ColorField value={color || '#000000'} onChange={onColorChange} size="sm" hexVariant="sm" ariaLabel="Color" />
           </div>
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider flex items-center gap-1">
-            <Link2 className="w-3 h-3" /> Attach cast &amp; elements
-          </label>
+          <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider flex items-center gap-1">
+            <Link2 className="w-3 h-3" aria-hidden /> Attach cast &amp; elements
+          </span>
           <p className="text-[10px] text-[color:var(--ui-text-faint)] mt-0.5">When a day is marked with this type, let it carry per-day cast/element lists (DOODs codes like travel/hold).</p>
           <div className="mt-1">
             <Seg
