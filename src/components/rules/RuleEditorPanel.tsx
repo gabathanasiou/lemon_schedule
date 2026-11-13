@@ -203,11 +203,11 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       <FieldBox label={form.type === 'CAST_CONFLICT' || form.type === 'CAST_SCENE_FLAG' ? 'Cast' : 'Board IDs'} labelClass={CREM_LABEL}>
       {form.type === 'CAST_CONFLICT' ? (
         <div className="space-y-2">
-          <div role="group" aria-labelledby={`${groupAId}`}>
+          <div role="group" aria-labelledby={groupAId}>
             <span id={groupAId} className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</span>
             {castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), 'e.g. 1, 2')}
           </div>
-          <div role="group" aria-labelledby={`${groupBId}`}>
+          <div role="group" aria-labelledby={groupBId}>
             <span id={groupBId} className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</span>
             {castField(form.conflictCastIds, v => setForm(f => ({ ...f, conflictCastIds: v })), 'e.g. 3, 4')}
           </div>
