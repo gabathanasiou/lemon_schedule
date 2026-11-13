@@ -68,6 +68,22 @@ html[data-phone-device] #root {
   }
 }
 
+/* Native-control theming (audit MWG-09): the app paints its own surfaces, but
+   native pickers, scrollbars, date/time inputs and autofill follow
+   `color-scheme`. The root is light; every kit ThemeScope publishes
+   `data-mode`, so a dark modal/chrome scope flips its own native controls to
+   the dark palette (and a nested light scope flips back). No project-specific
+   scheme is hardcoded — the scope carries it. */
+:root {
+  color-scheme: light;
+}
+[data-mode="light"] {
+  color-scheme: light;
+}
+[data-mode="dark"] {
+  color-scheme: dark;
+}
+
 /* App shell height on phones (roadmap 267): App.tsx sets this from the REAL
    screen height — no CSS viewport unit reaches the physical bottom on iOS 26
    Safari (WebKit bug 301108 breaks viewport-fit=cover/height=device-height;
