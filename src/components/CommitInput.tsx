@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isImeConfirm } from '../lib/keys';
 
 export const inputCls = 'flex-1 min-w-0 bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
 
@@ -21,7 +22,7 @@ export const CommitInput: React.FC<{ value: string; onCommit: (v: string) => voi
       onFocus={e => { setDraft(value); setActive(true); e.target.select(); }}
       onBlur={commit}
       onKeyDown={e => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur();
         if (e.key === 'Escape') { onEscape?.(); setDraft(value); (e.target as HTMLInputElement).blur(); }
       }}
     />

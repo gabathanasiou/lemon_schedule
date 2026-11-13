@@ -4,6 +4,7 @@ import type { DaySectionProps } from '../daySectionTypes';
 import { formatDateTitle, formatDuration, formatPageCount, normalizeTime, parseTime } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
 import { formatWeatherValue } from '../../../../lib/reportWeather';
+import { isImeConfirm } from '../../../../lib/keys';
 import { useTouchMode } from '../../../../lib/useMarquee';
 import type { DayWeatherOverride } from '../../../../types';
 import TimeField from '../../../TimeField';
@@ -137,7 +138,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
   };
 
   const blurOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') e.currentTarget.blur();
+    if (e.key === 'Enter' && !isImeConfirm(e)) e.currentTarget.blur();
   };
 
   const entry = weatherView?.entry;

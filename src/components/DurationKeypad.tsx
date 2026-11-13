@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Delete } from 'lucide-react';
 import { parseDuration, formatDuration } from '../lib/utils';
 import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
+import { isImeConfirm } from '../lib/keys';
 
 interface DurationKeypadProps {
   value: number;
@@ -194,7 +195,7 @@ export default function DurationKeypad({
   useEffect(() => {
     if (!open) return;
     const keydownHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { e.preventDefault(); setPressedKey('Enter'); handleCommit(); return; }
+      if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); setPressedKey('Enter'); handleCommit(); return; }
       if (e.key === 'Escape') { e.preventDefault(); handleCancel(); return; }
       if (e.key === 'Backspace') { e.preventDefault(); setPressedKey('Backspace'); backspaceText(); return; }
       if (/^[0-9hm]$/i.test(e.key)) { e.preventDefault(); setPressedKey(e.key.toLowerCase()); handleKeyPressText(e.key.toLowerCase()); }

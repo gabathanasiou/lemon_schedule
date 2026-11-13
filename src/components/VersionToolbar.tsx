@@ -4,6 +4,7 @@ import { useDialog } from './Dialog';
 import { SaveIndicator } from './SaveIndicator';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { RoomNote } from './RoomNote';
+import { isImeConfirm } from '../lib/keys';
 import { CHROME_BAR_INSET, CHROME_ITEM_GAP } from '../lib/chromeSpacing';
 import { ProjectChromeScope } from './ProjectChromeScope';
 
@@ -40,7 +41,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
           <input
             value={projectTitle}
             onChange={e => handleRenameProject(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur(); }}
             className="bg-transparent border-none text-[color:var(--ui-text-strong)] font-medium rounded px-1 outline-none font-sans focus:ring-1 focus:ring-[color:var(--ui-accent-600)]"
           />
           <span className="px-3 py-1.5 rounded text-xs font-semibold bg-[var(--ui-tab-pill-plain)] text-[color:var(--ui-tab-pill-plain-text)]">

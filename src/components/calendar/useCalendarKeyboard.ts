@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ScheduleRow, ScheduleVersion, SceneColorPalette } from '../../types';
 import { getNoteBannerColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
+import { isImeConfirm } from '../../lib/keys';
 import type { PresenceHeldItem } from '../../lib/supabase/presence';
 export interface ColorPickerState {
   rowId: string;
@@ -192,7 +193,7 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
         selectNextAfterRemove(new Set(ids as string[]));
         return;
       }
-      if (e.key === 'Enter' && selectedRowIdsRef.current.size === 1) {
+      if (e.key === 'Enter' && !isImeConfirm(e) && selectedRowIdsRef.current.size === 1) {
         if (isInEditable(e.target)) return;
         const selectedId = [...selectedRowIdsRef.current][0] as string;
         const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);

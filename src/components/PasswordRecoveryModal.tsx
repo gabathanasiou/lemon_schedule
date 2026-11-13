@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import { isImeConfirm } from '../lib/keys';
 
 const INPUT_CLASS = 'w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50 ui-input';
 
@@ -84,7 +85,7 @@ export function PasswordRecoveryModal() {
               autoComplete="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') void resend(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void resend(); }}
               placeholder="Your email"
               disabled={busy}
               className={INPUT_CLASS}
@@ -125,7 +126,7 @@ export function PasswordRecoveryModal() {
           autoComplete="new-password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') void save(); }}
+          onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void save(); }}
           placeholder="New password (at least 6 characters)"
           disabled={busy}
           className={INPUT_CLASS}

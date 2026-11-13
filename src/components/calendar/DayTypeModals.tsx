@@ -5,6 +5,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import ColorField from '../ColorField';
 import { IconGrid } from '../elements/IconGrid';
 import { Seg } from '@gabriel/ui-kit';
+import { isImeConfirm } from '../../lib/keys';
 
 interface DayTypeFormProps {
   open: boolean;
@@ -40,7 +41,7 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && name.trim()) onSubmit(); }}
+            onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e) && name.trim()) onSubmit(); }}
             autoFocus
             className="w-full mt-1 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]"
             placeholder="e.g. Rehearsal, Wrap, Tech Scout..."

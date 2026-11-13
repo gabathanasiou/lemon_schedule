@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, FileText, List } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
+import { isImeConfirm } from '../lib/keys';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -421,7 +422,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   // Keyboard: →/A take · ←/⌫ back · Esc/K keep · L accept all · S setup · ⌘⏎ apply.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isImeConfirm(e)) {
         e.preventDefault();
         if (view !== 'setup' && mutationCount > 0) runApply();
         return;

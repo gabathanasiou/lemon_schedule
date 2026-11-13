@@ -4,6 +4,7 @@ import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { computeSectionViolationMap } from '../../lib/rulesEngine';
 import { computeElementEvents, ElementEventGroup } from '../../lib/elementEvents';
+import { isImeConfirm } from '../../lib/keys';
 import { getCategoryElements, elementMatchId, elementKey } from '../../lib/elements';
 import { getNonShootEntryMap, upsertNonShootDate, isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
 import { removeItemsFrom, setNote, typeRankOf, statusLabel } from '../../lib/events';
@@ -265,7 +266,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
                               onClick={(e) => e.stopPropagation()}
                               onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur();
                                 if (e.key === 'Escape') { setNoteDate(null); }
                               }}
                               className={`${CREM_TEXT} px-2 py-0.5 rounded bg-[var(--ui-seg-track-bg)] border border-transparent hover:border-[color:var(--ui-border-strong)] focus:border-[color:var(--ui-input-focus-border)] transition-colors outline-none placeholder:text-[color:var(--ui-text-faint)] text-[11px] [field-sizing:content] min-w-60 cursor-text`}

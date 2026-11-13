@@ -10,6 +10,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories'
 import { IS_COARSE } from '../lib/device';
 import { ThemeScope } from '@gabriel/ui-kit';
 import { RotateCcw, Download, FileUp, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown } from 'lucide-react';
+import { isImeConfirm } from '../lib/keys';
 import Modal from './Modal';
 import ColorField from './ColorField';
 import { ModalFooter } from './Modal';
@@ -430,7 +431,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                             onChange={e => setHeaderText(e.target.value)}
                             onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
-                            onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
                             className={`${INP} font-bold text-[color:var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] rounded text-center outline-none`}
                           />
                         ) : (
@@ -470,7 +471,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                             onChange={e => setHeaderText(e.target.value)}
                             onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
-                            onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
                             className="text-[9px] font-bold text-[color:var(--ui-text-muted)] uppercase tracking-wider bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] rounded px-2 py-0.5 w-20 text-right outline-none"
                           />
                         ) : (

@@ -4,6 +4,7 @@ import { ReportCtx } from '../../lib/reportData';
 import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs, composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey, cellRefChain } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
+import { isImeConfirm } from '../../lib/keys';
 import { useTableColumnReorder } from './useTableColumnReorder';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { CellRef, isCovered, rectCovers } from '../../lib/reportTableMerges';
@@ -181,7 +182,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
       }
       return;
     }
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if ((e.key === 'Enter' && !isImeConfirm(e)) || e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();
       const entry = entries[refMenu.highlight];

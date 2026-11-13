@@ -3,6 +3,7 @@ import { RotateCcw } from 'lucide-react';
 import { inputCls } from '@gabriel/ui-kit';
 import { useTouchMode } from '../lib/useMarquee';
 import TimeKeypad from './TimeKeypad';
+import { isImeConfirm } from '../lib/keys';
 
 /**
  * Shared call-time expression input (D11/D19). DISPLAYS the resolved absolute
@@ -117,7 +118,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
             requestAnimationFrame(() => el.select());
           }}
           onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); e.currentTarget.blur(); }
             else if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; e.currentTarget.blur(); }
           }}
           onBlur={() => {

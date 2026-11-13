@@ -5,6 +5,7 @@ import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { AccountAvatar } from './AccountAvatar';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import { isImeConfirm } from '../lib/keys';
 import { useDialog } from './Dialog';
 import { TeamPanel } from './sharing/TeamPanel';
 import { SessionsPanel } from './SessionsPanel';
@@ -121,7 +122,7 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
               autoComplete="name"
               value={name}
               onChange={e => setName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && name.trim()) void save(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && name.trim() && !isImeConfirm(e)) void save(); }}
               placeholder="Your name"
               disabled={busy}
               className={INPUT_CLASS}

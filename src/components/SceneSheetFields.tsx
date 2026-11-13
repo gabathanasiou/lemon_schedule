@@ -3,6 +3,7 @@ import { Scene, SceneColorPalette, CustomCategoryDef } from '../types';
 import { getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { parsePageCount, formatPageCount } from '../lib/utils';
 import { isMultiValue } from '../lib/categories';
+import { isImeConfirm } from '../lib/keys';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { CellInput } from './CellInput';
@@ -73,7 +74,7 @@ export default function SceneSheetFields({
                 <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none overflow-hidden leading-snug [field-sizing:content] min-h-[2lh]" rows={1}
                   value={val('description')} readOnly={readOnly} onChange={e => update('description', e.target.value)}
                   onBlur={commitTextEdits}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
+                  onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e) && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
               </td>
             </tr>
           </tbody>
@@ -90,7 +91,7 @@ export default function SceneSheetFields({
                   <textarea className="w-full border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none overflow-hidden leading-snug [field-sizing:content] min-h-[2lh]" rows={1}
                     value={val('notes')} readOnly={readOnly} onChange={e => update('notes', e.target.value)}
                     onBlur={commitTextEdits}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
+                    onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e) && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                 ) : cat === 'cast' ? (
                   <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} mode="multi" placeholder="Cast" className="flex-1 p-1 text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} wrapValue resolveClosed />
                 ) : (

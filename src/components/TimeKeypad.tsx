@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Delete } from 'lucide-react';
 import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
+import { isImeConfirm } from '../lib/keys';
 
 /**
  * The touch time-entry keypad (`:` `+` `-` `h` `m`), extracted from
@@ -61,7 +62,7 @@ export const TimeKeypad: React.FC<TimeKeypadProps> = ({ value, onCommit, onCance
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { e.preventDefault(); handlers.current.commit(); }
+      if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); handlers.current.commit(); }
       else if (e.key === 'Escape') { e.preventDefault(); handlers.current.cancel(); }
       else if (e.key === 'Backspace') { e.preventDefault(); handlers.current.backspace(); }
       else if (/^[0-9:+\-hm]$/i.test(e.key)) { e.preventDefault(); handlers.current.press(e.key.toLowerCase()); }

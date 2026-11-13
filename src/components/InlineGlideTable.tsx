@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isImeConfirm } from '../lib/keys';
 import DataEditor, {
   GridCellKind,
   type GridCell,
@@ -1085,7 +1086,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         // Shift+Enter = quick-add (roadmap 337). Captured BEFORE Glide's
         // activate-cell handler so plain Enter keeps committing/activating and
         // the modified chord never opens an editor first.
-        if (e.key === 'Enter' && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
+        if (e.key === 'Enter' && !isImeConfirm(e) && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
           const add = onAddRowRef.current;
           if (!add || readOnlyRef.current) return;
           e.preventDefault();

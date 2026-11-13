@@ -18,6 +18,7 @@ import type { InviteSuggestion } from '../../lib/supabase/sharing';
 import type { InviteTarget } from '../../lib/inviteTargets';
 import { PeoplePicker } from './PeoplePicker';
 import { PANEL_INPUT_CLASS, SectionLabel } from './sharingParts';
+import { isImeConfirm } from '../../lib/keys';
 
 /**
  * The Team panel (roadmap 254 phase 2; hosted as a tab of the account
@@ -145,7 +146,7 @@ export function TeamPanel() {
             <input
               value={newTeamName}
               onChange={e => setNewTeamName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) handleCreate(); }}
               placeholder="Team name"
               disabled={busy}
               className={`${PANEL_INPUT_CLASS} flex-1 min-w-0`}
@@ -165,7 +166,7 @@ export function TeamPanel() {
               value={nameDraft}
               onChange={e => setNameDraft(e.target.value)}
               onBlur={commitName}
-              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) e.currentTarget.blur(); }}
               disabled={busy}
               aria-label="Team name"
               className={`${PANEL_INPUT_CLASS} w-full`}

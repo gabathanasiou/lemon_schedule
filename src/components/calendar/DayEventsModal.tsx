@@ -4,6 +4,7 @@ import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { NON_SHOOT_ALL, getNonShootEntryMap, upsertNonShootDate } from '../../lib/nonShootHelpers';
 import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
+import { isImeConfirm } from '../../lib/keys';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
@@ -330,7 +331,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                               onClick={(e) => e.stopPropagation()}
                               onBlur={(e) => { setNoteFor(null); commitNote(status, row.category, row.refKey, e.target.value); }}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur();
                                 if (e.key === 'Escape') { setNoteFor(null); }
                               }}
                               className={`${CREM_TEXT} px-2 py-0.5 rounded bg-[var(--ui-panel-bg)] border border-transparent hover:border-[color:var(--ui-border-strong)] focus:border-[color:var(--ui-input-focus-border)] transition-colors outline-none placeholder:text-[color:var(--ui-text-faint)] text-[11px] [field-sizing:content] min-w-60 cursor-text`}

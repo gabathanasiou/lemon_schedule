@@ -4,6 +4,7 @@ import { useProject } from '../store';
 import { CastMember } from '../types';
 import { Trash2 } from 'lucide-react';
 import { useCurrentDocument } from '../lib/popoutTarget';
+import { isImeConfirm } from '../lib/keys';
 
 const COLUMNS = [
   { key: 'id', label: 'Cast #' },
@@ -46,7 +47,7 @@ export const CastTab: React.FC = () => {
         onChange={e => setVal(e.target.value.toUpperCase())}
         onBlur={() => { onChange({ value: val.toUpperCase() }); exitEditMode(); }}
         onKeyDown={e => {
-          if (e.key === 'Enter') { onChange({ value: val.toUpperCase() }); exitEditMode(); }
+          if (e.key === 'Enter' && !isImeConfirm(e)) { onChange({ value: val.toUpperCase() }); exitEditMode(); }
           if (e.key === 'Escape') exitEditMode();
         }}
         autoFocus

@@ -7,6 +7,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
+import { isImeConfirm } from '../../lib/keys';
 
 interface CategoryFormProps {
   open: boolean;
@@ -47,7 +48,7 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && name.trim()) onSubmit(); }}
+            onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e) && name.trim()) onSubmit(); }}
             autoFocus
             className="w-full mt-1 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]"
             placeholder={withValueType ? 'e.g. Firearms, Period Vehicles...' : undefined}

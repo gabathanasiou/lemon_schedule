@@ -4,6 +4,7 @@ import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { useDialog } from './Dialog';
 import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, PanelRight, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
+import { isImeConfirm } from '../lib/keys';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { loadCategoryElements, elementKey, countOccurrences, boardIdOf, compareBoardIds, isDuplicateBoardId, nextBoardId } from '../lib/elements';
@@ -457,7 +458,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, opts: RenderInputOpts = {}) => {
     const { numeric, upper, centered, wrap } = opts;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+      if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       // Tab moves to the next field/cell (committing this one on the blur);
       // with nowhere to go it falls through to the browser's Tab — focus
       // leaves the table and the field still commits.

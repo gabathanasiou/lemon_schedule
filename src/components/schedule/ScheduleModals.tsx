@@ -4,6 +4,7 @@ import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import Checklist from '../Checklist';
 import ColorField from '../ColorField';
+import { isImeConfirm } from '../../lib/keys';
 import { FieldBox, SuffixField } from '../FieldBox';
 import { CellInput } from '../CellInput';
 import { parseDuration, parsePageCount } from '../../lib/utils';
@@ -130,7 +131,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
               </ModalFooter>
             }
           >
-            <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid) confirmAutoDaybreak(); }}>
+            <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid && !isImeConfirm(e)) confirmAutoDaybreak(); }}>
               <div className="flex items-center gap-3 py-1">
                 {autoDaybreakPrompt.mode === 'duration' && (
                   <span className="text-xs text-[color:var(--ui-text)] shrink-0">Duration</span>

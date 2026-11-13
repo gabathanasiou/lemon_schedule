@@ -4,6 +4,7 @@ import type { DaySectionProps } from '../daySectionTypes';
 import { computeDayEvents } from '../../../../lib/events';
 import { getDayType } from '../../../../lib/dayTypes';
 import { EventCardView } from '../../../calendar/EventDayCell';
+import { isImeConfirm } from '../../../../lib/keys';
 import Button from '../../../Button';
 
 /**
@@ -58,7 +59,7 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
               title="Click to edit"
               onClick={() => openCard(card)}
               onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if ((e.key === 'Enter' && !isImeConfirm(e)) || e.key === ' ') {
                   e.preventDefault();
                   openCard(card);
                 }

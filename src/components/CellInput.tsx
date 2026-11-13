@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
+import { isImeConfirm } from '../lib/keys';
 
 export const CellInput: React.FC<{ 
   value?: string | number, 
@@ -86,7 +87,7 @@ export const CellInput: React.FC<{
       return;
     }
 
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !isImeConfirm(e)) {
       if (multiline && e.shiftKey) return;
       e.preventDefault();
       const currentTarget = e.currentTarget;

@@ -4,6 +4,7 @@ import { useProject, useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { useAppDragSensors } from '../lib/dndSensors';
+import { isImeConfirm } from '../lib/keys';
 import { DndContext, closestCorners, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { StripBlock } from './StripBlock';
 import ColorField from './ColorField';
@@ -1208,7 +1209,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       if (textEditingEnabled || !activeVersion) return;
       const target = e.target as HTMLElement;
       if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
-      if (e.key === 'Enter' && digitDataRef.current.buffer) {
+      if (e.key === 'Enter' && !isImeConfirm(e) && digitDataRef.current.buffer) {
         e.preventDefault();
         if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
         commitDigits();

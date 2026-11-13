@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { isImeConfirm } from '../lib/keys';
 
 interface ColorFieldProps {
   value: string;
@@ -66,7 +67,7 @@ export default function ColorField({
         onBlur={handleHexBlur}
         onFocus={e => e.target.select()}
         onMouseUp={e => e.preventDefault()}
-        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) (e.target as HTMLInputElement).blur(); }}
         placeholder="#000000"
         spellCheck={false}
         className={`${hexClass} text-[color:var(--ui-input-text)] bg-[var(--ui-seg-track-bg)] border border-[color:var(--ui-card-border)] rounded-md outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)] transition-colors`}

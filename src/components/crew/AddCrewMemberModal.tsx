@@ -10,6 +10,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { LabelModal } from '../elements/CategoryModals';
+import { isImeConfirm } from '../../lib/keys';
 
 /**
  * Item 146 — the shared Add Crew Member modal (name / phone / email + role).
@@ -117,7 +118,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
               value={name}
               autoFocus
               onChange={e => setName(e.target.value.toUpperCase())}
-              onKeyDown={e => { if (e.key === 'Enter' && canSave) { e.preventDefault(); save(); } }}
+              onKeyDown={e => { if (e.key === 'Enter' && canSave && !isImeConfirm(e)) { e.preventDefault(); save(); } }}
               placeholder="Full name"
             />
           </div>

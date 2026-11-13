@@ -4,6 +4,7 @@ import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
+import { isImeConfirm } from '../lib/keys';
 import { EntityDropdown } from './EntityDropdown';
 import { ruleModalSizes } from './rules/ColorRuleFormParts';
 import { getCategoryElements } from '../lib/elements';
@@ -74,7 +75,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
             type="text"
             value={sceneNumber}
             onChange={(e) => setSceneNumber(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !locked) create(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !isImeConfirm(e) && !locked) create(); }}
             placeholder="e.g. 12A"
             className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)]`}
             autoFocus

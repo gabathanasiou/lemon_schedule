@@ -3,6 +3,7 @@ import { useProject } from '../../store';
 import { boardIdOf, boardLabel, elementKey, getCategoryElements, isDuplicateBoardId, compareBoardIds } from '../../lib/elements';
 import { CAST_DETAIL_FIELDS, type CastDetailKey } from '../../lib/castDetails';
 import type { CastMember } from '../../types';
+import { isImeConfirm } from '../../lib/keys';
 
 /**
  * Element View → Properties (roadmap 306). Built-in element fields for every
@@ -42,7 +43,7 @@ function PanelField({ label, value, onCommit, readOnly, numeric, testKey }: {
         onChange={e => setDraft(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
         onBlur={commit}
         onKeyDown={e => {
-          if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         }}
         className={FIELD_INPUT}
       />

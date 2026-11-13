@@ -3,6 +3,7 @@ import { Apple, Loader2 } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import { isImeConfirm } from '../lib/keys';
 import { GoogleG } from './GoogleSignIn';
 
 type Mode = 'signin' | 'signup' | 'reset';
@@ -175,7 +176,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
                 autoComplete="name"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}
                 placeholder="Your name"
                 disabled={busy}
                 className={INPUT_CLASS}
@@ -188,7 +189,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
               autoComplete="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}
               placeholder="Email"
               disabled={busy}
               className={INPUT_CLASS}
@@ -200,7 +201,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
                 autoComplete={view === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void submit(); }}
                 placeholder={view === 'signup' ? 'Password (at least 6 characters)' : 'Password'}
                 disabled={busy}
                 className={INPUT_CLASS}

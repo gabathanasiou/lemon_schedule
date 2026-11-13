@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import ToolbarDivider from './ToolbarDivider';
 import { createPortal } from 'react-dom';
+import { isImeConfirm } from '../lib/keys';
 import DataEditor, {
   GridCellKind,
   type GridCell,
@@ -958,7 +959,7 @@ export function GlideBreakdownTab({
   }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !selectModeRef.current) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isImeConfirm(e) && !selectModeRef.current) {
       e.preventDefault();
       addScene();
     }

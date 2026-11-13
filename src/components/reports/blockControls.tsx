@@ -4,6 +4,7 @@ import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../t
 import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
+import { isImeConfirm } from '../../lib/keys';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { codeForType } from '../../lib/dayTypes';
 import { getTextStyles, getTextStyleById } from '../../lib/reportTextStyles';
@@ -229,7 +230,7 @@ const ItemFilterControl: React.FC<{
               commit();
             }}
             onKeyDown={e => {
-              if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+              if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); e.currentTarget.blur(); }
               else if (e.key === 'Escape') { canceling.current = true; e.currentTarget.blur(); }
             }}
             placeholder="Values…"

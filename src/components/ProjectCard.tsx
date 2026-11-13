@@ -3,6 +3,7 @@ import { Loader2, Cloud, Users, CheckCircle2, Pencil, CopyPlus, Save, CloudUploa
 import { ProjectMeta } from '../store';
 import { useDialog } from './Dialog';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
+import { isImeConfirm } from '../lib/keys';
 
 interface ProjectCardProps {
   p: ProjectMeta;
@@ -54,7 +55,7 @@ export default function ProjectCard({
             value={renameTitle}
             onChange={e => setRenameTitle(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter') onConfirmRename();
+              if (e.key === 'Enter' && !isImeConfirm(e)) onConfirmRename();
               if (e.key === 'Escape') setRenamingId(null);
             }}
             autoFocus

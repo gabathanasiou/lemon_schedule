@@ -4,6 +4,7 @@ import { SearchMenu, useRevealRowOnOpen } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { formatDateShort } from '../../../lib/utils';
 import DropdownMenu from '../../DropdownMenu';
+import { isImeConfirm } from '../../../lib/keys';
 import DropdownItem from '../../DropdownItem';
 
 /**
@@ -232,7 +233,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
           onClick={() => { if (!disabled) toggle(); }}
           onKeyDown={e => {
             if (disabled) return;
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+            if ((e.key === 'Enter' && !isImeConfirm(e)) || e.key === ' ') { e.preventDefault(); toggle(); }
           }}
           className={`inline-flex items-center rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] shadow-sm ${disabled ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
         >

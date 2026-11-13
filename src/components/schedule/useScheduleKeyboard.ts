@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ScheduleRow, ScheduleVersion } from '../../types';
 import { getContainerBlock, ContainerIds, LastSelectedByContainer } from '../../lib/containers';
 import { isEmptyDayMeta } from '../../lib/dayMeta';
+import { isImeConfirm } from '../../lib/keys';
 import { useDialog } from '../Dialog';
 import type { PresenceHeldItem } from '../../lib/supabase/presence';
 
@@ -145,7 +146,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
         }
         selectNextAfterRemove(new Set(ids as string[]));
       }
-      if (e.key === 'Enter' && selectedRowIds.size === 1 && !textEditingEnabled) {
+      if (e.key === 'Enter' && !isImeConfirm(e) && selectedRowIds.size === 1 && !textEditingEnabled) {
         const target = e.target as HTMLElement;
         const isEditableInput = (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly;
         if (isEditableInput) return;

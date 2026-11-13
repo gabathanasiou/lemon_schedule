@@ -5,6 +5,7 @@ import { inputCls, useOverlayMorph } from '@gabriel/ui-kit';
 import { useDropdownPosition, type DropdownPanelPos } from '../../lib/useDropdownPosition';
 import { overlayMorphOptIn } from '../../lib/overlayMotion';
 import { useCurrentDocument } from '../../lib/popoutTarget';
+import { isImeConfirm } from '../../lib/keys';
 import {
   formulaFragmentAt, insertFormulaText, searchFormulaBook, formulaBookKindLabel,
   type FormulaBookEntry,
@@ -101,7 +102,7 @@ export function FormulaField({
     if (suggestionsOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % suggestions.length); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => (h - 1 + suggestions.length) % suggestions.length); return; }
-      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+      if ((e.key === 'Enter' && !isImeConfirm(e) && !e.shiftKey) || e.key === 'Tab') {
         e.preventDefault();
         const entry = suggestions[highlight];
         if (entry) applySuggestion(entry);
@@ -109,7 +110,7 @@ export function FormulaField({
       }
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSuggestions(); return; }
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !isImeConfirm(e) && !e.shiftKey) {
       e.preventDefault();
       commit();
       inputRef.current?.blur();

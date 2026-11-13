@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { isImeConfirm } from '../../lib/keys';
 
 /** Events-mode keyboard navigation (roadmap 45): mode-local cursor over the
  *  visible `[data-event-key]` elements (cards + overlay chips), shift
@@ -48,7 +49,7 @@ export function useEventsKeyboard(config: {
         }
         return;
       }
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !isImeConfirm(e)) {
         const sel = selectedEventKeysRef.current;
         if (sel.size === 1) {
           const id = [...sel][0];
