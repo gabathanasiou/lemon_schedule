@@ -167,6 +167,12 @@ html[data-phone-device] #root {
   [role="dialog"] {
     transition: none !important;
   }
+  /* Spinners SLOW DOWN rather than stop (audit MWG-14): a stopped spinner
+     removes the "working" signal, but a 1s loop is relentless in the header.
+     One rule covers every `animate-spin` site. */
+  .animate-spin {
+    animation-duration: 3s;
+  }
 }
 
 /* Designer canvas: anchors inside blocks are inert so links can't hijack
