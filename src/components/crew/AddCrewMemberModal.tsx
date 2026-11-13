@@ -133,8 +133,8 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
               searchPlaceholder="Search roles…"
               width="w-72"
               trigger={
-                <button type="button" aria-labelledby={`${uid}-role`} disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_TOKEN_TRIGGER_CLASS}`}>
-                  <span className={selectedRoleLabel ? '' : 'text-[color:var(--ui-text-faint)]'}>{selectedRoleLabel || 'Select a role…'}</span>
+                <button type="button" aria-labelledby={`${uid}-role ${uid}-role-value`} disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_TOKEN_TRIGGER_CLASS}`}>
+                  <span id={`${uid}-role-value`} className={selectedRoleLabel ? '' : 'text-[color:var(--ui-text-faint)]'}>{selectedRoleLabel || 'Select a role…'}</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                 </button>
               }

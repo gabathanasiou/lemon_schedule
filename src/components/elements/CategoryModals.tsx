@@ -65,8 +65,8 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
               width="w-56"
               theme="dark"
               trigger={
-                <button type="button" aria-labelledby={`${uid}-section`} className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
-                  <span className="truncate">{group || 'Other'}</span>
+                <button type="button" aria-labelledby={`${uid}-section ${uid}-section-value`} className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
+                  <span id={`${uid}-section-value`} className="truncate">{group || 'Other'}</span>
                   <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
