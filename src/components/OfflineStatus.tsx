@@ -45,12 +45,12 @@ export default function OfflineStatus({
   return (
     <>
       {showRestoredBanner && (
-        <div className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center text-xs shrink-0 print:hidden">
+        <div role="status" aria-live="polite" className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center text-xs shrink-0 print:hidden">
           <span className="font-medium">Connection restored</span>
         </div>
       )}
       {readOnly && (
-        <div className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
+        <div role="status" aria-live="polite" className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
           <span className="font-medium">
             {isAuthIssue ? authCopy : 'No Internet Connection - editing is disabled'}
           </span>
@@ -74,7 +74,7 @@ export default function OfflineStatus({
         </div>
       )}
       {!readOnly && isAuthIssue && (
-        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
+        <div role="status" aria-live="polite" className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
           <span className="font-medium">{authCopy}</span>
           <button
             onClick={authAction}

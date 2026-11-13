@@ -70,6 +70,13 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
   return (
     <div className="flex items-center gap-2">
       <SaveIndicatorStatus isCloudProject={isCloudProject} />
+      {/* The button can't announce itself (it is a control, not a status), so
+          the S3.5 offer gets the RoomNote live-region pattern. Always mounted
+          and empty until the offer appears, so mounting is not the only way a
+          screen reader learns of it. */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {onlineChangesAvailable ? 'Collaborator changes are available. Use Reload to see them.' : ''}
+      </span>
       {onlineChangesAvailable && (
         <button
           data-testid="changes-available"
