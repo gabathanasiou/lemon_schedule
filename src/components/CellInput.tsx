@@ -43,10 +43,13 @@ export const CellInput: React.FC<{
   }, [autoFocus]);
 
   useEffect(() => {
-    if (multiline && inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
-    }
+    if (!multiline || !inputRef.current) return;
+    // Audit MWG-13: `field-sizing: content` (on the textarea, same recipe as
+    // the manager notes / Scene Sheet) sizes the box in CSS. Safari 26.0/26.1
+    // predate it, so the measured fallback stays for those — never both.
+    if (typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content')) return;
+    inputRef.current.style.height = 'auto';
+    inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
   }, [localVal, multiline]);
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -192,7 +195,7 @@ export const CellInput: React.FC<{
             onPointerUp={handlePointerUp}
             readOnly={readOnly}
             rows={1}
-            className={`${inputClass} resize-none overflow-hidden whitespace-pre-wrap selection:bg-black/15`}
+            className={`${inputClass} [field-sizing:content] resize-none overflow-hidden whitespace-pre-wrap selection:bg-black/15`}
             style={{ ...style, color: 'transparent', caretColor: '#2563eb' }}
           />
         ) : (
