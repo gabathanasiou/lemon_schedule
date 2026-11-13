@@ -61,7 +61,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     // Search matches the TYPE header too: "set" keeps every Set location.
     const masterSearch = masterMenu.locator('[data-search-input]');
     await masterSearch.fill('set');
-    const panel = page.locator('#search-menu-panel');
+    const panel = page.locator('[data-search-panel]');
     await expect(panel.getByRole('option', { name: /^Test Stage 7/ })).toBeVisible();
     await expect(panel.getByRole('option', { name: /^Test Base/ })).toHaveCount(0);
     await panel.getByRole('option', { name: /^Test Stage 7/ }).click();

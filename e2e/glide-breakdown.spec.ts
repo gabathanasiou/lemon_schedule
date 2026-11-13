@@ -138,7 +138,7 @@ test.describe('Glide Breakdown Tab', () => {
     const headerH = 36;
     const rowH = 34;
     const y0 = sr!.y + headerH + rowH / 2;
-    const lit = () => page.locator('#search-menu-panel .ui-item-highlighted').innerText();
+    const lit = () => page.locator('[data-search-panel] .ui-item-highlighted').innerText();
     const sceneValue = (key: 'intExt' | 'dayNight', row = 0) => page.evaluate(
       ([k, r]) => (window as any).__lemonSchedule.getProject().scenes[r][k],
       [key, row] as const,
@@ -174,7 +174,7 @@ test.describe('Glide Breakdown Tab', () => {
     await page.mouse.click(ieX, y0);
     await waitForGlideCellSelected(page, glideCellId(5, 0));
     await page.keyboard.type('q');
-    await expect(page.locator('#search-menu-panel')).toContainText('No matches');
+    await expect(page.locator('[data-search-panel]')).toContainText('No matches');
     await page.mouse.click(setX, y0);
     await expect.poll(() => sceneValue('intExt')).toBe('EXT');
 
@@ -186,7 +186,7 @@ test.describe('Glide Breakdown Tab', () => {
     });
     const editor = await openGlideCellEditor(page, { x: dnX, y: y0 }, glideCellId(7, 0));
     expect(await editor.inputValue()).toBe('night');
-    await expect(page.locator('#search-menu-panel .ui-item-highlighted')).toHaveText('NIGHT');
+    await expect(page.locator('[data-search-panel] .ui-item-highlighted')).toHaveText('NIGHT');
     await page.keyboard.press('Enter');
     await expect.poll(() => sceneValue('dayNight')).toBe('NIGHT');
   });
@@ -296,19 +296,19 @@ test.describe('Glide Breakdown Tab', () => {
     // §E select-first open — Cast = a11y col 9, row 0 (fresh grid: no drag).
     const input = await openGlideCellEditor(page, { x: castX, y: y0 }, glideCellId(9, 0));
     await input.click(); // open the suggestions panel on the overlay editor
-    await expect(page.locator('#search-menu-panel')).toBeVisible({ timeout: 4000 });
+    await expect(page.locator('[data-search-panel]')).toBeVisible({ timeout: 4000 });
 
-    const item = page.locator('#search-menu-panel [data-search-item]:not([aria-selected="true"])').first();
+    const item = page.locator('[data-search-panel] [data-search-item]:not([aria-selected="true"])').first();
     const pickId = (await item.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
     expect(pickId).toBeTruthy();
     await item.click();
 
     // Panel stays open (the pick must not leak into the canvas' handlers) …
-    await expect(page.locator('#search-menu-panel')).toBeVisible();
+    await expect(page.locator('[data-search-panel]')).toBeVisible();
     // … and Enter on the refocused editor input commits the toggled Cast list.
     await input.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#search-menu-panel')).toHaveCount(0, { timeout: 4000 });
+    await expect(page.locator('[data-search-panel]')).toHaveCount(0, { timeout: 4000 });
     await expect.poll(() => page.evaluate(() =>
       (window as any).__lemonSchedule.getProject().scenes[0].cast,
     ), { timeout: 5000 }).toContain(pickId);
@@ -316,7 +316,7 @@ test.describe('Glide Breakdown Tab', () => {
     // Keyboard flow on the same cell: Enter opens, arrows pick (keeping the
     // panel open and RESUMING below the pick), Enter commits.
     await page.keyboard.press('Enter');
-    const panel = page.locator('#search-menu-panel');
+    const panel = page.locator('[data-search-panel]');
     await expect(panel).toBeVisible({ timeout: 5000 });
     await page.keyboard.press('ArrowDown');
     const first = await panel.locator('.ui-item-highlighted').getAttribute('data-search-item');

@@ -167,17 +167,17 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     // Multi-select bulk add (roadmap 322): a row click TOGGLES and the panel
     // stays open until the footer hero commits — one undo entry for the batch.
     await roleSearch.fill(role.label);
-    await page.locator('#search-menu-panel').getByRole('option', { name: role.label }).first().click();
+    await page.locator('[data-search-panel]').getByRole('option', { name: role.label }).first().click();
     const picked: string[] = [role.key];
     const other = (seed.crewRoles || []).find((r: any) =>
       r.key !== role.key && !(seed.crewTemplate?.slots || []).some((s: any) => s.role === r.key));
     if (other) {
       await roleSearch.fill(other.label);
-      await page.locator('#search-menu-panel').getByRole('option', { name: other.label }).first().click();
+      await page.locator('[data-search-panel]').getByRole('option', { name: other.label }).first().click();
       picked.push(other.key);
     }
     const undoBefore = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
-    await page.locator('#search-menu-panel').getByRole('button', { name: `Add ${picked.length} role${picked.length === 1 ? '' : 's'}` }).click();
+    await page.locator('[data-search-panel]').getByRole('button', { name: `Add ${picked.length} role${picked.length === 1 ? '' : 's'}` }).click();
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect.poll(() => page.evaluate((keys) => {
       const p = (window as any).__lemonSchedule.getProject();

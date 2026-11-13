@@ -195,10 +195,10 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     // INT/EXT picker mounts with autoFocus and opens itself.
     const intCell = page.locator('[data-ribbon-field="intExt"]').first();
     await intCell.click();
-    const panel = page.locator('#search-menu-panel');
+    const panel = page.locator('[data-search-panel]');
     await expect(panel).toBeVisible();
 
-    const samples = (await traceMorph(page, '#search-menu-panel'))!;
+    const samples = (await traceMorph(page, '[data-search-panel]'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0); // open morph (grew out of the cell)
     expect(mids.some(s => {
@@ -208,7 +208,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     await page.keyboard.press('Escape');
     // SearchMenu closes by unmounting (no reverse clone).
-    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
+    await expect(page.locator('[data-search-panel]')).toHaveCount(0);
   });
 
   test('Scene Sheet INT/EXT field (AutocompleteDropdown) morphs open and closes', async ({ page }) => {
@@ -226,10 +226,10 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     const intField = page.locator('tr', { hasText: 'Int/Ext' }).locator('input').first();
     await intField.click();
-    const panel = page.locator('#search-menu-panel');
+    const panel = page.locator('[data-search-panel]');
     await expect(panel).toBeVisible();
 
-    const samples = (await traceMorph(page, '#search-menu-panel'))!;
+    const samples = (await traceMorph(page, '[data-search-panel]'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0);
     expect(mids.some(s => {
@@ -239,7 +239,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     await page.keyboard.press('Escape');
     // SearchMenu closes by unmounting (no reverse clone).
-    await expect(page.locator('#search-menu-panel')).toHaveCount(0);
+    await expect(page.locator('[data-search-panel]')).toHaveCount(0);
   });
 
   test('prefers-reduced-motion: menus snap open/close instantly', async ({ page }) => {

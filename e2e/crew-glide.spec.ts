@@ -278,7 +278,7 @@ test.describe('Crew Glide', () => {
       await page.mouse.click(catsX, y0);
       await waitForGlideCellSelected(page, glideCellId(4, 0));
       await page.keyboard.type('zz');
-      await expect(page.locator('#search-menu-panel')).toContainText('No matches');
+      await expect(page.locator('[data-search-panel]')).toContainText('No matches');
       await page.mouse.click(nameX, y0);
       await expect.poll(roleCats).toEqual(['cast', 'set']);
 
