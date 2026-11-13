@@ -83,6 +83,7 @@ export function PasswordRecoveryModal() {
               autoFocus
               type="email"
               autoComplete="email"
+              enterKeyHint="go"
               value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void resend(); }}
@@ -124,6 +125,7 @@ export function PasswordRecoveryModal() {
           autoFocus
           type="password"
           autoComplete="new-password"
+          enterKeyHint="done"
           value={password}
           onChange={e => setPassword(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !isImeConfirm(e)) void save(); }}

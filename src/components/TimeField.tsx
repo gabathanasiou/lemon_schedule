@@ -107,6 +107,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
           data-timefield
           aria-label={ariaLabel}
           type="text"
+          enterKeyHint="done"
           value={focused ? draft : display}
           placeholder={display || placeholder}
           onChange={e => setDraft(e.target.value)}

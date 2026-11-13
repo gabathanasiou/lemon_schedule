@@ -233,6 +233,7 @@ const ItemFilterControl: React.FC<{
               if (e.key === 'Enter' && !isImeConfirm(e)) { e.preventDefault(); e.currentTarget.blur(); }
               else if (e.key === 'Escape') { canceling.current = true; e.currentTarget.blur(); }
             }}
+            enterKeyHint="done"
             placeholder="Values…"
           />
         )}

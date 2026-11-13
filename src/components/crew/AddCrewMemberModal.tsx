@@ -162,7 +162,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor={`${uid}-phone`} className={LABEL}>Phone</label>
-              <input id={`${uid}-phone`} className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
+              <input id={`${uid}-phone`} type="tel" inputMode="tel" className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
             </div>
             <div>
               <label htmlFor={`${uid}-email`} className={LABEL}>Email</label>
