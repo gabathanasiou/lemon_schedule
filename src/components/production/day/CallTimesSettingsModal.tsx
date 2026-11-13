@@ -253,13 +253,14 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
             <Hint>Drag to reorder earliest → latest; the last stage (anchor) is the element's first scene. A lead is relative to the next stage.</Hint>
             <div className={CONTAINER}>
               <table className="w-full">
+                <caption className="sr-only">Call time stages</caption>
                 <thead>
                   <tr className="bg-[var(--ui-card-bg)] border-b border-[color:var(--ui-border)]">
-                    <th className="w-8" />
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Stage</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-32">Lead to next</th>
-                    <th className="px-2 py-2 w-10" />
+                    <th scope="col" className="w-8" />
+                    <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
+                    <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Stage</th>
+                    <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-32">Lead to next</th>
+                    <th scope="col" className="px-2 py-2 w-10" />
                   </tr>
                 </thead>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>

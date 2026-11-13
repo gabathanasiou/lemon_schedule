@@ -174,6 +174,7 @@ const Dood: React.FC<DoodProps> = ({
             </div>
 
             <table className="dood-table">
+              <caption className="sr-only">Day out of days</caption>
               <colgroup>
                 <col style={{ width: '30pt' }} />
                 {group.days.map((_, ci) => <col key={ci} style={{ width: '16pt' }} />)}
@@ -182,47 +183,47 @@ const Dood: React.FC<DoodProps> = ({
               </colgroup>
               <thead>
                 <tr>
-                  <th className="dood-col-cast">Day/Month</th>
+                  <th scope="col" className="dood-col-cast">Day/Month</th>
                   {group.days.map(d => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
+                    <th scope="col" key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                       {formatDateShort(d.isoDate)}
                     </th>
                   ))}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      {typeColumns.map(t => <th scope="col" key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
                     </>
                   )}
                 </tr>
                 <tr>
-                  <th className="dood-col-cast">Day of Week</th>
+                  <th scope="col" className="dood-col-cast">Day of Week</th>
                   {group.days.map(d => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
+                    <th scope="col" key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                       {formatDow(d.isoDate)}
                     </th>
                   ))}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border">Work</th>
-                      <th className="dood-total-border">Hold</th>
-                      <th className="dood-total-border">Travel</th>
-                      <th className="dood-total-border">Start</th>
-                      <th className="dood-total-border">Finish</th>
-                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{t.label}</th>)}
+                      <th scope="col" className="dood-total-border">Work</th>
+                      <th scope="col" className="dood-total-border">Hold</th>
+                      <th scope="col" className="dood-total-border">Travel</th>
+                      <th scope="col" className="dood-total-border">Start</th>
+                      <th scope="col" className="dood-total-border">Finish</th>
+                      {typeColumns.map(t => <th scope="col" key={t.key} className="dood-total-border">{t.label}</th>)}
                     </>
                   )}
                 </tr>
                 <tr>
-                  <th className="dood-col-cast">Shooting Day</th>
+                  <th scope="col" className="dood-col-cast">Shooting Day</th>
                   {group.days.map((d, ci) => {
                     const v = visualForType(dayTypes, d.nonShootStatus);
                     return (
-                      <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}
+                      <th scope="col" key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}
                         style={!d.isShooting && v?.color ? { background: v.color, color: dayTypeTextColor(v.color) } : undefined}>
                         {d.isShooting ? chronoDayMap.get(d.dayInt) : v?.label ?? ''}
                       </th>
@@ -230,12 +231,12 @@ const Dood: React.FC<DoodProps> = ({
                   })}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      <th className="dood-total-border" />
-                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      <th scope="col" className="dood-total-border" />
+                      {typeColumns.map(t => <th scope="col" key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
                     </>
                   )}
                 </tr>

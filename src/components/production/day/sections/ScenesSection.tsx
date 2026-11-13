@@ -14,15 +14,16 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
   return (
     <div className={DAY_TABLE_WRAP}>
       <table className={DAY_TABLE}>
+        <caption className="sr-only">Scenes</caption>
         <thead>
           <tr className="border-b border-[color:var(--ui-border)]">
-            <th className={`${DAY_TH} ${DAY_ALIGN.left} w-16`}>Scene</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Set</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Description</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Cast</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-12`}>Pages</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Dur</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Call</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.left} w-16`}>Scene</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.left}`}>Set</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.left}`}>Description</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.left}`}>Cast</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.right} w-12`}>Pages</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Dur</th>
+            <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Call</th>
           </tr>
         </thead>
         <tbody>

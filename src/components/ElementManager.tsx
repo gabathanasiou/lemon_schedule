@@ -696,7 +696,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     const hoverCls = active ? 'hover:bg-white/10' : 'hover:bg-black/10';
     // Inner actions are spans (role=button), NOT <button>s — they live inside
     // the row's own <button> and nested buttons are invalid HTML.
-    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
+    const actionCls = (extra: string) => `row-action-hit p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
         <span
@@ -808,22 +808,23 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <div className="flex-1 overflow-hidden rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm min-h-0">
             <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
               <table className="w-full manager-table">
+                <caption className="sr-only">{categoryLabelOf(category, (project.customCategories || []).some(c => c.key === category))} — names, board IDs and booking details</caption>
                 <thead>
                   <tr className="bg-[var(--ui-card-bg)]">
-                    <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
-                    <th style={sizes.header} className={`sticky top-0 left-24 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 left-0 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 left-24 z-30 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
                     {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
-                      <th key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left`}>{f.label}</th>
+                      <th scope="col" key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left`}>{f.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Occ</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Start Date</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Total Days</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Occ</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Start Date</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>Total Days</th>
                     {dayTypes.map(t => (
-                      <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
+                      <th scope="col" key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] ${MT_HEADER} text-center w-12`} />
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
+                    <th scope="col" style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] ${MT_HEADER} text-center w-12`} />
                   </tr>
                 </thead>
                 <tbody>

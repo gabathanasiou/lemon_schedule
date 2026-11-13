@@ -189,7 +189,7 @@ export const DayTypesTab: React.FC = () => {
     const hoverCls = active ? 'hover:bg-[var(--ui-panel-bg)]/10' : 'hover:bg-black/10';
     // Inner actions are spans (role=button) — they live inside the row's own
     // <button> and nested buttons are invalid HTML.
-    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
+    const actionCls = (extra: string) => `row-action-hit p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
         <span

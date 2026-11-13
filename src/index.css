@@ -437,6 +437,7 @@ input, textarea, [contenteditable] {
 .report-ct-row:hover > .report-ct-controls,
 .report-ct-row[data-hover="1"] > .report-ct-controls { opacity: 1; pointer-events: auto; }
 .report-ct-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -447,6 +448,19 @@ input, textarea, [contenteditable] {
   background: #3f3f46;
   color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+/* Hit-target growth (audit MWG-08): the report/table chrome keeps its 16px
+   face — the pseudo-element widens the POINTER target to 24px (WCAG 2.5.8),
+   28px on coarse pointers. Purely additive: no geometry, no paint. Controls
+   in one cluster may overlap by a few px; the later sibling owns the shared
+   band, which is still far better than a 16px target. */
+.report-ct-btn::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+@media (pointer: coarse) {
+  .report-ct-btn::after { inset: -6px; }
 }
 .report-ct-btn:hover { background: #2563eb; }
 .report-ct-header-input {
@@ -480,6 +494,19 @@ input, textarea, [contenteditable] {
   z-index: 5;
 }
 .report-ct-colgrip:hover { color: #3f3f46; }
+/* The 12px-wide column grip grows sideways only (24px / 28px coarse): vertical
+   growth would steal drags from the header input above and below it. */
+.report-ct-colgrip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  right: -6px;
+}
+@media (pointer: coarse) {
+  .report-ct-colgrip::after { left: -8px; right: -8px; }
+}
 .report-ct-colgrip:active { cursor: grabbing; }
 /* Row-resize tab (roadmap 188): the column strip's handle mirrored to the
    table's right edge — same look, vertical drag. Selection-gated like the
@@ -498,6 +525,15 @@ input, textarea, [contenteditable] {
   transition: opacity 80ms;
 }
 .block-card.selected .report-ct-rowtab { opacity: 1; pointer-events: auto; }
+/* Same hit-target growth for the row-resize tab (its visible mark is ~20x10). */
+.report-ct-rowtab::after {
+  content: '';
+  position: absolute;
+  inset: -5px -4px;
+}
+@media (pointer: coarse) {
+  .report-ct-rowtab::after { inset: -7px -6px; }
+}
 .report-ct-rowtab-stem { width: 14px; height: 1px; background: rgba(113, 113, 122, 0.4); }
 .report-ct-rowtab-tri {
   border-right: 6px solid rgba(113, 113, 122, 0.4);
@@ -510,6 +546,19 @@ input, textarea, [contenteditable] {
 .report-ct-rowtab:active .report-ct-rowtab-tri { border-right-color: #3b82f6; }
 .report-ct-rowtab:hover .report-ct-rowtab-stem,
 .report-ct-rowtab:active .report-ct-rowtab-stem { background: #3b82f6; }
+
+/* Sidebar row actions (Element Manager categories, Day Types) widen their
+   pointer target the same way (audit MWG-08): the 16px icon face is unchanged,
+   a pseudo-element adds 4px (6px on coarse) around it. */
+.row-action-hit { position: relative; }
+.row-action-hit::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+@media (pointer: coarse) {
+  .row-action-hit::after { inset: -6px; }
+}
 
 /* Boundary highlight overlays: invisible until their handle (the strip's tab
    or the row tab) is hovered/dragged. NEVER click targets — direct border

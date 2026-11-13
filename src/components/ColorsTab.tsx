@@ -418,11 +418,12 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           <p className="text-[10px] text-[color:var(--ui-text-faint)] leading-relaxed mb-4 max-w-md">Click any cell to change its color. Rename row/column labels inline. Add or delete rows and columns using the buttons below.</p>
           <div className="overflow-x-auto">
             <table className="border-collapse">
+              <caption className="sr-only">Colour palette by int/ext and day/night</caption>
               <thead>
                 <tr>
-                  <th className="w-20" />
+                  <th scope="col" className="w-20" />
                   {ieOptions.map((ie, i) => (
-                    <th key={i} className="px-1 pb-2 text-center min-w-[120px]">
+                    <th scope="col" key={i} className="px-1 pb-2 text-center min-w-[120px]">
                       <div className={`flex items-center justify-center ${GAP}`}>
                         {editingHeader?.type === 'ie' && editingHeader.idx === i ? (
                           <input
@@ -446,7 +447,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                       </div>
                     </th>
                   ))}
-                    <th className="px-1 pb-2 text-center">
+                    <th scope="col" className="px-1 pb-2 text-center">
                     <button
                       onClick={() => addOption('ie')}
                       className={`${ADD} text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-muted)] uppercase tracking-wider transition-colors inline-flex items-center font-bold`}

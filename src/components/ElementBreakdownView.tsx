@@ -111,6 +111,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
 
       <div className="flex-1 overflow-auto">
         <table className="border-separate border-spacing-0 text-[11px] table-fixed">
+          <caption className="sr-only">Element breakdown — scenes per element</caption>
           <colgroup>
             <col style={{ width: widths.name }} />
             <col style={{ width: widths.scenes }} />
@@ -119,19 +120,19 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
           </colgroup>
           <thead>
             <tr className="sticky top-0 z-20">
-              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-2 py-1.5 text-left text-[color:var(--ui-text-muted)] font-medium border-b border-r border-[color:var(--ui-border)] whitespace-nowrap z-30 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th scope="col" className="sticky left-0 bg-[var(--ui-panel-bg)] px-2 py-1.5 text-left text-[color:var(--ui-text-muted)] font-medium border-b border-r border-[color:var(--ui-border)] whitespace-nowrap z-30 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 {selectedLabel}
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
-              <th className="relative text-left px-2 py-1.5 border-b border-r border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] cursor-default">
+              <th scope="col" className="relative text-left px-2 py-1.5 border-b border-r border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] cursor-default">
                 Scenes
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('scenes', e)} />
               </th>
-              <th className="relative text-left px-2 py-1.5 border-b border-r border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] whitespace-nowrap cursor-default">
+              <th scope="col" className="relative text-left px-2 py-1.5 border-b border-r border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] whitespace-nowrap cursor-default">
                 Total Pages
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('pages', e)} />
               </th>
-              <th className="relative text-left px-2 py-1.5 border-b border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] cursor-default">
+              <th scope="col" className="relative text-left px-2 py-1.5 border-b border-[color:var(--ui-border)] font-medium text-[color:var(--ui-text-muted)] cursor-default">
                 Shoot Days
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('days', e)} />
               </th>

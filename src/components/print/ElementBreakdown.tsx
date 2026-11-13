@@ -154,15 +154,16 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
                 : boardLabel(boardIds.get(el.key.toLowerCase()), el.name)}
             </div>
             <table className="eb-table">
+              <caption className="sr-only">Element breakdown</caption>
               <thead>
                 <tr>
-                  <th style={{width:'24pt'}}>Scene</th>
-                  <th style={{width:'100pt'}}>Set</th>
-                  <th style={{width:'24pt'}}>I/E</th>
-                  <th style={{width:'30pt'}}>D/N</th>
-                  <th className="eb-pages">Pages</th>
-                  <th style={{width:'36pt'}}>Shoot Day</th>
-                  <th>Date</th>
+                  <th scope="col" style={{width:'24pt'}}>Scene</th>
+                  <th scope="col" style={{width:'100pt'}}>Set</th>
+                  <th scope="col" style={{width:'24pt'}}>I/E</th>
+                  <th scope="col" style={{width:'30pt'}}>D/N</th>
+                  <th scope="col" className="eb-pages">Pages</th>
+                  <th scope="col" style={{width:'36pt'}}>Shoot Day</th>
+                  <th scope="col">Date</th>
                 </tr>
               </thead>
               <tbody>

@@ -126,11 +126,12 @@ export function RuleOverrideSection({
       ) : (
         <div className="overflow-x-auto">
           <table className="border-collapse">
+            <caption className="sr-only">Rule colours by int/ext and day/night</caption>
             <thead>
               <tr>
-                <th className="w-14" />
+                <th scope="col" className="w-14" />
                 {ieOptions.map(ie => (
-                  <th key={ie} className="px-0.5 pb-1 text-center min-w-[80px]">
+                  <th scope="col" key={ie} className="px-0.5 pb-1 text-center min-w-[80px]">
                     <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider`}>{ie}</span>
                   </th>
                 ))}

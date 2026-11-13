@@ -283,6 +283,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
 
       <div className="flex-1 overflow-auto">
         <table className="border-separate border-spacing-0 text-[11px] table-fixed">
+          <caption className="sr-only">Day out of days — elements down, days across</caption>
           <colgroup>
             <col style={{ width: widths.name }} />
             {data.days.map(d => <col key={d.isoDate} style={{ width: widths.day }} />)}
@@ -295,84 +296,84 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
           </colgroup>
           <thead>
             <tr className="sticky top-0 z-20">
-              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1.5 text-left text-[color:var(--ui-text-muted)] font-medium border-r border-[color:var(--ui-border)] whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th scope="col" className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1.5 text-left text-[color:var(--ui-text-muted)] font-medium border-r border-[color:var(--ui-border)] whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 {categoryLabel}
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.isoDate} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text)]' : 'text-[color:var(--ui-text-faint)]'}`}>
+                <th scope="col" key={d.isoDate} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text)]' : 'text-[color:var(--ui-text-faint)]'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 Work
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Hold
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
+              {isCast && <th scope="col" className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Trav
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
+                <th scope="col" key={tc.key} className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                   {tc.label}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Start
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Finish
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 28 }}>
-              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th scope="col" className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Day of Week
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}>
+                <th scope="col" key={d.isoDate} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}>
                   {formatDow(d.isoDate)}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+              {isCast && <th scope="col" className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                <th scope="col" key={tc.key} className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 52, boxShadow: '0 4px 6px -2px rgba(0,0,0,0.5)' }}>
-              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-b border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th scope="col" className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-b border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Shooting Day
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => {
                 const v = getDayTypeVisual(project, d.status);
                 return (
-                  <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-[color:var(--ui-border)] text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}
+                  <th scope="col" key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-[color:var(--ui-border)] text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}
                     style={!d.isShooting && v?.color ? { background: v.color, color: dayTypeTextColor(v.color) } : undefined}>
                     <span className="block overflow-hidden text-ellipsis max-w-[3.5rem]" title={d.isShooting ? '' : v?.label}>
                       {d.isShooting ? chronoDayMap.get(d.sectionIndex) : v?.label ?? ''}
@@ -381,24 +382,24 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                   </th>
                 );
               })}
-              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 border-b border-[color:var(--ui-border)] border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              {isCast && <th scope="col" className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <th scope="col" key={tc.key} className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+              <th scope="col" className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>

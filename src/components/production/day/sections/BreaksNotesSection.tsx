@@ -42,12 +42,13 @@ const BreaksNotesSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnl
       ) : (
         <div className={DAY_TABLE_WRAP}>
           <table className={DAY_TABLE}>
+            <caption className="sr-only">Breaks and notes</caption>
             <thead>
               <tr className="border-b border-[color:var(--ui-border)]">
-                <th className={`${DAY_TH} w-9 text-center`} title="Include on the call sheet">✓</th>
-                <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Label</th>
-                <th className={`${DAY_TH} ${DAY_ALIGN.center} w-16`}>Time</th>
-                <th className={`${DAY_TH} ${DAY_ALIGN.center} w-24`}>Duration</th>
+                <th scope="col" className={`${DAY_TH} w-9 text-center`} title="Include on the call sheet">✓</th>
+                <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.left}`}>Label</th>
+                <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.center} w-16`}>Time</th>
+                <th scope="col" className={`${DAY_TH} ${DAY_ALIGN.center} w-24`}>Duration</th>
               </tr>
             </thead>
             <tbody>
