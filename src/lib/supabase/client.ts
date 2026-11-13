@@ -11,6 +11,10 @@ const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim
  */
 export const isSupabaseConfigured = Boolean(url && key);
 
+/** The project URL when configured — public by design (it ships in the bundle).
+ *  main.tsx uses it for the boot-time preconnect to the auth/REST origin. */
+export const supabaseBaseUrl: string | null = isSupabaseConfigured ? url! : null;
+
 /**
  * One client for the whole app (roadmap 229 S1).
  *

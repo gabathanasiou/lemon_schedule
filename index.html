@@ -14,6 +14,16 @@
          injected by the `csp` plugin from src/lib/csp.ts (dev gets a relaxed
          variant) — not written here. -->
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- Resource hints (audit P6). accounts.google.com hosts the Google Identity
+         Services client that GoogleOAuthProvider injects at boot when a client
+         ID is configured, so it is on the first screen's critical path — warm
+         DNS + TLS from the HTML instead of after the bundle runs. dns-prefetch
+         is the cheap fallback for engines that skip preconnect. No `preload` for
+         gsi/client itself: Google versions that URL, so a hard-coded href would
+         404 on rotation. The Supabase origin is hinted from main.tsx (it comes
+         from the deploy env, so it cannot be written here). -->
+    <link rel="dns-prefetch" href="https://accounts.google.com" />
+    <link rel="preconnect" href="https://accounts.google.com" />
     <title>Lemon Schedule</title>
     <!-- First-paint shell (audit P2). Critical CSS for the static lockup below:
          it paints from the HTML alone, so a cold load shows the branded zinc-950

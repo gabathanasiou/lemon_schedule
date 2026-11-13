@@ -5,9 +5,23 @@ import {GoogleAuthProvider} from './lib/googleDriveAuth';
 import {SupabaseAuthProvider} from './lib/supabase/auth';
 import {PHONE_DEVICE_QUERY} from './lib/device';
 import {installMenuTrace} from './lib/menuTrace';
+import {supabaseBaseUrl} from './lib/supabase/client';
 import './index.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+// Resource hint (audit P6): a configured Supabase deploy restores its account
+// session on every load, so warm DNS + TLS to the project origin while React
+// mounts instead of waiting for the first auth request. Unconfigured builds add
+// nothing. (accounts.google.com is hinted statically in index.html — it must
+// start before the bundle runs.)
+if (supabaseBaseUrl) {
+  const hint = document.createElement('link');
+  hint.rel = 'preconnect';
+  hint.href = supabaseBaseUrl;
+  hint.crossOrigin = 'anonymous';
+  document.head.append(hint);
+}
 
 // Phone (either orientation, roadmap 267): opt into edge-to-edge at boot so
 // the shell can paint under the system UI (safe-area insets become real — the
