@@ -638,7 +638,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('online', probe);
     window.addEventListener('offline', onOffline);
     probe();
-    const interval = setInterval(probe, 10_000);
+    // The 10 s cadence is for a visible tab only (audit P13): a backgrounded
+    // iPad must not keep waking the radio. Returning to the tab probes at once
+    // (onVisibility above), so the lock state is never a tick behind.
+    const interval = setInterval(() => {
+      if (!document.hidden) void probe();
+    }, 10_000);
     return () => {
       clearInterval(interval);
       conn?.removeEventListener?.('change', probe);
