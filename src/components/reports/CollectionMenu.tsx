@@ -51,9 +51,30 @@ export const CollectionMenuItems: React.FC<CollectionMenuItemsProps> = ({
     return !!disabledCategories?.includes(key);
   };
 
+  // Budget-tab collections are ONE nested menu (like Elements/Locations) —
+  // the big list stays scannable and the cost options sit together.
+  const budgetCollections = collections.filter(c => BUDGET_COLLECTIONS.has(c));
+
   return (
     <>
       {collections.map(c => {
+        if (BUDGET_COLLECTIONS.has(c)) {
+          // Render the submenu once, where the first budget entry sits.
+          if (c !== budgetCollections[0]) return null;
+          return (
+            <DropdownSubmenu key="budget" id="budget" label="Budget" width={submenuWidth}>
+              {budgetCollections.map(b => (
+                <DropdownItem
+                  key={b}
+                  onClick={() => onPick(b)}
+                  icon={value === b ? <Check className="w-3.5 h-3.5" /> : undefined}
+                >
+                  {COLLECTION_LABELS[b] || b}
+                </DropdownItem>
+              ))}
+            </DropdownSubmenu>
+          );
+        }
         if (c === 'elements') {
           return (
             <React.Fragment key="elements">
@@ -103,7 +124,6 @@ export const CollectionMenuItems: React.FC<CollectionMenuItemsProps> = ({
         return (
           <DropdownItem
             key={c}
-            group={BUDGET_COLLECTIONS.has(c) ? 'Budget' : undefined}
             onClick={() => onPick(c)}
             icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined}
           >
