@@ -50,8 +50,8 @@ export default function OfflineStatus({
         </div>
       )}
       {readOnly && (
-        <div role="status" aria-live="polite" className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
-          <span className="font-medium">
+        <div className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
+          <span role="status" aria-live="polite" className="font-medium">
             {isAuthIssue ? authCopy : 'No Internet Connection - editing is disabled'}
           </span>
           {isAuthIssue ? (
@@ -74,8 +74,8 @@ export default function OfflineStatus({
         </div>
       )}
       {!readOnly && isAuthIssue && (
-        <div role="status" aria-live="polite" className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
-          <span className="font-medium">{authCopy}</span>
+        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
+          <span role="status" aria-live="polite" className="font-medium">{authCopy}</span>
           <button
             onClick={authAction}
             className="ml-3 px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
