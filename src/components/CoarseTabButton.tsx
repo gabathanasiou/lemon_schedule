@@ -42,6 +42,7 @@ export default function CoarseTabButton({
       ref={buttonRef}
       variant={variant}
       active={active}
+      aria-current={active ? 'page' : undefined}
       icon={icon}
       collapse={docked}
       iconWithLabel={false}

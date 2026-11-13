@@ -102,7 +102,7 @@ import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame } from './components/popout/PopoutFrames';
 import { ReportCategorySidebar } from './components/reports/ReportCategorySidebar';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
-import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace, TAB_ORDER, isPhoneSupportedPlace } from './lib/appNav';
+import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, placeLabel, samePlace, TAB_ORDER, isPhoneSupportedPlace } from './lib/appNav';
 import { isDayManagerTab, type DayManagerTab } from './lib/dayTabs';
 import { PresenceProvider, usePresenceActions } from './lib/supabase/presenceContext';
 import { placeToPresenceView, presenceViewToPlace } from './lib/supabase/presence';
@@ -795,6 +795,28 @@ function AppContent() {
   // modes — each one swaps the mounted surface, so the whole record lags.
   const mountedProdViews = useLaggingValue(prodViews);
 
+  // ---- Page title (audit MWG-07) --------------------------------------------
+  // The SPA keeps `document.title` in step with the history place, the way a
+  // multi-page app would: Safari's tabs and back/forward menu show where you
+  // are, and a screen reader announces the page change. The place is read from
+  // the canonical stack (navRef is written by `go`/popstate/route adoption
+  // before the state update that re-runs this effect). The boot title returns
+  // on unmount.
+  useEffect(() => {
+    const bootTitle = document.title;
+    return () => { document.title = bootTitle; };
+  }, []);
+  useEffect(() => {
+    if (currentProjectId === null) { document.title = 'Lemon Schedule'; return; }
+    const place = currentPlace(navRef.current);
+    const projectTitle = project.title?.trim();
+    document.title = `${placeLabel(place)}${projectTitle ? ` · ${projectTitle}` : ''} — Lemon Schedule`;
+  }, [currentProjectId, project.title, activeTab, brSubTab, calendarSubTab, designSubTab, reportsSubTab, budgetSubTab, prodSubTab, prodViews, dayManagerTab]);
+
+  /** One page heading per surface: visually hidden (the design has no page
+   *  title bar), but present for the document outline and AT navigation. */
+  const pageHeading = `${placeLabel(currentPlace(navRef.current))}${project.title?.trim() ? ` · ${project.title.trim()}` : ''}`;
+
   const allReportCategoryKeys = useMemo(() => {
     const hidden = new Set(project.hiddenCategories || []);
     const keys: { key: string; isCustom: boolean }[] = [];
@@ -1399,6 +1421,7 @@ function AppContent() {
           setTabContextMenu(null);
         }}
       >
+        <h1 className="sr-only">{pageHeading}</h1>
         {poppedOutTabs.has(view.tab) ? (
           <PopoutPlaceholder title={tabLabels[view.tab]} onBringBack={() => closePopout(view.tab)} />
         ) : (
