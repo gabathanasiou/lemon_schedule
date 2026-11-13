@@ -2,6 +2,33 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-11-13 — Menus close, screens read
+
+**Bug fixes**
+- **Menus** — a submenu now closes as soon as you move to another one; before, several could stay open and stack up across the screen.
+- **iPhone and iPad** — pressing Enter to confirm a Chinese, Japanese or Korean keyboard suggestion no longer saves half-converted text in a name, scene or category.
+- **iPad** — opening and closing the keyboard no longer leaves an unfinished white band in the schedule or script.
+- **Script** — typing in the screenplay search stays responsive; the highlight and match count settle a moment later instead of holding up the keystrokes.
+- **Accessibility** — account, event, crew, category and rule forms now have proper field labels, and the sign-in password box no longer relies on placeholder text that disappears while typing.
+- **Accessibility** — connection restored, read-only mode and “changes available” are announced, and the current tab and page are named in the browser tab.
+- **Accessibility** — context menus, record pickers and the rich-text notes field now have names, and the picker announces the highlighted row.
+- **Accessibility** — tooltips appear when you reach a button with the keyboard, stay open if you move onto them, and close with Escape.
+
+**Changes**
+- **App** — the boot screen paints immediately with the Lemon Schedule mark instead of a blank white page.
+- **App** — native scrollbars, pickers and date fields follow the current light or dark theme.
+- **App** — headings wrap more evenly, paragraphs break more naturally, and number, phone and email fields open the right keyboard on a phone.
+- **App** — spinners slow down rather than spin when reduced motion is on.
+- **Element Manager, Day Types and reports** — small icon buttons and column grips are easier to hit, and the up and down arrows on number fields have a larger target.
+- **Projects** — the What’s New list is only loaded when you open it, so the app starts faster and shows the boot screen sooner.
+- **App** — background tabs stop the periodic connection check, saving battery and data.
+
+## 2026-11-09 — The budget sheet stretches out
+
+**Changes**
+- **Budget** — the sheet widens to fill the window when its columns fit, and scrolls sideways when they don’t.
+- **Budget** — drag a column edge to resize it; widths are remembered per project and per sheet, and “Fit columns to width” in the header menu resets them.
+
 ## 2026-11-05 — Budgets breathe, overtime moves
 
 **Features**
