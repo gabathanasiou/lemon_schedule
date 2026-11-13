@@ -49,12 +49,13 @@ export function CastAssignmentTable({ castOrder, onReorder, startId, ids }: {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={castOrder.map(c => c.name)} strategy={verticalListSortingStrategy}>
             <table className="w-full">
+              <caption className="sr-only">Board ID assignment</caption>
               <thead>
                 <tr className="bg-[var(--ui-panel-bg)] border-b border-[color:var(--ui-border)]">
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Name</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-24">In Scenes</th>
-                  <th className="px-3 py-2 w-8" />
+                  <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
+                  <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Name</th>
+                  <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-24">In Scenes</th>
+                  <th scope="col" className="px-3 py-2 w-8" />
                 </tr>
               </thead>
               <tbody>
