@@ -1285,3 +1285,22 @@ numeric cast rates are data/bridge-editable.
 **Verify:** `npm run lint`; `e2e/budget.spec.ts` OT test rewired to toggle the Crew lens and assert the computed Cost Report figure; `npm run test:smart`; manual per TESTING §Manual — the lens keeps department order, Rate/Per edits flow to the Crew Manager/cast, a missing rate reads `Set rate`, actuals change totals, **no expense is created**, the Cost Report figure matches, undo covers the edits.
 
 **Relations:** `supersedes` 358's Day Manager-section placement and its post-to-expenses model (engine, policy and report fields stay); `relates to` 334, 146, 99, 157, 315.
+
+
+## 364. Glide — flash cells changed by paste/fill and by peers (`[ ]`, P2 — polish)
+
+**Asked 2026-11-17 (user):** after the Glide feature catalogue, "the last updated on paste and peer edits is great" — build it.
+
+**Why:** Glide's native update underlay (`BaseGridCell.lastUpdated`, a 500 ms fade in `theme.bgSearchResult`) shows exactly what changed with no custom drawing. Storybook `rapid-updates` / docs `streaming-data`; catalogue §3/§7.
+
+**Work:**
+- **ONE helper** `src/lib/glideFlash.ts`: stable key `rowKey:colKey` → `performance.now()`; `mark`, `active(key, now)`, `prune`; TTL ≈ 550 ms (the grid fades for 500 ms). Unit `src/lib/__tests__/glideFlash.test.ts`.
+- **Local commits:** in `BreakdownTabGlide` (paste/fill/cut/clear, add-row paste), `InlineGlideTable` (`onCellsEdited`/`applyEdits`) and `GlideShell` (paste/delete) mark every cell the batch wrote and call `updateCells` for those cells (the wrappers already hold `gridRef`); one extra repaint after the TTL clears the stamp. Undo/redo stay full-repaint (no flash).
+- **Peer edits:** mark from the change, not a guess. Rooms: map the incoming action's target (scene/row id) to visible row keys and flash its editable cells. S3.5 save ping (whole baseline): diff only the currently rendered row keys before/after the reload via a shared pure `diffGlideRows`, never the whole project. Unmapped/unknown actions → no flash (fail quiet).
+- **Cell builders:** attach `lastUpdated` only while `active()`; keep the cell's own `themeOverride` intact and set a soft `bgSearchResult` (built-in search is unused, so a grid-level override is safe) so it reads "changed", not "found". Check the colour against the 328 scene row bands.
+- Applies to the three wrappers; the kit `GlideSheet` is out of scope.
+
+**Verify:** unit for the stamp map + row diff; `npm run lint`; `npm run test:unit`; `npm run test:smart`; manual (rule 7): paste a 3x3 block → exactly those cells flash once; fill → the filled range flashes; a peer edits a cell in a room → the same cell flashes in the other window; no flash on load/scroll/undo; touch/iPad pass.
+
+**Relations:** `relates to` 229 (room/action seam + S3.5), 234 (peer selection — highlight and commit flash are complementary), 172 (jump-and-flash precedent), 328 (row colour bands — the flash must read on top), 330 (Element Manager inherits the helper later), 349 (view state unaffected).
+
