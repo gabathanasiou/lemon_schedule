@@ -4,6 +4,9 @@ Status: **read this before touching the Glide breakdown grid (`BreakdownTabGlide
 `InlineGlideTable`.** These are hard-won gotchas; the canvas is opaque to the DOM and does not
 auto-repaint.
 
+Upstream API: `docs/GLIDE-DATA-GRID-API.md`. Feature catalogue + storybook tour:
+`docs/GLIDE-FEATURE-CATALOGUE.md`.
+
 ## Kit runtime + painted control cells (experiment branch `experiment/kit-glide`)
 
 - **One grid runtime:** every grid resolves `@glideapps/glide-data-grid` to the kit's vendored fork
@@ -44,6 +47,9 @@ auto-repaint.
 
 ## Glide breakdown grid (`src/components/BreakdownTabGlide.tsx`)
 
+- **No grid-level `readonly`.** `<DataEditor readonly={locked}>` is not a Glide
+  prop and is ignored; each cell carries the real `readonly` / `allowOverlay`
+  flags. Never rely on the grid prop to lock a surface.
 - **`provideEditor` gets RAW indices (+1 row marker offset)** — `dataCol = col - 1`; every other
   callback gets adjusted 0-based indices. Always use `COLUMNS[col].key`, never hardcoded indices.
 - **`onFinishedEditing` MUST receive the latest value the EDITOR committed** (the `latestRef`

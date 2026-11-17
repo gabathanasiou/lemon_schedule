@@ -113,7 +113,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - **Editing focus is per-user, display is shared** (roadmap 233): the stripboard shows the shared `activeRibbonId`; the Ribbon Designer edits the per-user pref (`useActiveDesignId`) and never dispatches `SET_ACTIVE_RIBBON`.
 
 ## Glide Breakdown
-- **Read `docs/GLIDE-BREAKDOWN.md`** before touching `BreakdownTabGlide.tsx` or `InlineGlideTable` (raw `provideEditor` indices, no canvas auto-repaint, the `@glide-overlay-editor` boot preload, the shared `InlineGlideTable` recipe).
+- **Read `docs/GLIDE-BREAKDOWN.md` + `docs/GLIDE-DATA-GRID-API.md`** before touching a Glide grid (`BreakdownTabGlide`, `InlineGlideTable`, `GlideShell`): raw `provideEditor` indices, no auto-repaint, the boot preload.
 
 ## Budget & Cost Tracking
 **Read `docs/BUDGETING.md` + `docs/BUDGETING-SURFACES.md`.** The **Budget tab** = Budget sheet / Cost Report / Expenses / Library; money is integer cents; ONE read model per concern (`computeBudget`/`computeCostReport`/`computeDayOvertime`) — never component arithmetic or a second grid; live schedule links + reviewed sync; OT policy is project → day → dept → person; `locked = readOnly || !canEdit` plus a version lock. Reports use `budgetTable`, never a second engine.
