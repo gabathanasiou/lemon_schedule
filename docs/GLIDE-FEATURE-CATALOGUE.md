@@ -210,6 +210,12 @@ own. Demo: `?path=/story/extra-packages-cells--custom-cells`.
 | `SpinnerCell` | nothing | Loading/working animation |
 | `ArticleCell` | `markdown` (Toast UI editor) | Rich notes; very heavy dependency |
 
+**User signal (2026-11-17):** likes the extra package's date/time picker.
+`DatePickerCell` takes `format: "date" | "time" | "datetime-local"` (plus
+`min` / `max` / `step` / `timezoneOffset`), so it covers both; reach for it when
+a grid needs in-cell date/time editing. The app's `TimeField` / `TimeKeypad`
+stays the form/modal control.
+
 Adoption caveats:
 
 - It lists `@glideapps/glide-data-grid` as an exact **dependency**, not a peer.
