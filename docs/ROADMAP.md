@@ -915,6 +915,15 @@ unverified.
   Gmail/Outlook/Apple Mail before inviting strangers; note bounce/complaint
   handling as a follow-up when product email exists
   (`docs/COLLABORATION.md` §11 context).
+- **Candidate provider — Cloudflare Email Service** (2026-11-24: Email Sending
+  now on Workers Free; we already run the rooms worker there): SMTP
+  `smtp.mx.cloudflare.net:465` — implicit TLS only, username literal
+  `api_token`, password = a Cloudflare API token with Email Sending: Edit; the
+  sending domain's DNS must sit on Cloudflare (SPF/DKIM/DMARC managed for us).
+  **Arbitrary recipients need Workers Paid** (3,000/month included, then
+  $0.35/1k); the free tier sends only to verified destination addresses in our
+  own account, so it cannot carry reset mail. Check first: Supabase custom SMTP
+  accepts implicit-TLS 465.
 - **Verify:** a real reset lands in all three inboxes, not spam.
 
 ## 286. Observability floor — error tracking, uptime, one human alert (`[ ]`)
@@ -928,7 +937,12 @@ alone; the only "alert" is a red GitHub Action.
   hosted app and the worker `/health`; one alert path that reaches a human;
   decide what deserves paging (`docs/SECURITY.md` §7 notes edge rate limits/WAF
   as the same pre-launch batch).
+- **Free alert channel:** Cloudflare Email Sending sends to **verified
+  destination addresses** free on every plan with no quota — verify the
+  operator's own address and email alerts there (never end users; that's 280).
 - **Verify:** inject a test error + simulate an outage → both alert.
+- **Relations:** alert delivery reuses **280**'s sending domain + credentials;
+  independent of the error-tracker choice.
 
 ## 287. Staging environment + migration workflow (`[ ]`)
 
@@ -1303,4 +1317,21 @@ numeric cast rates are data/bridge-editable.
 **Verify:** unit for the stamp map + row diff; `npm run lint`; `npm run test:unit`; `npm run test:smart`; manual (rule 7): paste a 3x3 block → exactly those cells flash once; fill → the filled range flashes; a peer edits a cell in a room → the same cell flashes in the other window; no flash on load/scroll/undo; touch/iPad pass.
 
 **Relations:** `relates to` 229 (room/action seam + S3.5), 234 (peer selection — highlight and commit flash are complementary), 172 (jump-and-flash precedent), 328 (row colour bands — the flash must read on top), 330 (Element Manager inherits the helper later), 349 (view state unaffected).
+
+## 365. Radix bump experiment — take 1.2's nested-layer fix, then try deleting our two guards (`[ ]`, parked — unpark on the trigger)
+
+**Asked 2026-11-17 (user):** "is it worth bumping?" — verdict was no as maintenance; keep it as ONE deliberate experiment.
+
+**Priority: P3 — parked by owner 2026-11-17.** Nothing we run needs it. Roadmap 71's iPad freeze is already fixed at the current pins (`react-dialog` 1.1.23 / `react-dropdown-menu` 2.1.24 / one `react-dismissable-layer` 1.1.19). Tarball diff of the published line: dialog **1.2.0** is the only runtime change — nested portalled layers inside a modal (the trapped `FocusScope` reclaiming focus, `RemoveScroll` only allowing the modal content to scroll) + merged `aria-describedby`; 1.3.0/1.3.1 are typing + a type regression; `react-menu` 2.2.0's other fix is SWC tree-shaking (we build with esbuild — irrelevant); dismissable-layer 1.1.19 → 1.2.1 is export aliases only. The two fixes actually worth having (Oct 14: `#4105` content unclickable for the first frame, `#4209` overlay taps not dismissing on iOS Safari) landed **after** the Oct 12 publish — no released version has them.
+
+**Unpark when:** a nested-layer symptom appears (focus/scroll/click inside a modal, a menu or picker in a dialog), OR the post-Oct-12 batch publishes (re-read its CHANGELOG first), OR we want to delete the two local guards below.
+
+**Work when unparked:**
+- Bump `@radix-ui/react-dialog` + `@radix-ui/react-dropdown-menu` **together** to `^1.3.1` / `^2.2.1` — never one alone. The kit's peer ranges (`^1.1.16` / `^2.1.17`) accept them, so no kit release; assert `npm ls @radix-ui/react-dismissable-layer` still resolves ONE instance.
+- Then the experiment, one guard at a time (each a revertible commit): (a) remove the `InlineGlideTable` focus-scope/overlay guard (`src/components/InlineGlideTable.tsx` ~368-402 — "Radix's FocusScope otherwise yanks focus back on every keystroke", roadmap 155); (b) try removing the kit `useOverlayMorph` touchmove interceptor (roadmap 69 — `react-remove-scroll` cancelling portaled panel touchmoves).
+- If a guard goes, update `docs/GLIDE-BREAKDOWN.md` §Grids inside a modal and `docs/UI-KIT.md` v0.1.64.
+
+**Verify:** real iPad (not only WebKit emulation) — stacked dialog Cancel/Done leaves `pointer-events:auto` (`e2e/ipad-touch-scroll.spec.ts`), overlay tap dismisses, menu/submenu inside a modal opens and scrolls, Call Times → Crew template Glide editor takes one character per key, nested menu FLIP; then the full suite.
+
+**Relations:** revisits the archived pins 71/78 and the 69/155 workarounds; `relates to` 289 (dependency automation is a separate parked policy — this is a one-off experiment, not a Dependabot decision).
 
