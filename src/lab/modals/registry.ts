@@ -26,16 +26,16 @@ import { render as dialogsRender } from './fixtures/dialogs';
  *  every app file that renders a modal/dialog must appear in exactly one
  *  surface's list (the unit suite enforces it). */
 const GROUPED: ModalSurfaceMeta[][] = [
-  scheduleMeta,
-  calendarMeta,
-  productionMeta,
-  elementsMeta,
-  reportsMeta,
-  budgetMeta,
-  scriptMeta,
-  appChromeMeta,
-  collaborationMeta,
-  dialogsMeta,
+  [...scheduleMeta],
+  [...calendarMeta],
+  [...productionMeta],
+  [...elementsMeta],
+  [...reportsMeta],
+  [...budgetMeta],
+  [...scriptMeta],
+  [...appChromeMeta],
+  [...collaborationMeta],
+  [...dialogsMeta],
 ];
 
 export const SURFACES: ModalSurfaceMeta[] = SURFACE_GROUPS.flatMap((group) =>

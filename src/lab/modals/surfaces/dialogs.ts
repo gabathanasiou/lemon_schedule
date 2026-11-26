@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** The kit's imperative confirm/prompt/alert dialog variants (useDialog). */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'dialog-confirm',
     title: 'Confirm',
@@ -52,4 +52,4 @@ export const meta: SurfaceMetaList = [
     projectless: true,
     width: 'sm',
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

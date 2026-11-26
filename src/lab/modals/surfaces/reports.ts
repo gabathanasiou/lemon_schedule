@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Report printing + import surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'print-schedule',
     title: 'Print schedule',
@@ -66,4 +66,4 @@ export const meta: SurfaceMetaList = [
     kind: 'modal',
     sources: ['src/components/import/HeadingValueMapper.tsx'],
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

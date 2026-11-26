@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** App chrome, account and file surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'help',
     title: 'Keyboard shortcuts',
@@ -102,4 +102,4 @@ export const meta: SurfaceMetaList = [
     projectless: true,
     width: 'sm',
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

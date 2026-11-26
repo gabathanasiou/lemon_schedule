@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Element Manager / Links / Locations / Trash surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'element-view',
     title: 'Element view',
@@ -85,4 +85,4 @@ export const meta: SurfaceMetaList = [
     kind: 'modal',
     sources: ['src/components/TrashModal.tsx'],
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Collaboration surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'sharing',
     title: 'Share project',
@@ -19,4 +19,4 @@ export const meta: SurfaceMetaList = [
     sources: ['src/components/UserPresenceCluster.tsx'],
     width: 'sm',
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

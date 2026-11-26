@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Calendar-tab surfaces (events, day types, colour rules). */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'event-editor',
     title: 'Edit event',
@@ -72,7 +72,16 @@ export const meta: SurfaceMetaList = [
     group: 'Calendar',
     note: 'The Stripboard/Calendar palette editor for one scene colour slot.',
     kind: 'modal',
-    sources: ['src/components/ColorsTab.tsx', 'src/components/rules/ColorRuleFormParts.tsx'],
+    sources: ['src/components/ColorsTab.tsx'],
     width: 'sm',
   },
-];
+  {
+    id: 'scene-cell-edit',
+    title: 'Edit scene cell',
+    group: 'Calendar',
+    note: 'The INT/EXT + DAY/NIGHT colour cell editor (Colours tab).',
+    kind: 'modal',
+    sources: ['src/components/rules/ColorRuleFormParts.tsx'],
+    width: 'sm',
+  },
+] as const satisfies readonly ModalSurfaceMeta[];

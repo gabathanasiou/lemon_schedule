@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Script-tab surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'scene-cut',
     title: 'Cut scene split',
@@ -52,4 +52,4 @@ export const meta: SurfaceMetaList = [
     sources: ['src/lib/newCastNaming.tsx'],
     width: 'sm',
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

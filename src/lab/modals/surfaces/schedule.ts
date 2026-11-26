@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Schedule-tab surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'banner-add',
     title: 'Add Banner',
@@ -104,4 +104,4 @@ export const meta: SurfaceMetaList = [
     sources: ['src/lib/glideShell.tsx'],
     width: 'sm',
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

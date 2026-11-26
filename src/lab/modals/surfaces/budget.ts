@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Budget tab surfaces. */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'budget-line',
     title: 'Budget line',
@@ -74,4 +74,4 @@ export const meta: SurfaceMetaList = [
     kind: 'modal',
     sources: ['src/components/budget/FormulaField.tsx'],
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];

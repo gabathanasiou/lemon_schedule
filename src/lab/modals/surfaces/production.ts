@@ -1,7 +1,7 @@
-import type { SurfaceMetaList } from '../types';
+import type { ModalSurfaceMeta } from '../types';
 
 /** Production-tab surfaces (Day Manager). */
-export const meta: SurfaceMetaList = [
+export const meta = [
   {
     id: 'production-details',
     title: 'Production details',
@@ -34,4 +34,4 @@ export const meta: SurfaceMetaList = [
     kind: 'modal',
     sources: ['src/components/crew/AddCrewMemberModal.tsx'],
   },
-];
+] as const satisfies readonly ModalSurfaceMeta[];
