@@ -1,14 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Scene } from '../types';
 import { findSceneNumberCollision } from '../lib/sceneNumbering';
-import { formatSceneHeading } from '../lib/script';
-import Modal, { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
-
-function sceneLabel(scene: Scene): string {
-  const heading = formatSceneHeading(scene.intExt, scene.set, scene.dayNight);
-  return [scene.sceneNumber, heading].filter(Boolean).join('  ');
-}
+import SceneNumberCollisionModal from './schedule/SceneNumberCollisionModal';
 
 interface Pending {
   scene: Scene;
@@ -57,30 +50,13 @@ export function useSceneNumberCollisionGuard(
   }, [dispatch, pending]);
 
   const modal = (
-    <Modal
+    <SceneNumberCollisionModal
       open={!!pending}
-      onClose={cancel}
-      title="Scene number already used"
-      width="max-w-md"
-      footer={
-        <ModalFooter>
-          <ModalFooterButton variant="ghost" onClick={cancel}>Cancel</ModalFooterButton>
-          <ModalFooterButton variant="hero" onClick={swap}>Swap numbers</ModalFooterButton>
-        </ModalFooter>
-      }
-    >
-      <div className="px-5 py-4 space-y-3">
-        <p className="text-sm text-[color:var(--ui-text)]">
-          Scene <span className="font-semibold text-[color:var(--ui-text-strong)]">{pending?.collision.sceneNumber}</span> is already used by{' '}
-          <span className="font-semibold text-[color:var(--ui-text-strong)]">{pending ? sceneLabel(pending.collision) : ''}</span>.
-        </p>
-        <p className="text-sm text-[color:var(--ui-text-muted)]">
-          Two scenes can’t share a number — they would both show the same script. Swap the two numbers so{' '}
-          <span className="text-[color:var(--ui-input-text)]">{pending ? sceneLabel(pending.scene) : ''}</span> takes{' '}
-          <span className="text-[color:var(--ui-input-text)]">{pending?.collision.sceneNumber}</span>, or cancel and pick a free number.
-        </p>
-      </div>
-    </Modal>
+      scene={pending?.scene ?? null}
+      collision={pending?.collision ?? null}
+      onCancel={cancel}
+      onSwap={swap}
+    />
   );
 
   return { trySetSceneNumber, modal };

@@ -49,7 +49,7 @@ export const meta = [
     group: 'Script',
     note: 'The naming modal queued when a scene field creates a blank cast member.',
     kind: 'modal',
-    sources: ['src/lib/newCastNaming.tsx'],
+    sources: ['src/lib/newCastNaming.tsx', 'src/components/elements/NewCastNamingModal.tsx'],
     width: 'sm',
   },
 ] as const satisfies readonly ModalSurfaceMeta[];

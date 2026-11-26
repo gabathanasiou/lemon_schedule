@@ -9,13 +9,11 @@ import { getCategoryElements, elementMatchId, elementKey } from '../../lib/eleme
 import { getNonShootEntryMap, upsertNonShootDate, isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
 import { removeItemsFrom, setNote, typeRankOf, statusLabel } from '../../lib/events';
 import { getDayType, typeIconComponent } from '../../lib/dayTypes';
-import { anchoredKeysFor } from '../../lib/elementLinks';
-import Modal from '../Modal';
 import Button from '../Button';
 import { EventAdderModal } from '../calendar/EventAdderModal';
 import { EventModal } from '../calendar/EventModal';
 import { RuleCard } from '../rules/RuleCard';
-import { RuleEditorPanel } from '../rules/RuleEditorPanel';
+import { RuleEditorModal } from '../rules/RuleEditorModal';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { CardSection } from '@gabriel/ui-kit';
@@ -388,24 +386,16 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
         />
       )}
       {nested?.kind === 'rule' && nestedReady && (
-        <Modal open onClose={() => setNested(null)} title={nested.rule && nested.rule.id ? 'Edit Rule' : 'Add Rule'} width="max-w-lg">
-          <div className="p-6">
-            <RuleEditorPanel
-              bare
-              initial={nested.rule ?? null}
-              scenes={project.scenes}
-              castMembers={project.castMembers || []}
-              anchoredKeys={anchoredKeysFor(project.links, 'cast')}
-              productionStart={activeCalendarVersion?.productionStart}
-              onSave={saveRule}
-              onDelete={nested.rule && nested.rule.id ? () => {
-                dispatch({ type: 'DELETE_RULE', payload: nested.rule!.id });
-                setNested(null);
-              } : undefined}
-              onClose={() => setNested(null)}
-            />
-          </div>
-        </Modal>
+        <RuleEditorModal
+          open
+          initial={nested.rule ?? null}
+          onSave={saveRule}
+          onDelete={nested.rule && nested.rule.id ? () => {
+            dispatch({ type: 'DELETE_RULE', payload: nested.rule!.id });
+            setNested(null);
+          } : undefined}
+          onClose={() => setNested(null)}
+        />
       )}
     </>
   );

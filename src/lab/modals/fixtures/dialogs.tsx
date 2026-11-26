@@ -3,6 +3,7 @@ import { MessageSquare, ShieldAlert, Sparkles } from 'lucide-react';
 import { useDialog } from '../../../components/Dialog';
 import Button from '../../../components/Button';
 import type { SurfaceRender } from '../types';
+import { meta } from '../surfaces/dialogs';
 
 /** The imperative kit dialog has no component prop surface — the fixture
  *  OPENS the real dialog on mount (and again on "Show again"), so the studio
@@ -82,7 +83,9 @@ const DialogPreview: React.FC<{ variant: DialogVariant }> = ({ variant }) => {
   );
 };
 
-export const render: Record<'dialog-confirm' | 'dialog-danger' | 'dialog-suppress' | 'dialog-prompt' | 'dialog-alert', SurfaceRender> = {
+type DialogId = (typeof meta)[number]['id'];
+
+export const render: Record<DialogId, SurfaceRender> = {
   'dialog-confirm': () => <DialogPreview variant="confirm" />,
   'dialog-danger': () => <DialogPreview variant="danger" />,
   'dialog-suppress': () => <DialogPreview variant="suppress" />,

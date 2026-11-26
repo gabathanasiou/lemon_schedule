@@ -18,8 +18,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../components/
 import DropdownMenu from '../components/DropdownMenu';
 import DropdownItem from '../components/DropdownItem';
 import DropdownDivider from '../components/DropdownDivider';
-import Modal, { ModalFooter } from '../components/Modal';
-import ModalFooterButton from '../components/ModalFooterButton';
+import CsvImportConfirmModal from '../components/import/CsvImportConfirmModal';
 import { useDialog } from '../components/Dialog';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from './persist';import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
 import { createGlideTheme } from './glideTheme';
@@ -985,34 +984,20 @@ export const GlideGridShell: React.FC<{
       </ContextMenu>
 
       {/* CSV import review */}
-      {pendingImport && (
-        <Modal open onClose={() => setPendingImport(null)} title={config.labels.importTitle} width="max-w-md"
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={() => setPendingImport(null)}>Cancel</ModalFooterButton>
-              <ModalFooterButton onClick={() => { config.commitImport(dispatch, pendingImport.result, project); setPendingImport(null); }}>Import</ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-4">
-            <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
-              <span className="text-[color:var(--ui-input-text)] font-semibold">{pendingImport.result.count}</span> {config.labels.importNoun} in <span className="text-[color:var(--ui-input-text)] font-semibold">{pendingImport.fileName}</span>. {config.labels.importSummary}
-            </p>
-            {pendingImport.result.newCategories.length > 0 && (
-              <div>
-                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)] mb-1.5">
-                  {pendingImport.result.newCategories.length} new {pendingImport.result.newCategories.length === 1 ? 'category' : 'categories'}
-                </h4>
-                <div className="flex flex-wrap gap-1">
-                  {pendingImport.result.newCategories.map(c => (
-                    <span key={c.key} className="text-[11px] bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] rounded px-2 py-0.5 text-[color:var(--ui-text)]">{c.label}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
+      <CsvImportConfirmModal
+        open={!!pendingImport}
+        title={config.labels.importTitle}
+        result={pendingImport?.result ?? null}
+        fileName={pendingImport?.fileName ?? ''}
+        importNoun={config.labels.importNoun}
+        importSummary={config.labels.importSummary}
+        onClose={() => setPendingImport(null)}
+        onImport={() => {
+          if (!pendingImport) return;
+          config.commitImport(dispatch, pendingImport.result, project);
+          setPendingImport(null);
+        }}
+      />
     </div>
   );
 };

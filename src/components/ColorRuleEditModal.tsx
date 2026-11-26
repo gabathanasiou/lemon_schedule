@@ -12,7 +12,8 @@ import ModalFooterButton from './ModalFooterButton';
 import ColorField from './ColorField';
 import { Plus, X, ChevronDown, Check } from 'lucide-react';
 
-import { RuleConditionRow, RuleOverrideSection, MatrixCellEditor, ruleModalSizes } from './rules/ColorRuleFormParts';
+import { RuleConditionRow, RuleOverrideSection, ruleModalSizes } from './rules/ColorRuleFormParts';
+import { SceneCellEditModal } from './colors/SceneCellEditModal';
 
 interface Props {
   rule?: ColorRule | null;
@@ -73,8 +74,6 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   });
 
   const [cellEdit, setCellEdit] = useState<{ ie: string; dn: string } | null>(null);
-  const [cellBg, setCellBg] = useState('#ffffff');
-  const [cellText, setCellText] = useState('#000000');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null); // 'cat-{idx}' | 'el-{idx}' | null
 
   const categoryLabelLookup = useMemo(() => {
@@ -131,29 +130,20 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   };
 
   const openCellEdit = (ie: string, dn: string) => {
-    const idx = findEntryIdx(matrixColors, ie, dn);
-    if (idx >= 0) {
-      setCellBg(matrixColors[idx].background);
-      setCellText(matrixColors[idx].text);
-    } else {
-      setCellBg('#ffffff');
-      setCellText('#000000');
-    }
     setCellEdit({ ie, dn });
   };
 
-  const commitCellEdit = () => {
+  const commitCellEdit = (background: string, text: string) => {
     if (!cellEdit) return;
     setMatrixColors(prev => {
       const next = prev.map(c => ({ ...c }));
       const idx = findEntryIdx(next, cellEdit.ie, cellEdit.dn);
       if (idx >= 0) {
-        next[idx].background = cellBg;
-        next[idx].text = cellText;
+        next[idx].background = background;
+        next[idx].text = text;
       }
       return next;
     });
-    setCellEdit(null);
   };
 
   const handleSave = () => {
@@ -178,6 +168,8 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
   const sizes = ruleModalSizes();
   const { CREM_LABEL, CREM_TEXT, CREM_BODY, XSZ } = sizes;
+  const cellEntryIdx = cellEdit ? findEntryIdx(matrixColors, cellEdit.ie, cellEdit.dn) : -1;
+  const cellEntry = cellEntryIdx >= 0 ? matrixColors[cellEntryIdx] : { background: '#ffffff', text: '#000000' };
 
   return (
     <Modal open onClose={onClose} title={isEditing ? 'Edit Color Rule' : 'New Color Rule'} width="max-w-2xl"
@@ -259,17 +251,18 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
         />
       </div>
 
-      <MatrixCellEditor
-        cellEdit={cellEdit}
-        setCellEdit={setCellEdit}
-        cellBg={cellBg}
-        setCellBg={setCellBg}
-        cellText={cellText}
-        setCellText={setCellText}
-        commitCellEdit={commitCellEdit}
-        palette={palette}
-        sizes={sizes}
-      />
+      {cellEdit && (
+        <SceneCellEditModal
+          open
+          intExt={cellEdit.ie}
+          dayNight={cellEdit.dn}
+          background={cellEntry.background}
+          text={cellEntry.text}
+          palette={palette}
+          onApply={commitCellEdit}
+          onClose={() => setCellEdit(null)}
+        />
+      )}
     </Modal>
   );
 };

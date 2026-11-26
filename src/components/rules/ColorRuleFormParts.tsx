@@ -4,9 +4,6 @@ import { ColorRuleCondition, SceneColorEntry, SceneColorPalette, ProjectElement 
 import { getNoteBannerColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
 import ColorField from '../ColorField';
-import Modal from '../Modal';
-import { ModalFooter } from '../Modal';
-import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from './ElementPicker';
 
 export interface ColorRuleSizes {
@@ -165,46 +162,5 @@ export function RuleOverrideSection({
         </div>
       )}
     </div>
-  );
-}
-
-interface MatrixCellEditorProps {
-  cellEdit: { ie: string; dn: string } | null;
-  setCellEdit: (v: { ie: string; dn: string } | null) => void;
-  cellBg: string;
-  setCellBg: (v: string) => void;
-  cellText: string;
-  setCellText: (v: string) => void;
-  commitCellEdit: () => void;
-  palette: SceneColorPalette;
-  sizes: ColorRuleSizes;
-}
-
-export function MatrixCellEditor({ cellEdit, setCellEdit, cellBg, setCellBg, cellText, setCellText, commitCellEdit, palette, sizes }: MatrixCellEditorProps) {
-  if (!cellEdit) return null;
-  const { CREM_CELL_BODY, CREM_TEXT } = sizes;
-  return (
-    <Modal open onClose={() => setCellEdit(null)} title={`Edit: ${cellEdit.ie} ${cellEdit.dn}`} width="max-w-sm"
-      footer={
-        <ModalFooter>
-          <ModalFooterButton variant="ghost" onClick={() => setCellEdit(null)}>Cancel</ModalFooterButton>
-          <ModalFooterButton onClick={commitCellEdit}>Apply</ModalFooterButton>
-        </ModalFooter>
-      }
-    >
-      <div className={CREM_CELL_BODY}>
-        <div className="flex items-center justify-between">
-          <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>Background</span>
-          <ColorField value={cellBg} onChange={setCellBg} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).background} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>Text Color</span>
-          <ColorField value={cellText} onChange={setCellText} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).color} />
-        </div>
-        <div className="w-full h-10 rounded border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold" style={{ background: cellBg, color: cellText }}>
-          Aa
-        </div>
-      </div>
-    </Modal>
   );
 }

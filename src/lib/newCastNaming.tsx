@@ -1,10 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useProject } from '../store';
 import type { Action } from '../store';
-import Modal, { ModalFooter } from '../components/Modal';
-import ModalFooterButton from '../components/ModalFooterButton';
-import { Trash2 } from 'lucide-react';
-import { TEST_IDS } from './testIds';
+import { NewCastNamingModal } from '../components/elements/NewCastNamingModal';
 import { getFieldItems } from './categories';
 import { isIdKeyed } from './elements';
 
@@ -92,8 +89,6 @@ export function addNewElements(
   }
 }
 
-const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]';
-
 /** Names newly added cast members (the element-dropdown flow). Mounted above
  *  the tabs so it fires wherever a brand-new cast id is typed — stripboard,
  *  Glide breakdown and Scene Sheet. */
@@ -173,7 +168,6 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     () => pending.filter(p => castMembers.some(m => String(m.id) === String(p.id))),
     [pending, castMembers],
   );
-  const hasNameTyped = visible.some(p => p.nameTyped);
 
   /* Preview the Board IDs Save will assign to name-typed entries (same
      sequential next-free walk as `save`, in render order) — the row label
@@ -195,65 +189,18 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     <NewCastNamingContext.Provider value={value}>
       {children}
       {visible.length > 0 && (
-        <Modal
-          open
-          onClose={dismiss}
-          title="Name New Cast Members"
-          width="max-w-md"
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={dismiss}>Cancel</ModalFooterButton>
-              <ModalFooterButton onClick={save}>Save</ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-3" data-testid={TEST_IDS.newCastNameModal}>
-            {!hasNameTyped && (
-              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
-                These new cast members stay blank until you give them a name.
-              </p>
-            )}
-            {hasNameTyped && (
-              <p
-                data-testid={TEST_IDS.newCastNameNotice}
-                className="text-xs text-amber-400 leading-relaxed rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2"
-              >
-                Looks like you typed a cast name, not a board ID. Cast fields expect board IDs —
-                e.g. 2 for “2. MARY”. Save adds the members below with the next free board ID
-                (shown on the left); Cancel removes them.
-              </p>
-            )}
-            {visible.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-2" data-testid={TEST_IDS.newCastNameRow}>
-                <span className="text-xs text-[color:var(--ui-text-muted)] w-7 shrink-0 tabular-nums text-right">
-                  {p.nameTyped ? projectedIds.get(p.id) : p.id}.
-                </span>
-                <input
-                  data-testid={TEST_IDS.newCastNameInput}
-                  autoFocus={i === 0}
-                  value={p.name}
-                  onChange={e => setName(p.id, e.target.value.toUpperCase())}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
-                  placeholder="CAST MEMBER NAME"
-                  className={`${NAME_INPUT_CLASS} uppercase`}
-                />
-                {/* Name-typed rows have no per-entry undo — Cancel already
-                    removes them; numeric-id adds keep theirs (roadmap 86). */}
-                {!p.nameTyped && (
-                  <button
-                    type="button"
-                    data-testid={TEST_IDS.newCastNameUndo}
-                    onClick={() => undoEntry(p.id)}
-                    title="Remove this cast member (undo)"
-                    className="shrink-0 p-1.5 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-item-hover-bg)] transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </Modal>
+        <NewCastNamingModal
+          entries={visible.map(p => ({
+            id: p.id,
+            name: p.name,
+            nameTyped: p.nameTyped,
+            displayId: p.nameTyped ? projectedIds.get(p.id) : p.id,
+          }))}
+          onChangeName={setName}
+          onUndo={undoEntry}
+          onSave={save}
+          onCancel={dismiss}
+        />
       )}
     </NewCastNamingContext.Provider>
   );

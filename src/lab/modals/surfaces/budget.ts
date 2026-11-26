@@ -64,7 +64,7 @@ export const meta = [
     group: 'Budget',
     note: 'Restore or permanently remove deleted budget versions.',
     kind: 'modal',
-    sources: ['src/components/budget/BudgetVersionMenu.tsx'],
+    sources: ['src/components/budget/BudgetVersionMenu.tsx', 'src/components/budget/BudgetTrashModal.tsx'],
   },
   {
     id: 'formula-book',
@@ -72,6 +72,6 @@ export const meta = [
     group: 'Budget',
     note: 'Searchable formula symbols/functions reference (FormulaField).',
     kind: 'modal',
-    sources: ['src/components/budget/FormulaField.tsx'],
+    sources: ['src/components/budget/FormulaField.tsx', 'src/components/budget/FormulaBookModal.tsx'],
   },
 ] as const satisfies readonly ModalSurfaceMeta[];

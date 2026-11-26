@@ -28,8 +28,6 @@ import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal
 import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import HelpModal from './HelpModal';
 import { FloatingTooltip } from './FloatingTooltip';
-import Modal from './Modal';
-import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, VIEW_WIDTHS, type ViewMode, type CellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';

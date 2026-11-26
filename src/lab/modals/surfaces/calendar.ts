@@ -64,7 +64,7 @@ export const meta = [
     group: 'Calendar',
     note: 'The shared scheduling-rule editor (Rules tab + element events manager).',
     kind: 'modal',
-    sources: ['src/components/RulesTab.tsx', 'src/components/elements/ElementEventsSection.tsx'],
+    sources: ['src/components/RulesTab.tsx', 'src/components/elements/ElementEventsSection.tsx', 'src/components/rules/RuleEditorModal.tsx'],
   },
   {
     id: 'palette-colour',
@@ -72,7 +72,7 @@ export const meta = [
     group: 'Calendar',
     note: 'The Stripboard/Calendar palette editor for one scene colour slot.',
     kind: 'modal',
-    sources: ['src/components/ColorsTab.tsx'],
+    sources: ['src/components/ColorsTab.tsx', 'src/components/colors/PaletteColorModal.tsx'],
     width: 'sm',
   },
   {
@@ -81,7 +81,7 @@ export const meta = [
     group: 'Calendar',
     note: 'The INT/EXT + DAY/NIGHT colour cell editor (Colours tab).',
     kind: 'modal',
-    sources: ['src/components/rules/ColorRuleFormParts.tsx'],
+    sources: ['src/components/rules/ColorRuleFormParts.tsx', 'src/components/colors/SceneCellEditModal.tsx'],
     width: 'sm',
   },
 ] as const satisfies readonly ModalSurfaceMeta[];

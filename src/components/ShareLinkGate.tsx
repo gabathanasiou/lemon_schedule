@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import Modal from './Modal';
 import { AccountModal } from './AccountModal';
+import { ShareLinkOpeningModal } from './ShareLinkOpeningModal';
 import { useDialog } from './Dialog';
 import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
@@ -87,14 +86,7 @@ export function ShareLinkGate() {
   const waitingForGuest = !auth.account && anonymousEnabled && !guestFailed;
 
   if (auth.account || waitingForGuest) {
-    return (
-      <Modal open onClose={() => {}} title="Opening shared project" width="max-w-xs" closable={false}>
-        <div className="p-6 flex items-center gap-3 text-xs text-[color:var(--ui-text)]">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          {redeeming ? 'Opening the shared project…' : 'Letting you in…'}
-        </div>
-      </Modal>
-    );
+    return <ShareLinkOpeningModal redeeming={redeeming} />;
   }
 
   return !dismissed ? (

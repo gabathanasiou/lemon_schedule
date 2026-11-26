@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Settings, UserPlus } from 'lucide-react';
+import { User as UserIcon, LogIn, LogOut, Cloud, Users, Settings, UserPlus } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
-import Modal, { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
 import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import type { SupabaseAccount } from '../lib/supabase/auth';
@@ -13,6 +11,7 @@ import type { PresencePeer } from '../lib/supabase/presence';
 import { AccountAvatar } from './AccountAvatar';
 import { PresenceDots } from './PresenceDots';
 import { AccountSettingsModal } from './AccountSettingsModal';
+import { CollaborateModal } from './collaboration/CollaborateModal';
 
 const MAX_BUBBLES = 3;
 
@@ -274,35 +273,14 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
 
       <AccountSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      <Modal
+      <CollaborateModal
         open={collabOpen}
-        onClose={closeCollab}
-        title="Collaborate on this project"
-        width="max-w-md"
-        footer={
-          <ModalFooter>
-            <ModalFooterButton variant="ghost" onClick={closeCollab} disabled={collabBusy}>
-              Cancel
-            </ModalFooterButton>
-            <ModalFooterButton data-modal-confirm onClick={runCollaborate} disabled={collabBusy}>
-              {collabBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
-              {collabBusy ? 'Copying...' : 'Collaborate'}
-            </ModalFooterButton>
-          </ModalFooter>
-        }
-      >
-        <div className="p-6 space-y-3">
-          <p className="text-sm text-[color:var(--ui-text)]">
-            <span className="font-medium text-white">{projectTitle}</span> will be added to your
-            shared projects and kept in sync automatically.
-          </p>
-          <p className="text-xs text-[color:var(--ui-text-muted)]">
-            Shared projects sync over the internet — you'll need a connection while you work on
-            this one.
-          </p>
-          {collabError && <p className="text-xs text-red-400">{collabError}</p>}
-        </div>
-      </Modal>
+        projectTitle={projectTitle}
+        busy={collabBusy}
+        error={collabError}
+        onCancel={closeCollab}
+        onCollaborate={runCollaborate}
+      />
     </>
   );
 }

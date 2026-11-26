@@ -5,7 +5,7 @@ import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import Button from '../../components/Button';
 import DropdownMenu from '../../components/DropdownMenu';
 import DropdownItem from '../../components/DropdownItem';
-import { SURFACE_GROUPS, type ModalSurfaceMeta, type SurfaceGroup } from './types';
+import { SURFACE_GROUPS, type ModalSurfaceMeta } from './types';
 
 /** The studio's floating chrome. It sits ABOVE the live modal (z 10001, the
  *  same layer as kit menus — menu portals render later, so they still win) and
@@ -15,10 +15,11 @@ import { SURFACE_GROUPS, type ModalSurfaceMeta, type SurfaceGroup } from './type
 
 export const STUDIO_WIDTHS = [
   { v: 'auto', l: 'Auto' },
-  { v: 'sm', l: 'S' },
-  { v: 'md', l: 'M' },
-  { v: 'lg', l: 'L' },
-  { v: 'xl', l: 'XL' },
+  { v: '240', l: '240' },
+  { v: '300', l: '300' },
+  { v: '360', l: '360' },
+  { v: '400', l: '400' },
+  { v: '560', l: '560' },
   { v: 'wide', l: 'Wide' },
 ] as const;
 
@@ -33,10 +34,11 @@ export type StudioWidth = (typeof STUDIO_WIDTHS)[number]['v'];
 /** CSS max-width per width preset; `auto` keeps the modal's own width. */
 export const STUDIO_WIDTH_CSS: Record<StudioWidth, string | null> = {
   auto: null,
-  sm: '28rem',
-  md: '36rem',
-  lg: '48rem',
-  xl: '64rem',
+  240: '240px',
+  300: '300px',
+  360: '360px',
+  400: '400px',
+  560: '560px',
   wide: 'min(96vw, 80rem)',
 };
 
@@ -52,6 +54,11 @@ interface StudioDockProps {
   width: StudioWidth;
   scale: number;
   closed: boolean;
+  replayable: boolean;
+  bridgeAvailable: boolean;
+  bridgeEnabled: boolean;
+  bridgeStatus: string;
+  demoBusy: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onSelect: (surfaceId: string) => void;
@@ -61,37 +68,28 @@ interface StudioDockProps {
   onWidth: (width: StudioWidth) => void;
   onScale: (scale: number) => void;
   onOpenProject: (id: string) => void;
+  onDemo: () => void;
   onReopen: () => void;
+  onReplay: () => void;
+  onToggleBridge: () => void;
   onUndo: () => void;
   onRedo: () => void;
 }
 
-const GROUP_ICON: Record<SurfaceGroup, string> = {
-  Schedule: '▤',
-  Calendar: '▦',
-  Production: '◷',
-  'Elements & Links': '◇',
-  'Reports & Print': '▥',
-  Budget: '$',
-  Script: '¶',
-  'App & Account': '⚙',
-  Collaboration: '◎',
-  Dialogs: '⧉',
-};
-
 export function StudioDock({
   surfaces, surface, index, total, projectTitle, projectId, projectList,
-  theme, width, scale, closed, canUndo, canRedo,
-  onSelect, onPrev, onNext, onTheme, onWidth, onScale, onOpenProject, onReopen,
-  onUndo, onRedo,
+  theme, width, scale, closed, replayable, bridgeAvailable, bridgeEnabled, bridgeStatus, demoBusy,
+  canUndo, canRedo,
+  onSelect, onPrev, onNext, onTheme, onWidth, onScale, onOpenProject, onDemo, onReopen,
+  onReplay, onToggleBridge, onUndo, onRedo,
 }: StudioDockProps) {
   const [projectOpen, setProjectOpen] = React.useState(false);
+  const [dockEl, setDockEl] = React.useState<HTMLDivElement | null>(null);
   const groups: SearchMenuGroup[] = SURFACE_GROUPS
     .filter((g) => surfaces.some((s) => s.group === g))
     .map((g) => ({
       key: g,
       label: g,
-      icon: <span className="text-[10px] leading-none">{GROUP_ICON[g]}</span>,
       count: surfaces.filter((s) => s.group === g).length,
     }));
   const items: SearchMenuItem[] = surfaces.map((s) => ({
@@ -104,7 +102,7 @@ export function StudioDock({
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[10001] flex justify-center p-3 print:hidden">
-      <div className="pointer-events-auto flex w-fit max-w-[min(96vw,980px)] flex-col gap-1.5 rounded-xl border border-[color:var(--ui-border-strong)] bg-[var(--ui-modal-header-base)] px-3 py-2 shadow-2xl">
+      <div ref={setDockEl} data-modals-studio-ui="" className="pointer-events-auto flex w-fit max-w-[min(96vw,980px)] flex-col gap-1.5 rounded-xl border border-[color:var(--ui-border-strong)] bg-[var(--ui-modal-header-base)] px-3 py-2 shadow-2xl">
         <div className="flex flex-wrap items-center gap-2">
           <span className="select-none text-[9px] font-semibold uppercase tracking-[0.18em] text-[color:var(--ui-text-faint)]">
             Modals studio
@@ -126,18 +124,14 @@ export function StudioDock({
             triggerLabel={surface.title}
             triggerVariant="outline"
             theme="dark"
-            browseExpanded={false}
             expandableGroups
             groupExpandMode="single"
             selectedId={surface.id}
             onSelect={(item) => onSelect(item.id)}
-            onSelectGroup={(group) => {
-              const first = surfaces.find((s) => s.group === group.key);
-              if (first) onSelect(first.id);
-            }}
             collapsedWidth={270}
             expandedWidth={270}
             panelWidth={380}
+            portalTarget={dockEl}
           />
           <span className="hidden max-w-[280px] truncate text-[10px] text-[color:var(--ui-text-faint)] md:inline" title={surface.note}>
             {surface.note}
@@ -166,6 +160,21 @@ export function StudioDock({
             <Seg theme="dark" dense value={String(scale)} options={STUDIO_SCALES.map((s) => ({ v: s.v, l: s.l }))} onChange={(v) => onScale(Number(v))} ariaLabel="Text scale" />
           </span>
           <span className="mx-1 h-4 w-px bg-[var(--ui-border)]" aria-hidden />
+          <Button
+            theme="dark"
+            variant={bridgeEnabled ? 'outline' : 'subtle'}
+            size="minimal"
+            onClick={onToggleBridge}
+            disabled={!bridgeAvailable}
+            title={bridgeAvailable ? 'Local MCP bridge — enable so the agent can read get_lab_state' : 'The agent bridge is only available on loopback'}
+          >
+            <span
+              className={`mr-1 h-1.5 w-1.5 rounded-full ${
+                bridgeStatus === 'connected' ? 'bg-emerald-400' : bridgeStatus === 'connecting' ? 'bg-amber-400' : 'bg-zinc-500'
+              }`}
+            />
+            MCP {bridgeEnabled ? bridgeStatus : 'off'}
+          </Button>
           <span className="flex items-center gap-1.5">
             <span className="text-[9px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Project</span>
             <DropdownMenu
@@ -184,11 +193,22 @@ export function StudioDock({
                 </DropdownItem>
               ))}
               {projectList.length === 0 && <DropdownItem disabled onClick={() => {}}>No local projects</DropdownItem>}
+              <DropdownItem
+                onClick={() => { setProjectOpen(false); onDemo(); }}
+                trailing={demoBusy ? <span className="text-[9px] text-[color:var(--ui-text-faint)]">loading…</span> : undefined}
+              >
+                Load demo project
+              </DropdownItem>
             </DropdownMenu>
           </span>
           {closed && (
             <Button theme="dark" variant="outline" size="minimal" onClick={onReopen}>
               <RotateCcw className="mr-1 h-3 w-3" /> Re-open
+            </Button>
+          )}
+          {replayable && (
+            <Button theme="dark" variant="outline" size="minimal" onClick={onReplay} title="Trigger the dialog again">
+              <RotateCcw className="mr-1 h-3 w-3" /> Replay dialog
             </Button>
           )}
           <a

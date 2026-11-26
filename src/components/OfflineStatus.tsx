@@ -1,8 +1,6 @@
 import React from 'react';
-import { Loader2, CloudOff, WifiOff } from 'lucide-react';
-import Modal from './Modal';
-import { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
+import { Loader2 } from 'lucide-react';
+import { OfflineDetailsModal } from './OfflineDetailsModal';
 
 interface OfflineStatusProps {
   readOnly: boolean;
@@ -38,9 +36,6 @@ export default function OfflineStatus({
       ? 'Session expired - sign in to resume editing'
       : 'Signed out of Google Drive - editing is disabled';
   const authAction = supabaseAuthIssue ? onSupabaseSignIn : onSignIn;
-  const authModalBody = supabaseAuthIssue
-    ? 'This shared project needs a signed-in account to stay in sync with the rest of the team. Sign in again to resume live collaboration.'
-    : 'You have been signed out of Google Drive. Sign in again to resume editing your cloud project.';
 
   return (
     <>
@@ -85,41 +80,20 @@ export default function OfflineStatus({
         </div>
       )}
       {showModal && (
-        <Modal open={showModal} onClose={() => setShowModal(false)}
-            title={isAuthIssue ? 'Signed out' : "You're offline"}
-            icon={isAuthIssue ? <CloudOff className="w-5 h-5 text-amber-400" /> : <WifiOff className="w-5 h-5 text-[color:var(--ui-text-muted)]" />}
-            width="max-w-md"
-            footer={
-              <ModalFooter>
-                <ModalFooterButton
-                  variant="ghost"
-                  onClick={() => setShowModal(false)}
-                >
-                  OK
-                </ModalFooterButton>
-                <ModalFooterButton
-                  onClick={() => {
-                    if (isAuthIssue) {
-                      setShowModal(false);
-                      authAction();
-                    } else {
-                      onRetry();
-                    }
-                  }}
-                  disabled={!isAuthIssue && retryingConnection}
-                >
-                  {!isAuthIssue && retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {isAuthIssue ? 'Sign in' : retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
-                </ModalFooterButton>
-              </ModalFooter>
+        <OfflineDetailsModal
+          open={showModal}
+          issue={supabaseAuthIssue ? 'signed-out-shared' : driveAuthIssue ? 'signed-out-drive' : 'offline'}
+          retrying={retryingConnection}
+          onClose={() => setShowModal(false)}
+          onAction={() => {
+            if (isAuthIssue) {
+              setShowModal(false);
+              authAction();
+            } else {
+              onRetry();
             }
-          >
-            <div className="px-5 py-3 text-[color:var(--ui-text-muted)] text-xs border-b border-[color:var(--ui-border)]">
-              {isAuthIssue
-                ? authModalBody
-                : 'This cloud project needs an internet connection to stay in sync. You can keep browsing, but editing is paused until your connection returns.'}
-            </div>
-          </Modal>
+          }}
+        />
       )}
     </>
   );

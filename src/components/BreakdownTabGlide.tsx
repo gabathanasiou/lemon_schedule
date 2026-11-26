@@ -39,12 +39,10 @@ import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/S
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import ImportDialog from './ImportDialog';
+import DeleteScenesModal from './schedule/DeleteScenesModal';
 import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
-import Modal, { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
 import { useDialog } from './Dialog';
-import Checkbox from './Checkbox';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
@@ -353,7 +351,6 @@ export function GlideBreakdownTab({
   }, []);
   const [sortMenu, setSortMenu] = useState<{ x: number; y: number; colKey: string; label: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ sceneId: string; sceneNumber: string } | null>(null);
-  const [suppressDeleteWarning, setSuppressDeleteWarning] = useState(false);
   const [gridSelection, setGridSelection] = useState<GridSelection>({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
@@ -1462,53 +1459,23 @@ export function GlideBreakdownTab({
       {pendingCSVImport && <ImportDialog initialResult={pendingCSVImport.result} initialFileName={pendingCSVImport.fileName} fileFilter=".csv" onClose={() => setPendingCSVImport(null)} />}
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <DeleteScenesModal
         open={!!deleteConfirm}
-        onClose={() => { setDeleteConfirm(null); setSuppressDeleteWarning(false); }}
-        title={deleteConfirm?.sceneId.includes(',') ? 'Delete Scenes' : 'Delete Scene'}
-        width="max-w-sm"
-        footer={
-          <ModalFooter>
-            <ModalFooterButton
-              variant="ghost"
-              onClick={() => { setDeleteConfirm(null); setSuppressDeleteWarning(false); }}
-            >
-              Cancel
-            </ModalFooterButton>
-            <ModalFooterButton
-              variant="danger-solid"
-              onClick={() => {
-                if (deleteConfirm) {
-                  const ids = deleteConfirm.sceneId.split(',');
-                  if (ids.length > 1) dispatch({ type: 'BATCH_START' });
-                  for (const id of ids) deleteScene(id);
-                  if (ids.length > 1) dispatch({ type: 'BATCH_COMMIT' });
-                  if (suppressDeleteWarning) {
-                    suppressWarningFor24h('lemon_schedule_suppress_delete_warning');
-                  }
-                  setDeleteConfirm(null);
-                  setSuppressDeleteWarning(false);
-                }
-              }}
-            >
-              Delete
-            </ModalFooterButton>
-          </ModalFooter>
-        }
-      >
-        <div className="px-5 py-4 space-y-4">
-          <p className="text-sm text-[color:var(--ui-text)]">
-            Are you sure you want to delete{deleteConfirm?.sceneId.includes(',') ? '' : ' scene'} <span className="font-semibold text-[color:var(--ui-text-strong)]">{deleteConfirm?.sceneNumber}</span>?
-          </p>
-          <Checkbox
-            block
-            checked={suppressDeleteWarning}
-            onChange={setSuppressDeleteWarning}
-            tone="danger"
-            label="Don't ask again (24 hours)"
-          />
-        </div>
-      </Modal>
+        label={deleteConfirm?.sceneNumber ?? ''}
+        plural={deleteConfirm?.sceneId.includes(',') ?? false}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={(suppressWarning) => {
+          if (!deleteConfirm) return;
+          const ids = deleteConfirm.sceneId.split(',');
+          if (ids.length > 1) dispatch({ type: 'BATCH_START' });
+          for (const id of ids) deleteScene(id);
+          if (ids.length > 1) dispatch({ type: 'BATCH_COMMIT' });
+          if (suppressWarning) {
+            suppressWarningFor24h('lemon_schedule_suppress_delete_warning');
+          }
+          setDeleteConfirm(null);
+        }}
+      />
       {sceneNumberCollisionModal}
     </div>
       <SceneScriptPane

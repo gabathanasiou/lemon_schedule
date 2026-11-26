@@ -45,10 +45,8 @@ import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
 import DropdownSubmenu from './components/DropdownSubmenu';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './components/ContextMenu';
-import Modal from './components/Modal';
-import { ModalFooter } from './components/Modal';
-import ModalFooterButton from './components/ModalFooterButton';
 import TrashModal from './components/TrashModal';
+import { RestoreFolderModal } from './components/RestoreFolderModal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
@@ -64,7 +62,7 @@ import { AGENT_BRIDGE_HELP_SUPPRESS_KEY } from './lib/agentBridgeClient';
 import { isWarningSuppressed, suppressWarningFor24h } from './lib/warnings';
 import AgentBridgeHelpModal from './components/AgentBridgeHelpModal';
 import WhatsNewModal from './components/WhatsNewModal';
-import { Download, Printer, Plus, ChevronDown, Undo2, Redo2, FolderOpen, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
+import { Download, Printer, Plus, ChevronDown, Undo2, Redo2, FolderOpen, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import DayManagerPage from './components/production/day/DayManagerPage';
 import type { DayView } from './lib/dayView';
@@ -1458,50 +1456,21 @@ function AppContent() {
       {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
 
       {showRestoreModal && (
-        <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={() => setShowRestoreModal(null)}>
-                Cancel
-              </ModalFooterButton>
-              <ModalFooterButton
-                disabled={showRestoreModal.projects.length === 0}
-                onClick={async () => {
-                  try {
-                    const projectsToImport: Project[] = showRestoreModal.projects.map(p => JSON.parse(p.data));
-                    for (const proj of projectsToImport) {
-                      try { importProjectFromData(proj); } catch (e) { console.error('Failed to import', proj.id, e); }
-                    }
-                    setShowRestoreModal(null);
-                  } catch (e) { console.error(e); }
-                }}
-              >
-                Restore {showRestoreModal.projects.length > 0 ? `(${showRestoreModal.projects.length})` : ''}
-              </ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="px-5 py-3 text-[color:var(--ui-text-muted)] text-xs border-b border-[color:var(--ui-border)]">
-            {showRestoreModal.entries.length} {showRestoreModal.entries.length === 1 ? 'project' : 'projects'} found in your save folder.
-            Restoring will merge them with your current projects.
-          </div>
-          <div className="p-2">
-            {showRestoreModal.entries.length === 0 ? (
-              <div className="text-[color:var(--ui-text-faint)] text-center py-12 text-xs">No projects in folder.</div>
-            ) : (
-              showRestoreModal.entries.map(entry => (
-                <div key={entry.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-[var(--ui-panel-bg)]">
-                    <div className="min-w-0">
-                      <div className="text-[color:var(--ui-text-strong)] text-sm font-semibold truncate">{entry.title || 'Untitled'}</div>
-                      <div className="text-[color:var(--ui-text-faint)] text-[11px] mt-0.5">
-                        Last saved {new Date(entry.lastModified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-        </Modal>
+        <RestoreFolderModal
+          open
+          entries={showRestoreModal.entries}
+          restorableCount={showRestoreModal.projects.length}
+          onClose={() => setShowRestoreModal(null)}
+          onRestore={() => {
+            try {
+              const projectsToImport: Project[] = showRestoreModal.projects.map(p => JSON.parse(p.data));
+              for (const proj of projectsToImport) {
+                try { importProjectFromData(proj); } catch (e) { console.error('Failed to import', proj.id, e); }
+              }
+              setShowRestoreModal(null);
+            } catch (e) { console.error(e); }
+          }}
+        />
       )}
 
     </div>

@@ -16,7 +16,7 @@ export const meta = [
     group: 'Schedule',
     note: 'The shared banner palette picker (Schedule stripboard + Calendar day notes).',
     kind: 'modal',
-    sources: ['src/components/schedule/ScheduleModals.tsx', 'src/components/CalendarTab.tsx'],
+    sources: ['src/components/schedule/BannerColorModal.tsx', 'src/components/schedule/ScheduleModals.tsx', 'src/components/CalendarTab.tsx'],
     width: 'sm',
   },
   {
@@ -25,7 +25,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Checklist delete of notes or breaks (ScheduleModals banner cleanup).',
     kind: 'modal',
-    sources: ['src/components/schedule/ScheduleModals.tsx'],
+    sources: ['src/components/schedule/BannerDeleteModal.tsx', 'src/components/schedule/ScheduleModals.tsx'],
   },
   {
     id: 'auto-daybreak',
@@ -33,7 +33,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Place day breaks by duration or page count.',
     kind: 'modal',
-    sources: ['src/components/schedule/ScheduleModals.tsx'],
+    sources: ['src/components/schedule/AutoDaybreakModal.tsx', 'src/components/schedule/ScheduleModals.tsx'],
     width: 'sm',
   },
   {
@@ -42,7 +42,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Confirm the destructive auto-daybreak reset (notes/breaks to boneyard or delete).',
     kind: 'modal',
-    sources: ['src/components/schedule/ScheduleModals.tsx'],
+    sources: ['src/components/schedule/StripboardPrepareModal.tsx', 'src/components/schedule/ScheduleModals.tsx'],
     width: 'sm',
   },
   {
@@ -83,7 +83,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Duplicate scene-number guard: cancel or swap the two numbers.',
     kind: 'modal',
-    sources: ['src/components/SceneNumberCollisionGuard.tsx'],
+    sources: ['src/components/schedule/SceneNumberCollisionModal.tsx', 'src/components/SceneNumberCollisionGuard.tsx'],
     width: 'sm',
   },
   {
@@ -92,7 +92,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Destructive confirm for deleting one or several scenes (Glide breakdown).',
     kind: 'modal',
-    sources: ['src/components/BreakdownTabGlide.tsx'],
+    sources: ['src/components/schedule/DeleteScenesModal.tsx', 'src/components/BreakdownTabGlide.tsx'],
     width: 'sm',
   },
   {
@@ -101,7 +101,7 @@ export const meta = [
     group: 'Schedule',
     note: 'Confirm a pasted/imported CSV breakdown batch (Glide shell).',
     kind: 'modal',
-    sources: ['src/lib/glideShell.tsx'],
+    sources: ['src/components/import/CsvImportConfirmModal.tsx', 'src/lib/glideShell.tsx'],
     width: 'sm',
   },
 ] as const satisfies readonly ModalSurfaceMeta[];

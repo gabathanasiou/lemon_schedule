@@ -6,6 +6,12 @@ other picker primitives.** It is the design-decision reference for the kit's
 one catalogue picker; `src/components/location/LocationSearchMenu.tsx` is the
 app's location face.
 
+**Owner preference (2026-11-26):** when a picker opens from a button, use the
+**expandable** shape — the button morphs into a search text field and the panel
+is searchable inside the dropdown. Never ship a plain dropdown menu with a
+separate search box for record selection. This is the house default for every
+selection/search surface, including dev tooling (the Modals Studio picker).
+
 `SearchMenu` is the kit's **record picker**: a search field with a panel of
 groups, records and actions. It is one component with two physical shapes
 (always-visible field, or a button that morphs into a field) and several

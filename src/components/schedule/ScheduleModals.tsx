@@ -1,42 +1,14 @@
 import React from 'react';
-import Modal from '../Modal';
-import { ModalFooter } from '../Modal';
-import ModalFooterButton from '../ModalFooterButton';
-import Checklist from '../Checklist';
-import ColorField from '../ColorField';
-import { isImeConfirm } from '../../lib/keys';
-import { FieldBox, SuffixField } from '../FieldBox';
-import { CellInput } from '../CellInput';
-import { parseDuration, parsePageCount } from '../../lib/utils';
-import { getNoteBannerColors } from '../../lib/ribbonUtils';
-import { SceneColorPalette } from '../../types';
+import BannerColorModal, { type BannerColorState } from './BannerColorModal';
+import AutoDaybreakModal, { type AutoDaybreakPromptState } from './AutoDaybreakModal';
+import StripboardPrepareModal, { type AutoDaybreakCleanupState } from './StripboardPrepareModal';
+import BannerDeleteModal, { type BannerDeleteState, type BannerDeleteEntry } from './BannerDeleteModal';
+import type { SceneColorPalette } from '../../types';
 
-export interface ColorPickerState {
+export type { AutoDaybreakPromptState, AutoDaybreakCleanupState, BannerDeleteState, BannerDeleteEntry };
+
+export interface ColorPickerState extends BannerColorState {
   rowId: string;
-  bg: string;
-  text: string;
-  noteText: string;
-}
-
-export interface AutoDaybreakPromptState {
-  mode: 'duration' | 'pages';
-}
-
-export interface AutoDaybreakCleanupState {
-  mode: 'duration' | 'pages';
-  threshold: number;
-}
-
-export interface BannerDeleteState {
-  type: 'NOTE' | 'BREAK';
-}
-
-export interface BannerDeleteEntry {
-  key: string;
-  label: string;
-  bg: string;
-  fg: string;
-  count: number;
 }
 
 interface ScheduleModalsProps {
@@ -71,6 +43,9 @@ interface ScheduleModalsProps {
   deleteBanners: (type: 'NOTE' | 'BREAK', keys: Set<string>) => void;
 }
 
+/** Composition root for the Schedule tab's banner + auto-daybreak modals.
+ *  Each modal is its own component so the Modals Studio can preview it in
+ *  isolation; state stays with the ScheduleTab host. */
 export default function ScheduleModals(props: ScheduleModalsProps) {
   const {
     colorPicker, setColorPicker, palette, applyNoteColor,
@@ -85,209 +60,45 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
 
   return (
     <>
-      {/* Color Picker Modal */}
-      {colorPicker && (
-        <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={() => setColorPicker(null)}>Cancel</ModalFooterButton>
-              <ModalFooterButton onClick={applyNoteColor}>Apply</ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-5">
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
-              <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(palette).background} />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
-              <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(palette).color} />
-            </div>
-            <div>
-              <textarea
-                value={colorPicker.noteText}
-                onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
-                rows={3}
-                className="w-full text-xs px-3 py-2 rounded border border-[color:var(--ui-border)] outline-none focus:border-[color:var(--ui-input-focus-border)] resize-none"
-                style={{ background: colorPicker.bg, color: colorPicker.text }}
-                placeholder="Banner text..."
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
-      {autoDaybreakPrompt && (() => {
-        const threshold = autoDaybreakPrompt.mode === 'duration'
-          ? parseDuration(autoDaybreakRaw)
-          : parsePageCount(autoDaybreakRaw);
-        const valid = autoDaybreakRaw.trim() !== '' && !isNaN(threshold) && threshold > 0;
-        return (
-          <Modal open onClose={() => setAutoDaybreakPrompt(null)} title={autoDaybreakPrompt.mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages'} width="max-w-sm"
-            footer={
-              <ModalFooter>
-                <ModalFooterButton variant="ghost" onClick={() => setAutoDaybreakPrompt(null)}>Cancel</ModalFooterButton>
-                <ModalFooterButton onClick={confirmAutoDaybreak} disabled={!valid}>Place Day Breaks</ModalFooterButton>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid && !isImeConfirm(e)) confirmAutoDaybreak(); }}>
-              <div className="flex items-center gap-3 py-1">
-                {autoDaybreakPrompt.mode === 'duration' && (
-                  <span className="text-xs text-[color:var(--ui-text)] shrink-0">Duration</span>
-                )}
-                {autoDaybreakPrompt.mode === 'duration' ? (
-                  <FieldBox className="flex-1 min-w-0">
-                    <CellInput
-                      value={autoDaybreakRaw}
-                      onChange={setAutoDaybreakRaw}
-                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
-                      clearOnType
-                      autoFocus
-                      col="duration"
-                      placeholder="e.g. 8h or 1h 30m"
-                      className="flex-1 text-left text-xs"
-                    />
-                  </FieldBox>
-                ) : (
-                  <SuffixField suffix="pgs" className="flex-1 min-w-0">
-                    <CellInput
-                      value={autoDaybreakRaw}
-                      onChange={setAutoDaybreakRaw}
-                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
-                      clearOnType
-                      autoFocus
-                      col="pageCount"
-                      placeholder="e.g. 2 4/8 or 3.5"
-                      className="flex-1 text-right text-xs"
-                    />
-                  </SuffixField>
-                )}
-              </div>
-            </div>
-          </Modal>
-        );
-      })()}
-      {autoDaybreakCleanup && (() => {
-        const segBase = `flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer`;
-        const segSel = `bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]`;
-        const segDef = `text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]`;
-        const parts: string[] = [];
-        if (daybreakCount > 0) parts.push(`${daybreakCount} day break${daybreakCount !== 1 ? 's' : ''}`);
-        if (noteCount > 0) parts.push(`${noteCount} note${noteCount !== 1 ? 's' : ''}`);
-        if (breakCount > 0) parts.push(`${breakCount} break${breakCount !== 1 ? 's' : ''}`);
-        const summary = parts.join(', ').replace(/, ([^,]+)$/, ' and $1');
-        return (
-          <Modal open onClose={() => setAutoDaybreakCleanup(null)} title="Prepare Stripboard" width="max-w-sm"
-            footer={
-              <ModalFooter>
-                <ModalFooterButton variant="ghost" onClick={() => setAutoDaybreakCleanup(null)}>Cancel</ModalFooterButton>
-                <ModalFooterButton onClick={() => {
-                  const c = autoDaybreakCleanup;
-                  setAutoDaybreakCleanup(null);
-                  executeAutoDaybreak(c.mode, c.threshold, autoDaybreakNotesAction, autoDaybreakBreaksAction);
-                }}>Place Day Breaks</ModalFooterButton>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
-                {daybreakCount > 0 && (noteCount > 0 || breakCount > 0)
-                  ? <>Existing day breaks will be removed. {summary} found - choose how to handle notes and breaks.</>
-                  : daybreakCount > 0
-                  ? <>Existing day breaks will be removed before auto-placing new ones.</>
-                  : <>{summary} found in the stripboard - choose how to handle them.</>
-                }
-              </p>
-              {daybreakDetailCount > 0 && (
-                <p className="text-xs text-amber-400 leading-relaxed">
-                  {daybreakDetailCount === 1 ? 'One day has details' : `${daybreakDetailCount} days have details`} (locations, crew, call times or notes) that will be discarded. You can undo this.
-                </p>
-              )}
-              {daybreakCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-[color:var(--ui-text)]">Day Breaks <span className="text-[color:var(--ui-text-faint)]">({daybreakCount})</span></span>
-                  <span className="text-xs text-[color:var(--ui-text-faint)]">Will be removed</span>
-                </div>
-              )}
-              {noteCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-[color:var(--ui-text)]">Notes <span className="text-[color:var(--ui-text-faint)]">({noteCount})</span></span>
-                  <div className="flex gap-1.5">
-                    <button className={`${segBase} ${autoDaybreakNotesAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('boneyard')}>Boneyard</button>
-                    <button className={`${segBase} ${autoDaybreakNotesAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('delete')}>Delete</button>
-                  </div>
-                </div>
-              )}
-              {breakCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-[color:var(--ui-text)]">Breaks <span className="text-[color:var(--ui-text-faint)]">({breakCount})</span></span>
-                  <div className="flex gap-1.5">
-                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('boneyard')}>Boneyard</button>
-                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('delete')}>Delete</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Modal>
-        );
-      })()}
-      {bannerDelete && (() => {
-        const allChecked = bannerDeleteEntries.length > 0 && bannerDeleteEntries.every(e => bannerDeleteChecked.has(e.key));
-        const checkedKeys = new Set(bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).map(e => e.key));
-        const checkedCount = bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).reduce((s, e) => s + e.count, 0);
-        const totalCount = bannerDeleteEntries.reduce((s, e) => s + e.count, 0);
-        return (
-          <Modal open onClose={() => setBannerDelete(null)} title={bannerDelete.type === 'NOTE' ? 'Delete Notes' : 'Delete Breaks'} width="max-w-md"
-            footer={
-              <ModalFooter>
-                <ModalFooterButton variant="ghost" onClick={() => setBannerDelete(null)}>Cancel</ModalFooterButton>
-                <ModalFooterButton
-                  variant="danger-solid"
-                  onClick={() => deleteBanners(bannerDelete.type, checkedKeys)}
-                  disabled={checkedCount === 0}
-                >
-                  Delete Selected{checkedCount > 0 ? ` (${checkedCount})` : ''}
-                </ModalFooterButton>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
-                Choose which {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banners to remove.
-              </p>
-              <Checklist
-                title={`${totalCount} ${bannerDelete.type === 'NOTE' ? 'note' : 'break'} banner${totalCount !== 1 ? 's' : ''}`}
-                items={bannerDeleteEntries.map(e => ({
-                  id: e.key,
-                  label: (
-                    <span className="px-2 py-0.5 rounded font-semibold truncate max-w-[16rem] shrink-0" style={{ background: e.bg, color: e.fg }}>
-                      {e.label}
-                    </span>
-                  ),
-                  secondary: e.count,
-                }))}
-                selected={bannerDeleteChecked}
-                onToggle={key => setBannerDeleteChecked(prev => {
-                  const next = new Set(prev);
-                  const k = String(key);
-                  if (next.has(k)) next.delete(k); else next.add(k);
-                  return next;
-                })}
-                onToggleAll={() => setBannerDeleteChecked(prev => {
-                  const next = new Set(prev);
-                  if (allChecked) bannerDeleteEntries.forEach(e => next.delete(e.key));
-                  else bannerDeleteEntries.forEach(e => next.add(e.key));
-                  return next;
-                })}
-                allSelected={allChecked}
-                emptyHint="No banners found."
-                maxHeight={288}
-              />
-            </div>
-          </Modal>
-        );
-      })()}
+      <BannerColorModal
+        state={colorPicker}
+        onChange={setColorPicker}
+        onClose={() => setColorPicker(null)}
+        onApply={applyNoteColor}
+        palette={palette}
+      />
+      <AutoDaybreakModal
+        state={autoDaybreakPrompt}
+        onClose={() => setAutoDaybreakPrompt(null)}
+        raw={autoDaybreakRaw}
+        onRawChange={setAutoDaybreakRaw}
+        normalizeRaw={normalizeAutoDaybreakRaw}
+        onConfirm={confirmAutoDaybreak}
+      />
+      <StripboardPrepareModal
+        state={autoDaybreakCleanup}
+        onClose={() => setAutoDaybreakCleanup(null)}
+        onPlace={c => {
+          setAutoDaybreakCleanup(null);
+          executeAutoDaybreak(c.mode, c.threshold, autoDaybreakNotesAction, autoDaybreakBreaksAction);
+        }}
+        notesAction={autoDaybreakNotesAction}
+        onNotesAction={setAutoDaybreakNotesAction}
+        breaksAction={autoDaybreakBreaksAction}
+        onBreaksAction={setAutoDaybreakBreaksAction}
+        daybreakCount={daybreakCount}
+        daybreakDetailCount={daybreakDetailCount}
+        noteCount={noteCount}
+        breakCount={breakCount}
+      />
+      <BannerDeleteModal
+        state={bannerDelete}
+        onClose={() => setBannerDelete(null)}
+        entries={bannerDeleteEntries}
+        checked={bannerDeleteChecked}
+        onCheckedChange={setBannerDeleteChecked}
+        onDelete={deleteBanners}
+      />
     </>
   );
 }

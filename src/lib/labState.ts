@@ -55,3 +55,26 @@ export function subscribeLabState(cb: () => void): () => void {
   listeners.add(cb);
   return () => { listeners.delete(cb); };
 }
+
+/** The demo project the studio imports is a sandbox: fixtures may seed preview
+ *  data (a sample screenplay, one split) there, never in the user's own
+ *  project. Stored as ids so it survives a reload. */
+const SANDBOX_KEY = 'lemon_modals_studio_sandbox';
+const SANDBOX_MAX = 5;
+
+export function markLabSandboxProject(id: string): void {
+  try {
+    const ids = JSON.parse(localStorage.getItem(SANDBOX_KEY) || '[]') as string[];
+    const next = [id, ...ids.filter((x) => x !== id)].slice(0, SANDBOX_MAX);
+    localStorage.setItem(SANDBOX_KEY, JSON.stringify(next));
+  } catch { /* dev tooling only — storage may be unavailable */ }
+}
+
+export function isLabSandboxProject(id: string): boolean {
+  try {
+    const ids = JSON.parse(localStorage.getItem(SANDBOX_KEY) || '[]') as string[];
+    return ids.includes(id);
+  } catch {
+    return false;
+  }
+}

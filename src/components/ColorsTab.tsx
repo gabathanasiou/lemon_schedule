@@ -11,14 +11,11 @@ import { IS_COARSE } from '../lib/device';
 import { ThemeScope } from '@gabriel/ui-kit';
 import { RotateCcw, Download, FileUp, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown } from 'lucide-react';
 import { isImeConfirm } from '../lib/keys';
-import Modal from './Modal';
-import ColorField from './ColorField';
-import { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
 import DropdownItem from './DropdownItem';
 import { ColorRuleEditModal } from './ColorRuleEditModal';
+import { PaletteColorModal } from './colors/PaletteColorModal';
 import { findEntry, clonePalette, updateSceneColor } from '../lib/paletteOps';
 import ColorRuleCard from './ColorRuleCard';
 
@@ -37,8 +34,6 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   const dnOptions = getDayNightOptions(palette);
   const importRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
-  const [editBg, setEditBg] = useState('');
-  const [editText, setEditText] = useState('');
   const [editingHeader, setEditingHeader] = useState<{ type: 'ie' | 'dn'; idx: number } | null>(null);
   const [headerText, setHeaderText] = useState('');
   const needsScroll = useRef(false);
@@ -68,15 +63,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   const GAP = IS_COARSE ? 'gap-2' : 'gap-1';
 
   const openEditor = (label: string, bg: string, text: string, commit: (bg: string, text: string) => void, resetDefaults: () => { bg: string; text: string }) => {
-    setEditBg(bg);
-    setEditText(text);
     setEditing({ label, bg, text, commit, resetDefaults });
-  };
-
-  const applyEdit = () => {
-    if (!editing) return;
-    editing.commit(editBg, editText);
-    setEditing(null);
   };
 
   const sceneColor = useMemo(() => {
@@ -348,29 +335,18 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
       {/* Color Editor Modal */}
       {editing && (
-        <Modal open onClose={() => setEditing(null)} title={`Edit: ${editing.label}`} width="max-w-sm"
-          onReset={() => { const d = editing.resetDefaults(); setEditBg(d.bg); setEditText(d.text); }}
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={() => setEditing(null)}>Cancel</ModalFooterButton>
-              <ModalFooterButton onClick={applyEdit}>Apply</ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-5">
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
-              <ColorField value={editBg} onChange={setEditBg} size="lg" />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
-              <ColorField value={editText} onChange={setEditText} size="lg" />
-            </div>
-            <div className="w-full h-10 rounded border border-[color:var(--ui-card-border)] flex items-center justify-center text-sm font-bold" style={{ background: editBg, color: editText }}>
-              Aa
-            </div>
-          </div>
-        </Modal>
+        <PaletteColorModal
+          open
+          label={editing.label}
+          background={editing.bg}
+          text={editing.text}
+          onApply={editing.commit}
+          onReset={() => {
+            const d = editing.resetDefaults();
+            return { background: d.bg, text: d.text };
+          }}
+          onClose={() => setEditing(null)}
+        />
       )}
 
       {/* Body — `inert` when view-only (S2): the whole editing pane is

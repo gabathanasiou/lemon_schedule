@@ -42,8 +42,10 @@ API; `e2e/debug-bridge.spec.ts` proves it.
   column value — the Glide canvas is opaque to the DOM), `decodeProject(raw)`
   (a persisted project string — gzip/base64 or legacy plain JSON; use for
   persistence assertions, never `JSON.parse`), `diagnostics()`
-  (connectivity/sync snapshot), `auditScript()` (project ↔ `scriptDocument`
-  integrity), `getProjectList()`, `pastCount()` / `futureCount()`.
+  (connectivity/sync snapshot), `getLabState()` (the Modals Studio's active
+  surface/selection, `null` outside it), `auditScript()` (project ↔
+  `scriptDocument` integrity), `getProjectList()`, `pastCount()` /
+  `futureCount()`.
 - **Writes** — the SAME `Action` union the UI uses (`src/store/reducer.ts`):
   `dispatch(action)` throws on unknown types/shape errors and flushes
   synchronously (`flushSync` in provider); `undo()` / `redo()`; `batch(fn)` =
@@ -115,7 +117,8 @@ API; `e2e/debug-bridge.spec.ts` proves it.
 | `add_row` | write | Insert a NOTE / BREAK / DAYBREAK row at a position. |
 | `make_scene` | read | Valid blank Scene with optional overrides (build `ADD_SCENE` payloads). |
 | `undo` / `redo` | write | Step the history stacks. |
-| `get_bridge_status` | read | App connectivity, open project, read-only flag, sync diagnostics. |
+| `get_bridge_status` | read | App connectivity, open project, read-only flag, sync diagnostics, and `lab` (the Modals Studio surface when open). |
+| `get_lab_state` | read | The Modals Studio (`#/lab/modals`) active surface/kind/position/theme/width/scale/project + selected entity; `null` outside the studio. |
 
 Blocked over the bridge: `LOAD` (replaces the project + clears history) and
 `EMPTY_TRASH` (irreversible). Writes are refused while
@@ -335,7 +338,7 @@ proxy → primary { v:1, id, method:'tool.call', params:{ name, args } }
 
 Whitelisted app methods: `getProject`, `getProjectList`, `getCurrentProjectId`,
 `getVersion`, `getRows`, `getSceneValues`, `getSceneScript`,
-`getCalendarVersion`, `diagnostics`, `applyActions`, `makeScene`, `undo`,
+`getCalendarVersion`, `diagnostics`, `getLabState`, `applyActions`, `makeScene`, `undo`,
 `redo`, `autoDaybreaks`, `deleteAllDaybreaks`, `moveRows`, `insertRow`,
 `reorderRows`, `sortRows`, `getReportRegistry`, `getReportDesign`,
 `makeReportBlock`, `getDays`, `getDay`, `getViolations`, `getElementStats`,

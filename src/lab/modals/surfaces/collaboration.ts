@@ -16,7 +16,7 @@ export const meta = [
     group: 'Collaboration',
     note: 'Copy a local/Drive project into shared (online) projects.',
     kind: 'modal',
-    sources: ['src/components/UserPresenceCluster.tsx'],
+    sources: ['src/components/UserPresenceCluster.tsx', 'src/components/collaboration/CollaborateModal.tsx'],
     width: 'sm',
   },
 ] as const satisfies readonly ModalSurfaceMeta[];

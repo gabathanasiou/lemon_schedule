@@ -13,9 +13,6 @@ import { Seg, ThemeScope } from '@gabriel/ui-kit';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';
-import Modal from './Modal';
-import { ModalFooter } from './Modal';
-import ModalFooterButton from './ModalFooterButton';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
@@ -39,7 +36,7 @@ import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown'
 import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import PageToolbar from './PageToolbar';
-import ColorField from './ColorField';
+import BannerColorModal from './schedule/BannerColorModal';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
 import { useDialog } from './Dialog';
@@ -1480,37 +1477,13 @@ export const CalendarTab: React.FC<{
           shiftHeld={shiftHeld}
         />
       )}
-      {colorPicker && (
-        <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
-          footer={
-            <ModalFooter>
-              <ModalFooterButton variant="ghost" onClick={() => setColorPicker(null)}>Cancel</ModalFooterButton>
-              <ModalFooterButton onClick={applyNoteColor}>Apply</ModalFooterButton>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-5">
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
-              <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).background} />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
-              <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).color} />
-            </div>
-            <div>
-              <textarea
-                value={colorPicker.noteText}
-                onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
-                rows={3}
-                className="w-full text-xs px-3 py-2 rounded border border-[color:var(--ui-border)] outline-none focus:border-[color:var(--ui-border-strong)] resize-none"
-                style={{ background: colorPicker.bg, color: colorPicker.text }}
-                placeholder="Banner text..."
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
+      <BannerColorModal
+        state={colorPicker}
+        onChange={setColorPicker}
+        onClose={() => setColorPicker(null)}
+        onApply={applyNoteColor}
+        palette={state.present.colorPalette}
+      />
       {prodDatesOpen && (
         <ProductionDatesModal onClose={() => setProdDatesOpen(false)} />
       )}

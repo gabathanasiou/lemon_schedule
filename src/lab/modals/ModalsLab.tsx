@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { DialogProvider, ThemeScope } from '@gabriel/ui-kit';
+import { DialogProvider, ThemeProvider, ThemeScope } from '@gabriel/ui-kit';
 import Button from '../../components/Button';
 import { useProject, useProjectTheme } from '../../store';
 import { projectModalThemeOf } from '../../lib/projectTheme';
 import type { CalendarVersion, Project } from '../../types';
-import { setLabState, type LabSelection } from '../../lib/labState';
+import { setLabState, markLabSandboxProject, type LabSelection } from '../../lib/labState';
 import { setModalThemeOverride } from '../../lib/modalDevTheme';
+import { useAgentBridge } from '../../lib/useAgentBridge';
 import { SURFACES, surfaceById, surfaceRenderer } from './registry';
 import { StudioDock, STUDIO_WIDTH_CSS, type StudioWidth } from './StudioDock';
 import type { FixtureContext, FixturePicks } from './types';
@@ -87,6 +88,7 @@ const ModalsLab: React.FC = () => {
   const { state, dispatch, activeCalendarVersion, projectList, openProject, importProjectFromData, undo, redo, canLocalUndo, canLocalRedo } = useProject();
   const project = state.present;
   const projectModalTheme = projectModalThemeOf(useProjectTheme());
+  const agentBridge = useAgentBridge();
   const surfaces = SURFACES;
 
   const [surfaceId, setSurfaceId] = useState<string>(() => {
@@ -134,6 +136,17 @@ const ModalsLab: React.FC = () => {
     }
   }, [surface]);
 
+  // Follow a manually pasted deep link (the app route only reads the hash on
+  // mount, so the studio owns updates after that).
+  useEffect(() => {
+    const onHash = () => {
+      const id = surfaceIdFromHash();
+      if (id && id !== surfaceId && surfaceById(id)) goTo(id);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [goTo, surfaceId]);
+
   // Studio preview knobs (theme override + width/scale CSS).
   useEffect(() => {
     setModalThemeOverride(theme);
@@ -145,6 +158,19 @@ const ModalsLab: React.FC = () => {
     const root = document.documentElement;
     root.dataset.modalsStudio = '1';
     return () => { delete root.dataset.modalsStudio; };
+  }, []);
+
+  // Studio chrome must not read as an "outside click/press" to a Radix
+  // modal/dialog (it would dismiss the surface being inspected). Own a
+  // document listener registered BEFORE any surface's layer: events inside
+  // the dock or its portaled menu stop here, after React's own handlers ran.
+  useEffect(() => {
+    const shielded = (target: EventTarget | null) =>
+      target instanceof Element && !!target.closest('[data-modals-studio-ui], .modals-studio-shield');
+    const stop = (event: Event) => { if (shielded(event.target)) event.stopImmediatePropagation(); };
+    const types = ['pointerdown', 'mousedown', 'touchstart', 'click', 'focusin'] as const;
+    for (const type of types) document.addEventListener(type, stop);
+    return () => { for (const type of types) document.removeEventListener(type, stop); };
   }, []);
 
   // Publish the active surface for the debug bridge / local MCP.
@@ -195,7 +221,8 @@ const ModalsLab: React.FC = () => {
     try {
       const seed = await import('../../../e2e/fixtures/seed.lemon?raw');
       const data = JSON.parse(seed.default);
-      importProjectFromData(data);
+      const id = importProjectFromData(data);
+      markLabSandboxProject(id);
     } catch (error) {
       setDemoError(error instanceof Error ? error.message : 'Could not load the demo project');
     } finally {
@@ -230,12 +257,14 @@ const ModalsLab: React.FC = () => {
 
   return (
     <ThemeScope mode="dark" surface="neutral" className="block min-h-screen">
-      {/* A nested dialog provider makes the studio's theme knob reach the
-          confirm/prompt/alert ladder too (the app-root provider is above us and
-          cannot see studio state). */}
-      <DialogProvider theme={theme} accent={projectModalTheme.accent} surface={projectModalTheme.surface}>
+      {/* A nested theme + dialog provider makes the studio's theme knob reach
+          the confirm/prompt/alert ladder too (the app-root provider is above us
+          and cannot see studio state; the kit DialogProvider takes its mode
+          from the ambient ThemeProvider). */}
+      <ThemeProvider mode={theme} surface="neutral">
+      <DialogProvider accent={projectModalTheme.accent} surface={projectModalTheme.surface}>
       <style>{`
-        html[data-modals-studio] .ui-modal {${widthCss ? ` max-width: ${widthCss} !important;` : ''}${scale !== 100 ? ` zoom: ${scale / 100};` : ''}}
+        html[data-modals-studio] .ui-modal {${widthCss ? ` max-width: ${widthCss} !important;` : ''}${scale !== 100 ? ` scale: ${scale / 100}; transform-origin: center center;` : ''}}
         html[data-modals-studio] .ui-modal-overlay { background: rgba(0,0,0,0.35); }
       `}</style>
       {needsProject ? (
@@ -288,6 +317,11 @@ const ModalsLab: React.FC = () => {
         width={width}
         scale={scale}
         closed={closed && surface.kind === 'modal'}
+        replayable={surface.kind === 'dialog'}
+        bridgeAvailable={agentBridge.available}
+        bridgeEnabled={agentBridge.enabled}
+        bridgeStatus={agentBridge.status}
+        demoBusy={demoBusy}
         canUndo={canLocalUndo}
         canRedo={canLocalRedo}
         onSelect={goTo}
@@ -297,11 +331,15 @@ const ModalsLab: React.FC = () => {
         onWidth={setWidth}
         onScale={setScale}
         onOpenProject={(id) => { void onOpenProject(id); }}
+        onDemo={() => { void openDemo(); }}
         onReopen={() => { setClosed(false); setRunKey((n) => n + 1); }}
+        onReplay={() => setRunKey((n) => n + 1)}
+        onToggleBridge={() => { if (agentBridge.enabled) agentBridge.disable(); else agentBridge.enable(); }}
         onUndo={() => { undo(); }}
         onRedo={() => { redo(); }}
       />
       </DialogProvider>
+      </ThemeProvider>
     </ThemeScope>
   );
 };

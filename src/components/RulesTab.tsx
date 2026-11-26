@@ -4,9 +4,7 @@ import { ProjectRule } from '../types';
 import { cn } from '../lib/utils';
 import { RULE_TYPE_META, RuleType, describeRule, getRuleGroupKey, getRuleSearchText } from './rules/ruleMeta';
 import { RuleCard } from './rules/RuleCard';
-import { RuleEditorPanel } from './rules/RuleEditorPanel';
-import { anchoredKeysFor } from '../lib/elementLinks';
-import Modal from './Modal';
+import { RuleEditorModal } from './rules/RuleEditorModal';
 import Button from './Button';
 import { inputCls, Seg, ThemeScope } from '@gabriel/ui-kit';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
@@ -15,9 +13,7 @@ export const RulesTab: React.FC = () => {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
   const rules = project.rules || [];
-  const scenes = project.scenes;
   const castMembers = project.castMembers || [];
-  const productionStart = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId)?.productionStart;
 
   const resolveCastName = (castId: string) => {
     const cm = castMembers.find(c => c.id === castId);
@@ -207,26 +203,13 @@ export const RulesTab: React.FC = () => {
       </ThemeScope>
 
       {showForm && (
-        <Modal
+        <RuleEditorModal
           open
+          initial={editingRule}
+          onSave={handleSave}
+          onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
           onClose={() => { setShowForm(false); setEditingRule(null); }}
-          title={editingRule ? 'Edit Rule' : 'New Rule'}
-          width="max-w-lg"
-        >
-          <div className="p-6">
-            <RuleEditorPanel
-              bare
-              initial={editingRule}
-              scenes={scenes}
-              castMembers={castMembers}
-              anchoredKeys={anchoredKeysFor(project.links, 'cast')}
-              onSave={handleSave}
-              onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
-              onClose={() => { setShowForm(false); setEditingRule(null); }}
-              productionStart={productionStart}
-            />
-          </div>
-        </Modal>
+        />
       )}
     </>
   );
