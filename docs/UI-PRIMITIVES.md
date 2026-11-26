@@ -371,9 +371,8 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —
   `DropdownItem group` headers + searchable category matching, one positioning/morph path; an
   omitted `theme` follows the ambient kit mode (light page vs dark modal). `EntityItem.group` still renders headers in the bespoke `DropdownPanel` for EntityDropdown.
-- **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
-  `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
-  border-zinc-800`.
+- **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons `w-3.5 h-3.5 shrink-0` in menus.
+- **Inspector rows** use `src/components/inspector/` (42px label column, groups/sub-groups) — grammar + MUST-NOTs: `docs/DESIGN-LANGUAGE.md` §Inspector & control rows. Never fork a row.
 
 ## Glide grids (`InlineGlideTable`)
 

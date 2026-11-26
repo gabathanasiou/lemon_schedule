@@ -58,7 +58,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
   const noop = () => {};
 
   const body = colBlock && colSel ? (
-    <div className="flex-1 min-h-0 overflow-y-auto py-2" onClick={e => e.stopPropagation()}>
+    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" onClick={e => e.stopPropagation()}>
       {colBlock.type === 'table' ? (
         <TableColumnEditorContent
           block={colBlock}
@@ -86,7 +86,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
       )}
     </div>
   ) : !block ? null : (
-    <div className="flex-1 min-h-0 overflow-y-auto py-2" onClick={e => e.stopPropagation()}>
+    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" onClick={e => e.stopPropagation()}>
       <BlockEditorContent
         block={block}
         project={project}
@@ -114,7 +114,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
       {cellControls && <div className="mt-2 pt-2 border-t border-[color:var(--ui-border)]">{cellControls}</div>}
     </div>
   );
-  return <BlockEditorPanelContext.Provider value={true}>{body}</BlockEditorPanelContext.Provider>;
+  return <BlockEditorPanelContext.Provider value="panel">{body}</BlockEditorPanelContext.Provider>;
 };
 
 export default ReportToolbar;

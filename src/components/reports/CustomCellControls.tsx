@@ -89,7 +89,7 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
   const disabled = !!readOnly || !hasSelection;
 
   return (
-    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       <ChromeHeader
         className="w-full"
         leading={
@@ -120,7 +120,7 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
         }
       />
       {editorRef && (
-        <div className={panel ? 'flex flex-col gap-1.5 px-2.5 pb-1.5' : 'flex flex-col gap-1 px-2.5 pb-1.5'}>
+        <div className={panel ? 'flex flex-col gap-4 px-0 pb-1.5' : 'flex flex-col gap-1 px-2.5 pb-1.5'}>
           <RichTextControls
             project={project}
             editorRef={editorRef}
@@ -140,7 +140,7 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
             onSaveTextStyles={onSaveTextStyles}
           />
           {structure && (
-            <div className={panel ? 'flex flex-wrap items-start gap-x-4 gap-y-2 min-w-0' : 'flex items-center gap-4'}>
+            <div className={panel ? 'flex flex-col gap-4 min-w-0' : 'flex items-center gap-4'}>
               {!structure.headerSelection && (
                 <EditorSection label="Row">
                   <div className={editorRowCls(panel)}>

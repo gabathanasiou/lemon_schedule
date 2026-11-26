@@ -1,12 +1,12 @@
 import React from 'react';
-import { ChromeHeader, SectionHeader, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON, ToolButton } from '@gabriel/ui-kit';
+import { ChromeHeader, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, TB_PICKER, ToolButton } from '@gabriel/ui-kit';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { Project, ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { fieldsForScope } from '../../lib/reportFields';
 import { tableFieldScope } from '../../lib/reportBlocks';
 import { FieldPicker } from './FieldPicker';
-import { Tooltip } from '../Tooltip';
-import { ContentRow, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import { ContentRow, EditorSection, editorFieldCls, useBlockEditorPanel } from './reportEditorLayout';
+import { InspectorGroup, InspectorRow, InspectorToggle } from '../inspector';
 import { useReportControlContext } from './blockControls';
 
 // ---- column editors (table columns AND columns-block columns) -------------------
@@ -26,27 +26,25 @@ export const ColumnStructureControls: React.FC<{
   /** Row-axis tables render the same list as matrix rows. */
   orientation?: 'columns' | 'rows';
 }> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, orientation = 'columns' }) => {
-  const panel = useBlockEditorPanel();
   const rows = orientation === 'rows';
   return (
-    <div className="flex flex-col gap-1">
-      <SectionHeader>Structure</SectionHeader>
-      <div className={editorRowCls(panel)}>
-        <EditorGroup>
+    <EditorSection label="Structure">
+      <InspectorRow>
+        <InspectorGroup>
           <ToolButton onClick={() => onInsertAt(colIndex)} disabled={readOnly} title={rows ? 'Insert row above' : 'Insert column before'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Above' : 'Before'}</ToolButton>
           <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={readOnly} title={rows ? 'Insert row below' : 'Insert column after'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Below' : 'After'}</ToolButton>
-        </EditorGroup>
+        </InspectorGroup>
         <div className={TB_DIVIDER} />
-        <EditorGroup>
+        <InspectorGroup>
           <ToolButton onClick={() => onMove(-1)} disabled={readOnly || colIndex <= 0} title={rows ? 'Move row up' : 'Move column left'} className={TB_BTN_ICON}>
             {rows ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowLeft className="w-2.5 h-2.5" />} {rows ? 'Up' : 'Left'}
           </ToolButton>
           <ToolButton onClick={() => onMove(1)} disabled={readOnly || colIndex >= colsCount - 1} title={rows ? 'Move row down' : 'Move column right'} className={TB_BTN_ICON}>
             {rows ? <ArrowDown className="w-2.5 h-2.5" /> : <ArrowRight className="w-2.5 h-2.5" />} {rows ? 'Down' : 'Right'}
           </ToolButton>
-        </EditorGroup>
-      </div>
-    </div>
+        </InspectorGroup>
+      </InspectorRow>
+    </EditorSection>
   );
 };
 
@@ -107,8 +105,8 @@ export const TableColumnEditorContent: React.FC<{
   return (
     <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       <ColumnHeader colIndex={colIndex} colsCount={columns.length} readOnly={readOnly} onDelete={onDelete} orientation={axis} headerTrailing={headerTrailing} />
-      <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full px-2.5' : 'flex flex-col gap-1.5 min-w-max px-2.5'}>
-        <ContentRow label="Attribute">
+      <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full px-0' : 'flex flex-col gap-3 min-w-max px-2.5'}>
+        <ContentRow label="Field">
           <FieldPicker
             value={col.field}
             fields={fieldsForScope(allFields, scope, block.category)}
@@ -118,44 +116,39 @@ export const TableColumnEditorContent: React.FC<{
             className={`${editorFieldCls(panel, 'w-44')} ${TB_PICKER}`}
           />
         </ContentRow>
-        <div className="flex flex-col gap-1">
-          <SectionHeader>{rows ? 'Row' : 'Column'}</SectionHeader>
-          <div className={editorRowCls(panel)}>
-            <EditorGroup>
-              <Tooltip content="Bold">
-                <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                  <span className="text-[10px] font-bold">B</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Italic">
-                <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                  <span className="text-[10px] italic">I</span>
-                </button>
-              </Tooltip>
+        <EditorSection label={rows ? 'Row' : 'Column'}>
+          <InspectorRow>
+            <InspectorGroup>
+              <InspectorToggle label="Bold" text="B" pressed={!!col.bold} onChange={on => patchCol({ bold: on })} disabled={disabled} />
+              <InspectorToggle label="Italic" text="I" pressed={!!col.italic} onChange={on => patchCol({ italic: on })} disabled={disabled} />
               {!rows && (
-                <Tooltip content="Hide rows where this column is empty">
-                  <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
-                    <EyeOff className="w-3 h-3" />
-                  </button>
-                </Tooltip>
+                <InspectorToggle
+                  label="Hide rows where this column is empty"
+                  pressed={!!col.skipEmpty}
+                  onChange={on => patchCol({ skipEmpty: on })}
+                  icon={<EyeOff className="w-3 h-3" />}
+                  disabled={disabled}
+                />
               )}
-            </EditorGroup>
+            </InspectorGroup>
             <div className={TB_DIVIDER} />
-            <EditorGroup>
+            <InspectorGroup>
               {(['left', 'center', 'right'] as const).map(a => {
                 const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-                const on = (col.align ?? 'left') === a;
                 return (
-                  <Tooltip key={a} content={`Align ${a}`}>
-                    <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                      <Icon className="w-3 h-3" />
-                    </button>
-                  </Tooltip>
+                  <InspectorToggle
+                    key={a}
+                    label={`Align ${a}`}
+                    pressed={(col.align ?? 'left') === a}
+                    onChange={() => patchCol({ align: a })}
+                    icon={<Icon className="w-3 h-3" />}
+                    disabled={disabled}
+                  />
                 );
               })}
-            </EditorGroup>
-          </div>
-        </div>
+            </InspectorGroup>
+          </InspectorRow>
+        </EditorSection>
         <ColumnStructureControls
           colIndex={colIndex}
           colsCount={columns.length}
@@ -184,7 +177,7 @@ export const ColumnsColumnEditorContent: React.FC<{
   return (
     <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       <ColumnHeader colIndex={colIndex} colsCount={colsCount} readOnly={readOnly} onDelete={onDelete} headerTrailing={headerTrailing} />
-      <div className="flex flex-col gap-1.5 px-2.5">
+      <div className={`flex flex-col ${panel ? 'gap-4 px-0' : 'gap-3 px-2.5'}`}>
         <ColumnStructureControls
           colIndex={colIndex}
           colsCount={colsCount}

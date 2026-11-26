@@ -110,6 +110,13 @@ import { PresenceOverlay } from './components/PresenceOverlay';
 import { NewCastNamingProvider } from './lib/newCastNaming';
 import { SceneDuplicateProvider } from './lib/sceneDuplicate';
 
+// Dev-only grammar laboratory (roadmap 373) — `#/lab/inspector`. The
+// `import.meta.env.DEV` ternary makes Rollup drop the lazy import (and its
+// chunk) from production bundles entirely.
+const InspectorLab = import.meta.env.DEV
+  ? React.lazy(() => import('./components/inspector/InspectorLab'))
+  : null;
+
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
   const dialog = useDialog();
@@ -1504,6 +1511,13 @@ function AppContent() {
 }
 
 export default function App() {
+  if (import.meta.env.DEV && InspectorLab && window.location.hash.startsWith('#/lab/inspector')) {
+    return (
+      <React.Suspense fallback={null}>
+        <InspectorLab />
+      </React.Suspense>
+    );
+  }
   return (
     <ProjectProvider>
       {/* Project identity + dialogs (roadmaps 332/333): the ONE context scope

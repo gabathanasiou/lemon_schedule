@@ -290,6 +290,60 @@ Every chrome control DECIDES what it really is, then uses the shared face — ne
 - **`keepLabelOnActive` is opt-in** (kit 0.1.166): toggles collapse back to the icon by default; tabs always keep the selected label. Use it only for a mode whose ON label must stay readable.
 - One shared face per pattern: every View menu, both Glide Info menus and the Calendar Filter use `revealMenuTrigger`; both Boneyard entry points use `BoneyardToggle`; the Script search and Glide filter share `MorphSearchField`. Never a per-call-site copy.
 
+### Inspector & control rows (roadmap 373)
+
+The grammar for every editor/property inspector — the Report Designer rail and floating chrome,
+modal editors, manager property panels. Code: **`src/components/inspector/`**
+(`Inspector.tsx` + barrel; the report editor reaches it through
+`reports/reportEditorLayout.tsx`, which keeps the old `ContentRow`/`EditorSection`/
+`EditorGroup`/`EditorCheckbox` names as thin adapters). Lab: `#/lab/inspector` in DEV
+(`InspectorLab.tsx`, dynamic import, never in a production bundle).
+
+**THREE levels — never four, never a bespoke row:**
+
+| Level | What it is | Recipe |
+|---|---|---|
+| **Row** | One concept | Panel: `grid grid-cols-[calc(42px*var(--inspector-text-scale,1))_minmax(0,1fr)]`, `min-w-0`, 28px min-height (24 compact), gap 8. Label `10px` sentence case `--ui-text-muted`, baseline-aligned with the control text (`leading-7`); a tall row uses `leading-relaxed` so the label sits on the FIRST line. Truncate with the full name in `title`. The control column wraps. Bar: inline label + control, no column. |
+| **Group** | Related controls | `flex flex-wrap items-center gap-x-1.5 gap-y-2` — wraps BETWEEN its sub-groups when the row is narrow (the W + R pair drops together below the swatch); never splits inside a sub-group. |
+| **Sub-group** | Atomic pair (toggle + swatch, W + R) | `inline-flex flex-nowrap items-center gap-0.5` — never splits. `wrap` is the opt-in for sentence-length content. |
+
+**Surfaces** (one context, `useInspectorSurface()`; `reports/reportEditorLayout.tsx`
+re-exports it as `BlockEditorPanelContext`):
+
+- **Panel** (docked rail): fixed 42px label column (it grows with `--inspector-text-scale`);
+  row height 28 (compact 24); panel padding 16; **section gap 16, row gap 8, group gap 4–6**;
+  spacing only from **2/4/6/8/12/16/24/32**. A long concept belongs in the SECTION label
+  (`InspectorSection`), never squeezed into the 42px column. An unlabelled row keeps the control
+  column (empty 42px spacer) so controls never jump left; `full` is the opt-in for a big composite
+  (image size) or a checklist.
+- **Bar** (floating chrome): inline `9px` section labels + 1px group separators
+  (`bg-[var(--ui-border)]`), groups wrap as units, controls keep their kit height. A bar may stack
+  its sections; it does not grow a label column.
+
+**Control faces — one shared face per kind:**
+
+| Kind | Face | Rules |
+|---|---|---|
+| Colour | `InspectorColor` — 28px swatch (`input[type=color]`, 18px inner chip) + optional clear X | **Swatch only: no hex entry.** Value in the tooltip/aria only. |
+| Number | `InspectorNumber` (kit `LiveNumberInput`, **steppers kept**) | Width by expected range (`w-12` under 10, `w-13` under 100, `w-14` under 1000, `w-16` above), right aligned, **never grows with the value**; unit in the tooltip/aria, not a trailing span. The kit's own padding/stepper column is untouched. |
+| Toggle | `InspectorToggle` (kit `TB_TOGGLE` + on/off faces) | Square 28, icon or single glyph (B/I); `aria-pressed` + title; no text labels wider than the square. |
+| Menu | `InspectorMenu` (kit picker trigger + dark menu) | Fills the panel column, fixed `w-*` on a bar; value truncates with the full label in `title`; the checked option carries the check icon. |
+| Checkbox | `InspectorCheckbox` (app `Checkbox`, `plain`) | Inline; label **10px muted** (`text-[10px]!` + `--ui-text-muted`), `fill` only for equal halves, never `block`. A wrapping label uses `items-start!` so the box aligns to the first line. |
+| Segmented | kit `Seg` via `InspectorSeg` | `stretch` on the panel, natural width on a bar. When its labels cannot fit, it adapts to the SAME value menu — never a clipped segment. |
+
+- **Custom JSX stays possible**: children on a row, or `{ kind: 'node', node }` in the tiny
+  `InspectorControls` registry. The registry exists for REPEATED kinds only — never a rigid schema.
+- **Read-only / disabled are first-class**: every face takes `readOnly`/`disabled`; the lab renders
+  both, plus long labels, long values, 150% text and every width.
+- **Wrap test**: the panel must stay free of horizontal scroll/clipping at
+  **240 / 300 / 360 / 400px** and **150% text**. A group wraps between its sub-groups; a pair
+  (W + R, V + H) always travels together. The row grid carries `min-w-0` so the control column
+  actually constrains its children — without it the row overflows and never wraps.
+- **MUST NOT**: fork a row layout, add a hex colour entry, auto-grow a number box, use a flat
+  char-limit abbreviation without a `title`, put a form/label stack inside a panel row, or
+  hand-copy the 42px/28px/8/16 numbers into a call site. **No CSS scopes over kit controls** — the
+  inspector keeps the kit's heights, steppers and padding; only spacing and grouping adapt.
+
 #### Control-face audit — budget surfaces (roadmap 344)
 
 | Surface | Decision | Why |

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { RICH_TEXT_STATE_IDLE, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON } from '@gabriel/ui-kit';
+import { RICH_TEXT_STATE_IDLE, TB_DIVIDER } from '@gabriel/ui-kit';
 import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart } from 'lucide-react';
 import { Project, ReportTextStyle } from '../../types';
-import { Tooltip } from '../Tooltip';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { EditorGroup, EditorSection, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import { InspectorToggle } from '../inspector';
 import { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
 import RichTextFormatBar from './RichTextFormatBar';
 
@@ -107,15 +107,14 @@ export const RichTextControls: React.FC<RichTextControlsProps> = ({
             {(['left', 'center', 'right'] as const).map(a => {
               const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
               return (
-                <Tooltip key={a} content={`Align ${a}`}>
-                  <button
-                    disabled={disabled}
-                    onClick={() => onStyle({ align: a })}
-                    className={`${TB_TOGGLE} ${align === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                  >
-                    <Icon className="w-3 h-3" />
-                  </button>
-                </Tooltip>
+                <InspectorToggle
+                  key={a}
+                  label={`Align ${a}`}
+                  pressed={align === a}
+                  onChange={() => onStyle({ align: a })}
+                  icon={<Icon className="w-3 h-3" />}
+                  disabled={disabled}
+                />
               );
             })}
           </EditorGroup>
@@ -126,15 +125,14 @@ export const RichTextControls: React.FC<RichTextControlsProps> = ({
                 {(['top', 'middle', 'bottom'] as const).map(a => {
                   const Icon = a === 'top' ? AlignVerticalJustifyStart : a === 'middle' ? AlignVerticalJustifyCenter : AlignVerticalJustifyEnd;
                   return (
-                    <Tooltip key={a} content={`Vertical align ${a}`}>
-                      <button
-                        disabled={disabled}
-                        onClick={() => onStyle({ verticalAlign: a })}
-                        className={`${TB_TOGGLE} ${vAlign === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                      >
-                        <Icon className="w-3 h-3" />
-                      </button>
-                    </Tooltip>
+                    <InspectorToggle
+                      key={a}
+                      label={`Vertical align ${a}`}
+                      pressed={vAlign === a}
+                      onChange={() => onStyle({ verticalAlign: a })}
+                      icon={<Icon className="w-3 h-3" />}
+                      disabled={disabled}
+                    />
                   );
                 })}
               </EditorGroup>

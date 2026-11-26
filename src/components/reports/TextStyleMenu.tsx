@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { FontMenu, TB_DIVIDER, TB_NUM, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON } from '@gabriel/ui-kit';
+import { FontMenu, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { Project, ReportTextStyle } from '../../types';
 import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
 import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
-import { LiveNumberInput } from '../LiveNumberInput';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { EditorGroup } from './reportEditorLayout';
+import { InspectorNumber, InspectorToggle } from '../inspector';
 import { Check, ChevronDown, Pencil, Wand2 } from 'lucide-react';
 import { RichTextEditorHandle } from './RichTextEditor';
 
@@ -212,29 +212,13 @@ export const TextStylesModal: React.FC<{
             <>
               <div className={TB_DIVIDER} />
               <EditorGroup>
-                <button
-                  title="Bold"
-                  onClick={() => patch({ bold: !sel.bold })}
-                  className={`${TB_TOGGLE} font-bold ${sel.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                >B</button>
-                <button
-                  title="Italic"
-                  onClick={() => patch({ italic: !sel.italic })}
-                  className={`${TB_TOGGLE} italic ${sel.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                >I</button>
+                <InspectorToggle label="Bold" text="B" pressed={!!sel.bold} onChange={on => patch({ bold: on })} />
+                <InspectorToggle label="Italic" text="I" pressed={!!sel.italic} onChange={on => patch({ italic: on })} />
               </EditorGroup>
               <div className={TB_DIVIDER} />
               <EditorGroup>
                 <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
-                <LiveNumberInput
-                  value={sel.fontSize}
-                  min={6}
-                  max={72}
-                  fallback={10}
-                  className={TB_NUM}
-                  onCommit={v => patch({ fontSize: v })}
-                  title="Font size (pt)"
-                />
+                <InspectorNumber label="Font size" unit="pt" value={sel.fontSize} min={6} max={72} fallback={10} onCommit={v => patch({ fontSize: v })} />
               </EditorGroup>
             </>
           )}

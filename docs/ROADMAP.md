@@ -1287,6 +1287,11 @@ group/wrap predictably, padding and widths drift, and there is no shared grammar
 design system (Lego rows/groups), a dev-only lab to decide it, freeze it in the design language + a
 reusable skill, then migrate the existing inspector surfaces (sub-agents, one batch each).
 
+**Status 2026-11-26:** primitives (`src/components/inspector/`), the DEV lab (`#/lab/inspector`),
+`docs/DESIGN-LANGUAGE.md` §Inspector & control rows and the global `inspector-controls` skill are
+in; Report Designer batches (a) blocks, (b) tables/columns/cells and (c) budget controls are
+migrated. **Remaining:** batch (d) modal/manager property panels.
+
 **Read first:** `docs/DESIGN-LANGUAGE.md` §Control faces + §The chrome spacing scale (this item adds
 §Inspector & control rows), `docs/UI-PRIMITIVES.md`, `src/components/reports/reportEditorLayout.tsx`
 (`ContentRow`/`EditorGroup`/`EditorSection`), the kit `LiveNumberInput` / `ColorField` / `Seg`.
