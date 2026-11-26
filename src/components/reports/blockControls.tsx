@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Seg, ChromeHeader, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
+import { Seg, SectionHeader, ChromeHeader, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportBlockStyle } from '../../types';
 import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
@@ -439,6 +439,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           would stack two hairlines. */}
       {block.type !== 'pageBreak' && (
         <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} py-0`}>
+          <SectionHeader>Content</SectionHeader>
           <ContentControls {...ctx} />
         </div>
       )}
