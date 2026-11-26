@@ -166,12 +166,28 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [textChipKey, setTextChipKey] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   // Docked rail (inspector + palette): collapse state and drag width persist
-  // like the manager/script side panes.
-  const [rail, setRail] = usePersistState('lemon_schedule_report_rail', { open: true, width: 360 });
+  // like the manager/script side panes. The old 360 default was too wide for
+  // the true-width report page — 300 is the new default, capped at 480.
+  const RAIL_DEFAULT_WIDTH = 300;
+  const RAIL_MAX_WIDTH = 480;
+  const [rail, setRail] = usePersistState('lemon_schedule_report_rail', { open: true, width: RAIL_DEFAULT_WIDTH });
+  // One-time migration: shrink a rail still sitting at the old 360 default,
+  // and clamp any stale wider-than-max pref.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('lemon_schedule_report_rail_v2')) return;
+      localStorage.setItem('lemon_schedule_report_rail_v2', '1');
+    } catch { return; }
+    setRail(prev => {
+      const nextWidth = Math.min(RAIL_MAX_WIDTH, prev.width === 360 ? RAIL_DEFAULT_WIDTH : prev.width);
+      return nextWidth === prev.width ? prev : { ...prev, width: nextWidth };
+    });
+  }, [setRail]);
+  const railWidth = Math.min(RAIL_MAX_WIDTH, rail.width);
   const onRailResize = usePaneResize({
-    width: rail.width,
+    width: railWidth,
     min: 240,
-    max: 560,
+    max: RAIL_MAX_WIDTH,
     edge: 'right',
     onChange: w => setRail(p => ({ ...p, width: w })),
   });
@@ -970,7 +986,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               resizable like the manager side panels. */}
           {docked ? (
             rail.open ? (
-              <div className="relative flex shrink-0" style={{ width: rail.width, maxWidth: '70%' }}>
+              <div className="relative flex shrink-0" style={{ width: railWidth, maxWidth: '70%' }}>
                 <aside className="min-w-0 flex-1 bg-[var(--ui-panel-bg)] border-r border-[color:var(--ui-border)] flex flex-col min-h-0">
                   {selBlock || selColBlock ? (
                     <ReportToolbar {...toolbarProps} headerActions={railActions} />

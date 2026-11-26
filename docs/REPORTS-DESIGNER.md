@@ -129,10 +129,30 @@ signals `onReady` and only then `window.print()` fires.
 - `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "IT'S A WONDERFUL LIFE" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
 - Manual: Design → Reports Designer → Print (toolbar) or File → Print → Custom Reports → the modal MUST open first — never a direct print.
 
-- **Image blocks (roadmap 214)**: `imageWidth` is a PERCENT of the content width (unset = 100), so
+## Image & column resizing
+
+- **Image blocks (roadmaps 214/366/368)**: `imageWidth` is a PERCENT of the content width (unset = 100), so
   the same design renders at the same proportions on any page geometry. `reports/ImageBlockView.tsx`
-  renders the image and the designer-only bottom-right resize handle (aspect-locked; Shift = free
-  stretch; one `onPatchBlock` on release, live DOM during the drag). The designer's grey page now
-  renders at `REPORT_PAGE_METRICS[page].contentWidth` (+28px gutters) — the SAME metrics as preview,
-  print and the paginator — with a display-only CSS `zoom` fit; View modes never change layout units.
-  Pure drag math: `lib/reportImageResize.ts` (`resizeImageBlock`) + unit.
+  renders the image and the designer-only resize handle (aspect-locked; Shift = free stretch; one
+  `onPatchBlock` on release, live DOM during the drag). The chrome's compact **Anchor** grid
+  (`components/AnchorGrid.tsx` — generic columns × rows, reusable) sets `imageAlign` (columns: box
+  alignment, and therefore the anchored edge — right-aligned images drag from the left) and
+  `imageAnchorY` (rows: `object-position` inside an explicit-height box; Cover picks the crop,
+  Contain moves the letterbox). The image block's CARD is its box in the designer
+  (`ReportDesignerCanvas` sizes it to `imageWidth`/`imageAlign`, padding 0; `ImageBlockView` fills it
+  100% and the caption follows the box). Width/Height share one line and use the kit `LiveNumberInput`
+  (drag-to-scrub); Width clamps to 100% (never past the content column), choosing Cover/Fill with
+  Height Auto freezes the current rendered height into a box once so the mode has something to fill,
+  and the resize handle is inset inside the box. The docked rail defaults to 300 (480 cap, one-time
+  360→300 migration). The designer's grey page renders at `REPORT_PAGE_METRICS[page].contentWidth`
+  (+28px gutters) — the SAME metrics as preview, print and the paginator — with a display-only CSS
+  `zoom` fit; View modes never change layout units. Pure math: `lib/reportImageResize.ts` (drag) +
+  `lib/reportImageLayout.ts` (anchor/handle) with units.
+- **Column/row resize (roadmap 367)**: ONE live pill `lib/resizeBadge.ts` — columns get a percentage
+  pill ABOVE each affected column (`columnRects` provider; Shift covers the tail), rows get the
+  pointer `px` pill, amber at the floor — driven by the shared `components/columnResize.tsx` dragger
+  and the px `lib/useColumnResize.ts` (Element Breakdown/DOODs). Pair math is pure
+  `lib/columnWidthResize.ts` (a sub-2×MIN pair splits safely, never negative) and
+  `normalizeColWidths` sanitizes negative/NaN/zero-sum input. Report table cells carry `minWidth: 0`,
+  and the columns block renders percent flex-grow (the unit the live drag writes) — columns can never
+  collapse when the pointer is released.

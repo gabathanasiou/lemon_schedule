@@ -9,6 +9,7 @@
  */
 
 export const IMAGE_MIN_WIDTH_PCT = 5;
+/** The image box can never be wider than the content column. */
 export const IMAGE_MAX_WIDTH_PCT = 100;
 export const IMAGE_MIN_HEIGHT_PX = 20;
 export const IMAGE_MAX_HEIGHT_PX = 3000;

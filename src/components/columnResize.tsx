@@ -2,6 +2,8 @@ import React, { useCallback, useRef } from 'react';
 import { MIN_PCT } from '../lib/ribbonDefaults';
 import { useCurrentDocument } from '../lib/popoutTarget';
 import { IS_COARSE } from '../lib/device';
+import { createResizeBadge, createResizeBadgeGroup } from '../lib/resizeBadge';
+import { resizeAdjacentWidths, scaleRightWidths } from '../lib/columnWidthResize';
 
 /**
  * Shared column-resize dragger (the ribbon designer's resize behavior is the
@@ -38,6 +40,10 @@ export interface ColumnResizeHandlers {
   /** Sizes at drag start (defaults to the `widths` argument) — rows measure
    *  their real rendered heights here. */
   getSizes?: () => number[];
+  /** Viewport boxes of the RENDERED columns, indexed like `widths` — enables
+   *  the per-column percentage badges above each resized column (roadmap 367).
+   *  Omit to fall back to the single pointer pill. */
+  columnRects?: () => { left: number; top: number; width: number }[];
 }
 
 /**
@@ -82,50 +88,82 @@ export function useColumnResize(
     };
     lock();
     const startPos = axis === 'y' ? e.clientY : e.clientX;
+    // Roadmap 367 — ONE live pill for every resize gesture. Columns with a
+    // rect provider get a pill ABOVE each affected column instead of one at
+    // the pointer; rows keep the pointer pill.
+    const badge = createResizeBadge(d);
+    const columnBadges = axis === 'x' ? createResizeBadgeGroup(d) : null;
 
     const onMove = (ev: PointerEvent) => {
       ev.preventDefault();
       const pos = axis === 'y' ? ev.clientY : ev.clientX;
-      const cw = [...initial];
+      const delta = pos - startPos;
       if (axis === 'y') {
         const min = h.minSize ?? 14;
-        cw[ci] = Math.max(min, Math.round(initial[ci] + (pos - startPos)));
+        current = [...initial];
+        current[ci] = Math.max(min, Math.round(initial[ci] + delta));
+        badge.update(`${current[ci]} px`, ev.clientX, ev.clientY);
       } else {
-        const deltaPct = ((pos - startPos) / baseWidth) * 100;
-        const curA = cw[ci];
-        const curB = cw[ci + 1];
-        const totalAB = curA + curB;
-        if (ev.shiftKey) {
-          // Shift = scale all columns right of the boundary proportionally.
-          const rightSum = cw.slice(ci + 1).reduce((s, w) => s + w, 0);
-          const nRight = cw.length - ci - 1;
-          const newA = Math.max(minPct, Math.min(curA + rightSum - minPct * nRight, curA + deltaPct));
-          const remaining = rightSum + curA - newA;
-          const scale = remaining / rightSum;
-          cw[ci] = Math.round(newA * 100) / 100;
-          for (let i = ci + 1; i < cw.length; i++) {
-            cw[i] = Math.max(minPct, Math.round(cw[i] * scale * 100) / 100);
-          }
+        const deltaPct = (delta / baseWidth) * 100;
+        current = ev.shiftKey
+          ? scaleRightWidths(initial, ci, deltaPct, minPct)
+          : resizeAdjacentWidths(initial, ci, deltaPct, minPct);
+        const rects = h.columnRects?.() ?? [];
+        const affected = ev.shiftKey
+          ? current.map((_, i) => i).slice(ci)
+          : [ci, ci + 1];
+        // Shift floors the tail at minPct; a plain pair drag floors at the
+        // pair's own safe split when it is already below 2× minPct.
+        const pairFloor = ev.shiftKey
+          ? minPct
+          : Math.min(minPct, ((initial[ci] ?? 0) + (initial[ci + 1] ?? 0)) / 2);
+        const items = rects.length > 0
+          ? affected.flatMap(i => {
+            const rect = rects[i];
+            if (!rect) return [];
+            const pct = current[i] ?? 0;
+            const floor = i === ci ? pairFloor : minPct;
+            const atFloor = pct <= floor + 0.001;
+            return [{
+              text: atFloor ? `min ${Math.round(floor * 10) / 10}%` : `${pct.toFixed(1)}%`,
+              centerX: rect.left + rect.width / 2,
+              bottom: rect.top - 2,
+              tone: atFloor ? ('warning' as const) : ('default' as const),
+            }];
+          })
+          : [];
+        if (items.length > 0) {
+          columnBadges?.update(items);
+          badge.remove();
         } else {
-          const newA = Math.max(minPct, Math.min(totalAB - minPct, curA + deltaPct));
-          const newB = totalAB - newA;
-          cw[ci] = Math.round(newA * 100) / 100;
-          cw[ci + 1] = Math.round(newB * 100) / 100;
+          columnBadges?.remove();
+          const pct = current[ci] ?? 0;
+          const px = Math.round((pct / 100) * baseWidth);
+          const atFloor = pct <= pairFloor + 0.001;
+          badge.update(
+            atFloor ? `min ${Math.round(pairFloor * 10) / 10}% · ${px} px` : `${pct.toFixed(1)}% · ${px} px`,
+            ev.clientX,
+            ev.clientY,
+            atFloor ? 'warning' : 'default',
+          );
         }
       }
-      current = cw;
-      h.apply(cw, ev, ci);
+      h.apply(current, ev, ci);
     };
 
     const onUp = () => {
       d.removeEventListener('pointermove', onMove);
       d.removeEventListener('pointerup', onUp);
+      d.removeEventListener('pointercancel', onUp);
       unlock();
+      badge.remove();
+      columnBadges?.remove();
       h.commit(current, ci);
     };
 
     d.addEventListener('pointermove', onMove);
     d.addEventListener('pointerup', onUp);
+    d.addEventListener('pointercancel', onUp);
   }, [doc]);
 }
 

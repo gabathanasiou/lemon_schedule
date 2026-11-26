@@ -468,6 +468,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const startResize = useColumnResize(colWidths, {
     getWidth: () => gridRef.current?.offsetWidth || 1,
     touchActionTargets: [gridRef.current, canvasRef.current],
+    columnRects: () => tabBarRef.current
+      ? [...tabBarRef.current.children].map(el => el.getBoundingClientRect())
+      : [],
     apply: (cw) => {
       const css = cw.map(w => `${w}%`).join(' ');
       const gridEl = gridRef.current;

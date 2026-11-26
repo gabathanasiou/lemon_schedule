@@ -923,6 +923,8 @@ export interface ReportBlock {
   imageWidth?: number;           // percent of the content width; unset/100 = full width
   imageHeight?: number;          // px; unset = natural aspect ratio at the chosen width
   imageFit?: 'contain' | 'cover' | 'fill'; // only meaningful with imageHeight
+  imageAlign?: 'left' | 'center' | 'right'; // box position in the content width; unset = left
+  imageAnchorY?: 'top' | 'center' | 'bottom'; // content anchor (object-position Y); unset = center
   // map
   mapLat?: number;
   mapLng?: number;

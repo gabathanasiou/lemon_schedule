@@ -1279,4 +1279,3 @@ numeric cast rates are data/bridge-editable.
 **Verify:** real iPad (not only WebKit emulation) — stacked dialog Cancel/Done leaves `pointer-events:auto` (`e2e/ipad-touch-scroll.spec.ts`), overlay tap dismisses, menu/submenu inside a modal opens and scrolls, Call Times → Crew template Glide editor takes one character per key, nested menu FLIP; then the full suite.
 
 **Relations:** revisits the archived pins 71/78 and the 69/155 workarounds; `relates to` 289 (dependency automation is a separate parked policy — this is a one-off experiment, not a Dependabot decision).
-

@@ -19,6 +19,7 @@ import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { CellRef } from '../../lib/reportTableMerges';
 import { PageChunk, FragmentPartUnit, splittableKind } from '../../lib/reportPagination';
+import { imageAlignStyle } from '../../lib/reportImageLayout';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
 // from the canonical ReportCtx; items are resolved by the parent repeat.
@@ -32,6 +33,9 @@ export interface ReportRenderProps {
   parentCollection?: ReportCollection;
   scopeFilter?: ReportScopeFilter;
   hint?: boolean;
+  /** Designer canvas: the surrounding block card is sized to the image box
+   *  (roadmap 368), so the image fills it and the card owns the alignment. */
+  imageBoxed?: boolean;
   /** Designer display/edit mode (roadmap 203): `fields` derives the key view
    *  and keeps text blocks live; omitted by preview/print (always values). */
   mode?: ReportViewMode;
@@ -156,7 +160,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, showBlockTitle, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell, onEnterTableEdit }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, imageBoxed, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, showBlockTitle, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell, onEnterTableEdit }) => {
     // One mode → key seam: Fields drives today's key↔value behavior; preview
     // and print omit the mode (always values).
     const showKeys = mode === 'fields';
@@ -311,17 +315,23 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (!block.imageDataUrl) {
           return hint ? emptyHint('Attach an image…', baseStyle) : null;
         }
-        // Width is a percent of the content width (roadmap 214), so the editor
-        // and print agree; the resize handle lives in the shared image view.
+        // Width is a percent of the content width (roadmaps 214/368), so the
+        // editor and print agree. In the designer the CARD is the box; the
+        // caption below follows the same box width/alignment.
+        const title = renderTitle(block);
+        const titleBox = imageBoxed
+          ? { width: '100%' as const }
+          : { width: `${Math.min(100, Math.max(5, block.imageWidth ?? 100))}%`, ...imageAlignStyle(block.imageAlign) };
         return (
           <>
             <ImageBlockView
               block={block}
+              boxed={imageBoxed}
               hint={hint}
               selected={selected}
               onPatchBlock={onPatchBlock}
             />
-            {renderTitle(block)}
+            {title ? <div style={titleBox}>{title}</div> : null}
           </>
         );
       }
@@ -413,6 +423,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.parentCollection === b.parentCollection &&
     a.scopeFilter === b.scopeFilter &&
     a.hint === b.hint &&
+    a.imageBoxed === b.imageBoxed &&
     a.mode === b.mode &&
     a.showUnresolved === b.showUnresolved &&
     a.ancestors === b.ancestors &&
@@ -898,7 +909,7 @@ const TableColumnsGrid: React.FC<{
       {block.showHeader && (rowRange ? rowRange[0] === 0 || repeatTableHeader : true) && (
         <div className="rm-header" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
-            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...headerStyle, width: `${c.width}%`, minWidth: 0, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {fieldMap[c.field]?.label || c.field || ''}
               {editable && <span style={{ float: 'right', opacity: 0.35, fontSize: 9, lineHeight: '14px' }}>⠿</span>}
             </div>
@@ -908,7 +919,7 @@ const TableColumnsGrid: React.FC<{
       {skeleton ? (
         <div className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
-            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, minWidth: 0, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {keyCell(c.field)}
             </div>
           ))}
@@ -916,7 +927,7 @@ const TableColumnsGrid: React.FC<{
       ) : items.map((it, i) => (
         <div key={i} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
-            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, minWidth: 0, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {showKeys
                 ? keyCell(c.field)
                 : (fieldValueNode(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}

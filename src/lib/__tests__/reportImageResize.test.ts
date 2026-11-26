@@ -39,7 +39,7 @@ describe('resizeImageBlock', () => {
     expect(out.heightPx).toBe(340);
   });
 
-  it('clamps width to the content width and the minimum', () => {
+  it('clamps width to the content column and the minimum', () => {
     expect(resizeImageBlock(start, { dx: 10_000, dy: 0, free: false }).widthPct).toBe(IMAGE_MAX_WIDTH_PCT);
     expect(resizeImageBlock(start, { dx: -10_000, dy: 0, free: false }).widthPct).toBe(IMAGE_MIN_WIDTH_PCT);
   });

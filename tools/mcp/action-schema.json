@@ -1850,6 +1850,16 @@
           "type": "'contain' | 'cover' | 'fill'"
         },
         {
+          "name": "imageAlign",
+          "optional": true,
+          "type": "'left' | 'center' | 'right'"
+        },
+        {
+          "name": "imageAnchorY",
+          "optional": true,
+          "type": "'top' | 'center' | 'bottom'"
+        },
+        {
           "name": "mapLat",
           "optional": true,
           "type": "number"

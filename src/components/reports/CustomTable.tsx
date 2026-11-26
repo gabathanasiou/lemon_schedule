@@ -400,6 +400,9 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
   };
   const startColBorderResize = useColumnResize(columns.map(c => c.width), {
     getWidth: () => rootRef.current?.clientWidth || 1,
+    columnRects: () => stripRef.current
+      ? [...stripRef.current.children].map(el => el.getBoundingClientRect())
+      : [],
     apply: writeTrackWidths,
     commit: (widths) => {
       const normalized = normalizeColWidths(widths);

@@ -14,6 +14,7 @@ import { getLabel } from '../../lib/categories';
 import { ReportBlockView } from './ReportBlockView';
 import ReportBlockTitle from './ReportBlockTitle';
 import { REPORT_PAGE_METRICS } from './reportStyle';
+import { imageAlignStyle } from '../../lib/reportImageLayout';
 import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
 import { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
@@ -545,6 +546,15 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       const isTitledBlock = supportsTitle(b.type) && b.showTitle === true && !!b.titleBlock;
       const isEditingText = b.type === 'text' && (mode === 'fields' || editingId === b.id);
       const enteredTextEditing = b.type === 'text' && mode === 'values' && editingId === b.id;
+      // Roadmap 368: the image block's CARD is its box — the card shrinks and
+      // aligns to imageWidth/imageAlign, and ImageBlockView fills it 100%.
+      const imageBoxStyle = b.type === 'image' && b.imageDataUrl
+        ? {
+            width: `${Math.min(100, Math.max(5, b.imageWidth ?? 100))}%`,
+            ...imageAlignStyle(b.imageAlign),
+            padding: 0,
+          }
+        : undefined;
       const textEditProps = (b.type === 'text' || isTitledBlock) ? {
         editing: b.type === 'text' ? isEditingText : true,
         textAutoFocus: b.type === 'text' && mode === 'values',
@@ -663,6 +673,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               position: 'relative',
               opacity: dragging && dragSourceId === b.id ? 0.35 : 1,
               transition: 'opacity 150ms ease',
+              ...imageBoxStyle,
             }}
           >
             {dragging && (!insideColumnsBlock(allBlocks, b.id) || listOwnerOf(allBlocks, b.id)?.colIndex !== undefined) && (
@@ -803,7 +814,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
             ) : b.type === 'columns' ? (
               (() => {
                 const cols = b.cols || [];
-                const total = cols.reduce((a, c) => a + c.width, 0);
                 const dropNewColumn = (colIndex: number, payload: PaletteDropPayload) => {
                   if (payload.moveId) {
                     if (payload.duplicate) onDuplicateToNewColumn(payload.moveId, b.id, colIndex);
@@ -839,7 +849,11 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                               className={`columns-col${colSelected ? ' selected' : ''}${ci > 0 ? ' col-has-prev' : ''}${ci < cols.length - 1 ? ' col-has-next' : ''}`}
                               data-col-width={col.width}
                               style={{
-                                flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
+                                // The shared dragger writes PERCENT flex-grow live
+                                // (roadmap 367). React must render the SAME unit:
+                                // a fraction here made unchanged columns keep the
+                                // live percent after release and collapse the row.
+                                flex: `${Math.max(0.1, col.width)} 1 0%`,
                                 minWidth: 0,
                               }}
                               onClick={e => { e.stopPropagation(); onSelectCol({ colsId: b.id, colIndex: ci }); }}
@@ -921,7 +935,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     {b.type === 'callTimes' && b.category ? ` · ${getLabel(b.category, b.category, project.categoryLabels)}` : null}
                   </div>
                 )}
-                <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} ribbonOverrides={ribbonOverrides} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+                <ReportBlockView imageBoxed={b.type === "image" && !!b.imageDataUrl} block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} ribbonOverrides={ribbonOverrides} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
               </div>
             )}
           </div>
@@ -1290,6 +1304,11 @@ const GutterZone: React.FC<{
   const startResize = useColumnResize(widths, {
     getWidth: () => selfRef.current?.parentElement?.clientWidth || 1,
     touchActionTargets: [canvasRef.current],
+    columnRects: () => {
+      const row = selfRef.current?.parentElement;
+      if (!row) return [];
+      return [...row.querySelectorAll(':scope > .columns-col')].map(el => el.getBoundingClientRect());
+    },
     apply: (cw) => {
       const row = selfRef.current?.parentElement;
       if (!row) return;
@@ -1351,6 +1370,14 @@ const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]
   const startResize = useColumnResize(widths, {
     getWidth: () => resolveCard()?.clientWidth || 1,
     touchActionTargets: [canvasRef.current],
+    columnRects: () => {
+      const card = resolveCard();
+      if (!card) return [];
+      const row = card.querySelector('.rm-header') ?? card.querySelector('.rm-row');
+      const cells = row ? [...row.querySelectorAll('[data-table-col-ci]')] : [];
+      if (cells.length > 0) return cells.map(c => c.getBoundingClientRect());
+      return stripRef.current ? [...stripRef.current.children].map(c => c.getBoundingClientRect()) : [];
+    },
     // Widths apply to EVERY cell by column index (data-table-col-ci) — header
     // and every body row track the drag together.
     apply: (cw) => {

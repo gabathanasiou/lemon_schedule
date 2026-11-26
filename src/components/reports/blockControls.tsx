@@ -29,6 +29,8 @@ import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 import BudgetBlockControls from './BudgetBlockControls';
+import { AnchorGrid } from '../AnchorGrid';
+import { IMAGE_ALIGNS, IMAGE_ANCHOR_ROWS } from '../../lib/reportImageLayout';
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -1239,50 +1241,71 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             reader.readAsDataURL(f);
           }}
         />
-        <label
-          htmlFor={fileId}
-          className={`${TB_BTN} ${disabled ? 'disabled:opacity-30 pointer-events-none' : 'cursor-pointer'}`}
-        >
-          {block.imageDataUrl ? 'Replace image…' : 'Attach image…'}
-        </label>
-        {block.imageDataUrl && (
-          <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageWidth: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
-            <Trash2 className="w-3 h-3" />
-          </ToolButton>
-        )}
+        <div className="flex items-center gap-1">
+          <label
+            htmlFor={fileId}
+            className={`${TB_BTN} ${disabled ? 'disabled:opacity-30 pointer-events-none' : 'cursor-pointer'}`}
+          >
+            {block.imageDataUrl ? 'Replace image…' : 'Attach image…'}
+          </label>
+          {block.imageDataUrl && (
+            <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageWidth: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER} shrink-0`}>
+              <Trash2 className="w-3 h-3" />
+            </ToolButton>
+          )}
+        </div>
       </ContentRow>,
       titleSection,
     );
     if (block.imageDataUrl) {
       push('Size',
-        <ContentRow key="width" label="Width (%)">
-          <input
-            type="number"
-            min={5}
-            max={100}
-            step={0.5}
-            disabled={disabled}
-            className={TB_INPUT + ' w-14'}
-            value={block.imageWidth ?? 100}
-            onChange={e => {
-              const n = e.target.value ? Number(e.target.value) : 100;
-              onPatch({ imageWidth: n >= 100 ? undefined : Math.min(100, Math.max(5, n)) });
-            }}
-          />
-          <span className="text-[9px] text-[color:var(--ui-text-faint)]">100 = full width; drag the corner to resize</span>
-        </ContentRow>,
-        <ContentRow key="height" label="Height (px)">
-          <input
-            type="number"
-            min={0}
-            max={3000}
-            disabled={disabled}
-            className={TB_INPUT + ' w-14'}
-            value={block.imageHeight ?? ''}
-            placeholder="Auto"
-            onChange={e => onPatch({ imageHeight: e.target.value ? Number(e.target.value) : undefined })}
-          />
-          <span className="text-[9px] text-[color:var(--ui-text-faint)]">blank = natural aspect ratio</span>
+        <ContentRow key="size">
+          <div className="flex items-center gap-2 flex-nowrap min-w-0">
+            <AnchorGrid
+              columns={IMAGE_ALIGNS}
+              rows={IMAGE_ANCHOR_ROWS}
+              column={block.imageAlign ?? 'left'}
+              row={block.imageAnchorY ?? 'center'}
+              onChange={({ column, row }) => onPatch({ imageAlign: column, imageAnchorY: row })}
+              label={(column, row) => `Align ${column}, anchor ${row}`}
+              ariaLabel="Image anchor"
+              title="Anchor — columns align the image, rows position its content"
+              disabled={disabled}
+            />
+            <label className="flex items-center gap-1 text-[9px] text-[color:var(--ui-text-faint)]" title="Width — % of the content width (drag to scrub)">
+              W
+              <LiveNumberInput
+                value={Math.min(100, block.imageWidth ?? 100)}
+                min={5}
+                max={100}
+                step={1}
+                fallback={100}
+                disabled={disabled}
+                ariaLabel="Image width"
+                title="Width — % of the content width (drag to scrub)"
+                className={TB_INPUT + ' w-12 text-right'}
+                onCommit={v => onPatch({ imageWidth: v >= 100 ? undefined : Math.max(5, Math.min(100, v)) })}
+              />
+              <span>%</span>
+            </label>
+            <label className="flex items-center gap-1 text-[9px] text-[color:var(--ui-text-faint)]" title="Height in px — blank keeps the natural aspect ratio (drag to scrub)">
+              H
+              <LiveNumberInput
+                value={block.imageHeight}
+                min={0}
+                max={3000}
+                step={10}
+                fallback={0}
+                disabled={disabled}
+                ariaLabel="Image height"
+                title="Height in px — blank keeps the natural aspect ratio (drag to scrub)"
+                placeholder="Auto"
+                className={TB_INPUT + ' w-12 text-right'}
+                onCommit={v => onPatch({ imageHeight: v > 0 ? v : undefined })}
+              />
+              <span>px</span>
+            </label>
+          </div>
         </ContentRow>,
         <ContentRow key="fit" label="Fit">
           <SegControl
@@ -1292,7 +1315,20 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               { v: 'cover', l: 'Cover' },
               { v: 'fill', l: 'Fill' },
             ]}
-            onChange={v => onPatch({ imageFit: v as 'contain' | 'cover' | 'fill' })}
+            onChange={v => {
+              const fit = v as 'contain' | 'cover' | 'fill';
+              if ((fit === 'cover' || fit === 'fill') && !block.imageHeight) {
+                // Cover/Fill fill a BOX — with Height Auto there is none. Freeze
+                // the current rendered height once so the mode takes effect, then
+                // the user can drag the height/handle.
+                const img = typeof document !== 'undefined'
+                  ? document.querySelector<HTMLImageElement>(`[data-block-id="${block.id}"] [data-image-block] img`)
+                  : null;
+                onPatch({ imageFit: fit, imageHeight: Math.max(20, Math.round(img?.offsetHeight || 240)) });
+                return;
+              }
+              onPatch({ imageFit: fit });
+            }}
             disabled={disabled}
           />
         </ContentRow>,

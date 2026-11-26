@@ -78,10 +78,14 @@ export function renderCellText(scene: Record<string, any> | null, cell: { field?
 
 export function normalizeColWidths(widths: number[]): number[] {
   if (widths.length === 0) return widths;
-  const sum = widths.reduce((s, w) => s + w, 0);
-  if (Math.abs(sum - 100) < 0.01) return widths;
+  // Stored designs can carry junk from older drag math (imports, MCP edits):
+  // never let a negative/NaN width survive a commit (roadmap 367).
+  const safe = widths.map(w => (Number.isFinite(w) && w > 0 ? w : 0.1));
+  const sum = safe.reduce((s, w) => s + w, 0);
+  if (!(sum > 0)) return safe;
+  if (Math.abs(sum - 100) < 0.01) return safe;
   const scale = 100 / sum;
-  const scaled = widths.map(w => Math.round(w * scale * 100) / 100);
+  const scaled = safe.map(w => Math.max(0.01, Math.round(w * scale * 100) / 100));
   const diff = Math.round((100 - scaled.reduce((s, w) => s + w, 0)) * 100) / 100;
   if (diff !== 0) {
     const maxIdx = scaled.indexOf(Math.max(...scaled));
