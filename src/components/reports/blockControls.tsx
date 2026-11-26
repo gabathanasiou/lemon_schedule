@@ -5,7 +5,7 @@ import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { isImeConfirm } from '../../lib/keys';
-import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
+import { DAY_FORMAT_OPTIONS, DayFormatMode, generateUUID } from '../../lib/utils';
 import { codeForType } from '../../lib/dayTypes';
 import { getTextStyles, getTextStyleById } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
@@ -13,12 +13,12 @@ import CollectionMenu from './CollectionMenu';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import RichTextControls from './RichTextControls';
 import { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
-import DropdownMenu from '../DropdownMenu';
+import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
 import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet, Palette, MoreHorizontal, ArrowUp, ArrowDown, CopyPlus } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet, Palette, MoreHorizontal, ArrowUp, ArrowDown, CopyPlus, RotateCcw } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
@@ -312,43 +312,26 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const chipField = chipKey ? parseToken(chipKey).field : null;
   const chipDef = chipField ? allFields.find(f => f.key === chipField) : undefined;
   const chipIsList = !!chipDef?.multiValue;
-  const sectionCls = panel ? 'flex flex-col gap-4 px-0 py-0 min-w-0 w-full' : 'flex flex-col gap-2 px-0 py-0 min-w-max';
   const styleLayoutCell = isTextLike ? (
-    <div className={sectionCls}>
-      {/* Style + Padding as stacked sections (roadmap 373) — Outline for field
-          AND text blocks. Text blocks' Style row lives in the Content section's
-          shared RichTextControls body (roadmap 191); field/link keep
-          whole-block typography + alignment here. */}
-      <div className={panel ? 'flex flex-col gap-4 min-w-0' : 'flex flex-col gap-2 min-w-max'}>
-        {block.type !== 'text' && (
-          <EditorSection label="Style">
-            <InspectorRow>
-              <StyleControls {...ctx} />
-            </InspectorRow>
-          </EditorSection>
-        )}
-        <EditorSection label="Padding">
-          <LayoutControls {...ctx} />
+    <InspectorGroupCard label="Appearance">
+      {/* Block-level appearance: whole-block style (field/link), padding and
+          outline. Text blocks keep their typography in the Content group. */}
+      {block.type !== 'text' && (
+        <EditorSection label="Style">
+          <InspectorRow>
+            <StyleControls {...ctx} />
+          </InspectorRow>
         </EditorSection>
-      </div>
+      )}
+      <EditorSection label="Padding">
+        <LayoutControls {...ctx} />
+      </EditorSection>
       {(block.type === 'field' || block.type === 'text') && (
         <EditorSection label="Outline">
           <OutlineSection {...ctx} />
         </EditorSection>
       )}
-      {block.type === 'text' && chipKey && chipIsList && (
-        <ChipAffixSection
-          chipKey={chipKey}
-          fieldLabel={chipDef?.label ?? chipField}
-          readOnly={readOnly}
-          onChange={key => {
-            setOwnChipKey(key);
-            setChipOverride(key);
-            editorRef.current?.replaceToken(key);
-          }}
-        />
-      )}
-    </div>
+    </InspectorGroupCard>
   ) : null;
   return (
     <BlockEditorPanelContext.Provider value={panel ? 'panel' : 'bar'}>
@@ -433,15 +416,33 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       />
       {/* Style + Layout — above Content for every block type */}
       {styleLayoutCell}
-      {/* Content — hidden when the block type has no content controls. The
-          panel skips the eyebrow: every group inside (Display/Filters/Behavior,
-          Format/Style, …) carries its own section rule, so a leading "Content"
-          would stack two hairlines. */}
-      {block.type !== 'pageBreak' && (
+      {/* Call Sheet Edit is a locked placeholder: no content controls — just
+          explain what the block does. */}
+      {block.type === 'callSheetEdit' && (
+        <InspectorGroupCard label="Editable area">
+          <p className="text-[10px] leading-relaxed text-[color:var(--ui-text-muted)]">
+            Place this block where the day's Call Sheet should be editable. When you edit a Call Sheet, this area becomes the editable zone.
+          </p>
+        </InspectorGroupCard>
+      )}
+      {/* Content — only block types that actually have content controls. */}
+      {block.type !== 'pageBreak' && block.type !== 'callSheetEdit' && (
         <>
           <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2`}>
             <SectionHeader>Content</SectionHeader>
             <ContentControls {...ctx} />
+            {block.type === 'text' && chipKey && chipIsList && (
+              <ChipAffixSection
+                chipKey={chipKey}
+                fieldLabel={chipDef?.label ?? chipField}
+                readOnly={readOnly}
+                onChange={key => {
+                  setOwnChipKey(key);
+                  setChipOverride(key);
+                  editorRef.current?.replaceToken(key);
+                }}
+              />
+            )}
           </div>
           <BlockTitleSection {...ctx} />
         </>
@@ -744,22 +745,24 @@ const BlockTitleSection: React.FC<BlockCtx> = ({
   const titleBlock = block.titleBlock;
   const patchTitle = titleBlock ? (p: Partial<ReportBlock>) => onPatch({ titleBlock: { ...titleBlock, ...p } }) : undefined;
   return (
-    <InspectorGroupCard label="Block title">
-      <ContentRow full>
-        <EditorGroup className={panel ? 'w-full' : undefined}>
-          <EditorCheckbox
-            checked={block.showTitle === true}
-            disabled={disabled}
-            onChange={on => onPatch(on
-              ? { showTitle: true, titleBlock: block.titleBlock || { ...makeReportBlock('text', { text: reportTitleAutoLabel(block, parentCollection) }), align: 'center', bold: true, fontSize: 12, paddingV: 10 } }
-              : { showTitle: false })}
-            label="Show title"
-          />
-          {block.showTitle === true && titleRepeatable(block.type) && (
-            <EditorCheckbox checked={block.titleRepeat === true} disabled={disabled} onChange={on => onPatch({ titleRepeat: on })} label="Repeat on each page" />
-          )}
-        </EditorGroup>
-      </ContentRow>
+    <InspectorGroupCard
+      label="Block title"
+      headerLeft={(
+        <EditorCheckbox
+          checked={block.showTitle === true}
+          disabled={disabled}
+          onChange={on => onPatch(on
+            ? { showTitle: true, titleBlock: block.titleBlock || { ...makeReportBlock('text', { text: reportTitleAutoLabel(block, parentCollection) }), align: 'center', bold: true, fontSize: 12, paddingV: 10 } }
+            : { showTitle: false })}
+          label={<span className="sr-only">Show title</span>}
+        />
+      )}
+    >
+      {block.showTitle === true && titleRepeatable(block.type) && (
+        <ContentRow full>
+          <EditorCheckbox checked={block.titleRepeat === true} disabled={disabled} onChange={on => onPatch({ titleRepeat: on })} label="Repeat on each page" />
+        </ContentRow>
+      )}
       {titleBlock && block.showTitle === true && (
         <>
           <TextContentControls
@@ -1575,48 +1578,72 @@ const BlockStyleMenu: React.FC<OutlineSectionProps & { fullWidth?: boolean }> = 
   const dialog = useDialog();
   const [open, setOpen] = useState(false);
   const disabled = !!readOnly;
-  const userStyles = project.reportBlockStyles ?? [];
-  const allStyles = [...userStyles, ...BUILTIN_BLOCK_STYLES];
-  const matched = allStyles.find(s => blockStyleMatches(block, s));
-  const matchedUser = userStyles.find(s => s.id === matched?.id);
-  const swatch = (style: ReportBlockStyle) => (
+  // Built-ins are the DEFAULTS until the project stores its own list (the same
+  // model as named text styles); once stored, the manager owns the whole list.
+  const styles = project.reportBlockStyles ?? [...BUILTIN_BLOCK_STYLES];
+  const matched = styles.find(s => blockStyleMatches(block, s));
+  const save = (next: ReportBlockStyle[]) => onSaveBlockStyles?.(next);
+  const swatch = (style: Pick<ReportBlockStyle, 'background'>) => (
     <span
       className="block h-3 w-3 rounded-[3px] border border-black/10"
       style={{ background: style.background || 'transparent' }}
     />
   );
-  const applyStyle = (style: ReportBlockStyle) => {
-    setOpen(false);
+  const apply = (id: string) => {
+    const style = styles.find(s => s.id === id);
+    if (!style) return;
     onPatch(blockStylePatch(style));
   };
-  const saveStyle = async () => {
-    setOpen(false);
-    if (!onSaveBlockStyles) return;
-    const name = await dialog.prompt({ title: 'Save block style', placeholder: 'Style name' });
-    if (!name?.trim()) return;
-    onSaveBlockStyles([...userStyles, blockStyleFromBlock(name.trim(), block)]);
+  const duplicate = (id: string) => {
+    const style = styles.find(s => s.id === id);
+    if (!style) return;
+    const copy = { ...style, id: generateUUID(), name: `${style.name} Copy` };
+    save([...styles, copy]);
+    return copy.id;
   };
-  const updateStyle = () => {
-    if (!matchedUser || !onSaveBlockStyles) return;
-    const updated = { ...blockStyleFromBlock(matchedUser.name, block), id: matchedUser.id };
-    onSaveBlockStyles(userStyles.map(s => (s.id === matchedUser.id ? updated : s)));
-    setOpen(false);
-  };
-  const deleteStyle = async () => {
-    if (!matchedUser || !onSaveBlockStyles) return;
-    setOpen(false);
-    const ok = await dialog.confirm({
-      title: `Delete “${matchedUser.name}”?`,
+  const remove = (id: string) => {
+    const style = styles.find(s => s.id === id);
+    if (!style) return;
+    void dialog.confirm({
+      title: `Delete “${style.name}”?`,
       message: 'Blocks already using this style keep their look.',
       danger: true,
+    }).then(ok => {
+      if (ok) save(styles.filter(s => s.id !== id));
     });
-    if (ok) onSaveBlockStyles(userStyles.filter(s => s.id !== matchedUser.id));
+  };
+  const create = () => {
+    const style = blockStyleFromBlock(`Style ${styles.length + 1}`, block);
+    save([...styles, style]);
+    return style.id;
   };
   return (
-    <DropdownMenu
+    <ItemManagerDropdown
       open={open}
-      onOpenChange={setOpen}
-      width="w-52"
+      onClose={setOpen}
+      items={styles.map(s => ({ id: s.id, name: s.name }))}
+      activeId={matched?.id || ''}
+      closeOnSelect
+      onSelect={apply}
+      onRename={(id, name) => save(styles.map(s => (s.id === id ? { ...s, name } : s)))}
+      onDuplicate={duplicate}
+      onDelete={remove}
+      onCreate={create}
+      readOnly={disabled || !onSaveBlockStyles}
+      minItems={1}
+      theme="dark"
+      label="Block style"
+      header="BLOCK STYLES"
+      itemLabel="Style"
+      itemRender={item => {
+        const style = styles.find(s => s.id === item.id);
+        return (
+          <span className="flex min-w-0 items-center gap-2">
+            {style ? swatch(style) : null}
+            <span className="truncate">{item.name}</span>
+          </span>
+        );
+      }}
       trigger={
         <button
           type="button"
@@ -1625,29 +1652,13 @@ const BlockStyleMenu: React.FC<OutlineSectionProps & { fullWidth?: boolean }> = 
           className={`inline-flex h-7 items-center gap-1.5 rounded border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] px-2 text-[10px] font-medium text-[color:var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)] disabled:opacity-40 ${fullWidth ? 'w-full justify-between' : 'max-w-[150px]'}`}
         >
           <span className="flex min-w-0 items-center gap-1.5">
-            <Palette className="h-3.5 w-3.5 shrink-0" />
+            {matched ? swatch(matched) : <Palette className="h-3.5 w-3.5 shrink-0" />}
             <span className="truncate">{matched?.name ?? 'Preset'}</span>
           </span>
           <ChevronDown className="h-3 w-3 shrink-0" />
         </button>
       }
-    >
-      {userStyles.map(style => (
-        <DropdownItem key={style.id} icon={swatch(style)} onClick={() => applyStyle(style)}>
-          {style.name}
-        </DropdownItem>
-      ))}
-      {userStyles.length > 0 && <DropdownDivider />}
-      {BUILTIN_BLOCK_STYLES.map(style => (
-        <DropdownItem key={style.id} icon={swatch(style)} onClick={() => applyStyle(style)}>
-          {style.name}
-        </DropdownItem>
-      ))}
-      <DropdownDivider />
-      <DropdownItem onClick={() => void saveStyle()}>Save current as style…</DropdownItem>
-      {matchedUser && <DropdownItem onClick={() => updateStyle()}>Update “{matchedUser.name}”</DropdownItem>}
-      {matchedUser && <DropdownItem onClick={() => void deleteStyle()}>Delete “{matchedUser.name}”</DropdownItem>}
-    </DropdownMenu>
+    />
   );
 };
 
@@ -1691,10 +1702,32 @@ export const OutlineSection: React.FC<OutlineSectionProps> = (props) => {
       </InspectorSubGroup>
     </InspectorGroup>
   );
+  const resetStyle = () => onPatch({
+    background: undefined,
+    border: false,
+    borderColor: undefined,
+    borderWidth: undefined,
+    borderRadius: undefined,
+  });
+  const reset = (
+    <InspectorAction
+      onClick={resetStyle}
+      title="Reset backdrop and outline"
+      disabled={disabled || (!block.background && !block.border)}
+      className={TB_BTN_ICON}
+    >
+      <RotateCcw className="w-3 h-3" />
+    </InspectorAction>
+  );
   if (surface === 'panel') {
     return (
       <>
-        <InspectorRow label="Preset"><BlockStyleMenu {...props} fullWidth /></InspectorRow>
+        <InspectorRow label="Preset">
+          <InspectorGroup className="flex-1 min-w-0">
+            <BlockStyleMenu {...props} fullWidth />
+            {reset}
+          </InspectorGroup>
+        </InspectorRow>
         <InspectorRow label="Fill">{fill}</InspectorRow>
         <InspectorRow label="Border">{border}</InspectorRow>
       </>
@@ -1703,6 +1736,7 @@ export const OutlineSection: React.FC<OutlineSectionProps> = (props) => {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <BlockStyleMenu {...props} />
+      {reset}
       <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
       <span className="text-[10px] text-[color:var(--ui-text-faint)]">Fill</span>
       {fill}

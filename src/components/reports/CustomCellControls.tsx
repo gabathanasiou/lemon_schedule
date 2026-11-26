@@ -4,7 +4,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowRightLeft, CopyPlus, Ro
 import { Project, ReportCellStyle, ReportTextStyle } from '../../types';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { EditorGroup, EditorSection, editorRowCls } from './reportEditorLayout';
-import { InspectorAction } from '../inspector';
+import { InspectorAction, InspectorGroupCard } from '../inspector';
 import RichTextControls from './RichTextControls';
 import { CustomTableCells } from './useCustomTableCells';
 
@@ -121,53 +121,56 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
         }
       />
       {editorRef && (
-        <div className={panel ? 'flex flex-col gap-4 px-0 pb-1.5' : 'flex flex-col gap-1 px-2.5 pb-1.5'}>
-          <RichTextControls
-            project={project}
-            editorRef={editorRef}
-            active={active}
-            disabled={disabled}
-            value={{
-              fontFamily: styleValue?.fontFamily,
-              fontSize: styleValue?.fontSize,
-              textStyle: styleValue?.textStyle,
-              align: styleValue?.align,
-              verticalAlign: styleValue?.verticalAlign,
-            }}
-            objectMixed={objectMixed}
-            onDefaults={onStyle}
-            onStyle={onStyle}
-            verticalAlign
-            onSaveTextStyles={onSaveTextStyles}
-          />
+        <>
+          <InspectorGroupCard label="Style">
+            <RichTextControls
+              project={project}
+              editorRef={editorRef}
+              active={active}
+              disabled={disabled}
+              value={{
+                fontFamily: styleValue?.fontFamily,
+                fontSize: styleValue?.fontSize,
+                textStyle: styleValue?.textStyle,
+                align: styleValue?.align,
+                verticalAlign: styleValue?.verticalAlign,
+              }}
+              objectMixed={objectMixed}
+              onDefaults={onStyle}
+              onStyle={onStyle}
+              verticalAlign
+              onSaveTextStyles={onSaveTextStyles}
+            />
+          </InspectorGroupCard>
           {structure && (
-            <div className={panel ? 'flex flex-col gap-4 min-w-0' : 'flex items-center gap-4'}>
-              {!structure.headerSelection && (
-                <EditorSection label="Row">
-                  <div className={editorRowCls(panel)}>
+            <InspectorGroupCard label="Cell controls">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-2">
+                {!structure.headerSelection && (
+                  <EditorSection label="Row">
+                    <div className={editorRowCls(true)}>
+                      <EditorGroup>
+                        <InspectorAction onClick={structure.onInsertRowAbove} disabled={disabled} title="Insert row above" className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></InspectorAction>
+                        <InspectorAction onClick={structure.onInsertRowBelow} disabled={disabled} title="Insert row below" className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></InspectorAction>
+                        <InspectorAction onClick={structure.onDuplicateRow} disabled={disabled} title="Duplicate row" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></InspectorAction>
+                        <InspectorAction onClick={structure.onDeleteRows} disabled={disabled || !structure.canDeleteRows} title="Delete row(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></InspectorAction>
+                      </EditorGroup>
+                    </div>
+                  </EditorSection>
+                )}
+                <EditorSection label="Column">
+                  <div className={editorRowCls(true)}>
                     <EditorGroup>
-                      <InspectorAction onClick={structure.onInsertRowAbove} disabled={disabled} title="Insert row above" className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></InspectorAction>
-                      <InspectorAction onClick={structure.onInsertRowBelow} disabled={disabled} title="Insert row below" className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></InspectorAction>
-                      <InspectorAction onClick={structure.onDuplicateRow} disabled={disabled} title="Duplicate row" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></InspectorAction>
-                      <InspectorAction onClick={structure.onDeleteRows} disabled={disabled || !structure.canDeleteRows} title="Delete row(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></InspectorAction>
+                      <InspectorAction onClick={structure.onInsertColumnLeft} disabled={disabled} title="Insert column left" className={TB_BTN_ICON}><ArrowLeft className="w-3 h-3" /></InspectorAction>
+                      <InspectorAction onClick={structure.onInsertColumnRight} disabled={disabled} title="Insert column right" className={TB_BTN_ICON}><ArrowRight className="w-3 h-3" /></InspectorAction>
+                      <InspectorAction onClick={structure.onDuplicateColumn} disabled={disabled} title="Duplicate column" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></InspectorAction>
+                      <InspectorAction onClick={structure.onDeleteColumns} disabled={disabled || !structure.canDeleteColumns} title="Delete column(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></InspectorAction>
                     </EditorGroup>
                   </div>
                 </EditorSection>
-              )}
-              {!panel && !structure.headerSelection && <div className={TB_DIVIDER} />}
-              <EditorSection label="Column">
-                <div className={editorRowCls(panel)}>
-                  <EditorGroup>
-                    <InspectorAction onClick={structure.onInsertColumnLeft} disabled={disabled} title="Insert column left" className={TB_BTN_ICON}><ArrowLeft className="w-3 h-3" /></InspectorAction>
-                    <InspectorAction onClick={structure.onInsertColumnRight} disabled={disabled} title="Insert column right" className={TB_BTN_ICON}><ArrowRight className="w-3 h-3" /></InspectorAction>
-                    <InspectorAction onClick={structure.onDuplicateColumn} disabled={disabled} title="Duplicate column" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></InspectorAction>
-                    <InspectorAction onClick={structure.onDeleteColumns} disabled={disabled || !structure.canDeleteColumns} title="Delete column(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></InspectorAction>
-                  </EditorGroup>
-                </div>
-              </EditorSection>
-            </div>
+              </div>
+            </InspectorGroupCard>
           )}
-        </div>
+        </>
       )}
     </div>
   );

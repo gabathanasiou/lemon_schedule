@@ -153,21 +153,32 @@ export const InspectorSubGroup: React.FC<InspectorSubGroupProps> = ({ children, 
 export interface InspectorGroupCardProps {
   label: string;
   children: React.ReactNode;
+  /** Optional control rendered to the LEFT of the group header (e.g. the
+   *  Block title on/off checkbox) so the group stays one compact row. */
+  headerLeft?: React.ReactNode;
   className?: string;
 }
 
 /** A big section-level group card (the Content umbrella, Block title) that
  *  holds section cards. Raised above the recessed section cards so the
  *  hierarchy reads: chrome → group card → section card → group. */
-export const InspectorGroupCard: React.FC<InspectorGroupCardProps> = ({ label, children, className = '' }) => (
-  <div
-    className={`flex min-w-0 flex-col gap-2 rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 ${className}`}
-    aria-label={label}
-  >
-    <SectionHeader>{label}</SectionHeader>
-    <div className="flex min-w-0 flex-col gap-2">{children}</div>
-  </div>
-);
+export const InspectorGroupCard: React.FC<InspectorGroupCardProps> = ({ label, children, headerLeft, className = '' }) => {
+  const hasBody = React.Children.toArray(children).filter(Boolean).length > 0;
+  return (
+    <div
+      className={`flex min-w-0 flex-col gap-2 rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 ${className}`}
+      aria-label={label}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {headerLeft}
+        <div className="min-w-0 flex-1">
+          <SectionHeader>{label}</SectionHeader>
+        </div>
+      </div>
+      {hasBody && <div className="flex min-w-0 flex-col gap-2">{children}</div>}
+    </div>
+  );
+};
 
 // ---- control faces ------------------------------------------------------------
 
@@ -294,6 +305,7 @@ export const InspectorAction: React.FC<InspectorActionProps> = ({
     title={title}
     aria-label={title}
     className={className}
+    style={disabled ? { opacity: 0.45 } : undefined}
   >
     {children}
   </button>
@@ -399,7 +411,7 @@ export const InspectorMenu: React.FC<InspectorMenuProps> = ({
 export interface InspectorCheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string;
+  label: React.ReactNode;
   disabled?: boolean;
   readOnly?: boolean;
   /** Let a sentence-length label wrap inside the row. */

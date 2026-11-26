@@ -6,7 +6,7 @@ import { fieldsForScope } from '../../lib/reportFields';
 import { tableFieldScope } from '../../lib/reportBlocks';
 import { FieldPicker } from './FieldPicker';
 import { ContentRow, EditorSection, editorFieldCls, useBlockEditorPanel } from './reportEditorLayout';
-import { InspectorAction, InspectorGroup, InspectorRow, InspectorToggle } from '../inspector';
+import { InspectorAction, InspectorGroup, InspectorGroupCard, InspectorRow, InspectorToggle } from '../inspector';
 import { useReportControlContext } from './blockControls';
 
 // ---- column editors (table columns AND columns-block columns) -------------------
@@ -105,7 +105,7 @@ export const TableColumnEditorContent: React.FC<{
   return (
     <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       <ColumnHeader colIndex={colIndex} colsCount={columns.length} readOnly={readOnly} onDelete={onDelete} orientation={axis} headerTrailing={headerTrailing} />
-      <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full px-0' : 'flex flex-col gap-3 min-w-max px-2.5'}>
+      <InspectorGroupCard label={rows ? 'Row settings' : 'Column settings'}>
         <ContentRow label="Field">
           <FieldPicker
             value={col.field}
@@ -157,7 +157,7 @@ export const TableColumnEditorContent: React.FC<{
           onMove={onMove}
           orientation={axis}
         />
-      </div>
+      </InspectorGroupCard>
     </div>
   );
 };
@@ -177,7 +177,7 @@ export const ColumnsColumnEditorContent: React.FC<{
   return (
     <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       <ColumnHeader colIndex={colIndex} colsCount={colsCount} readOnly={readOnly} onDelete={onDelete} headerTrailing={headerTrailing} />
-      <div className={`flex flex-col ${panel ? 'gap-4 px-0' : 'gap-3 px-2.5'}`}>
+      <InspectorGroupCard label="Column settings">
         <ColumnStructureControls
           colIndex={colIndex}
           colsCount={colsCount}
@@ -185,7 +185,7 @@ export const ColumnsColumnEditorContent: React.FC<{
           onInsertAt={onInsertAt}
           onMove={onMove}
         />
-      </div>
+      </InspectorGroupCard>
     </div>
   );
 };
