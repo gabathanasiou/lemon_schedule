@@ -438,7 +438,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           Format/Style, …) carries its own section rule, so a leading "Content"
           would stack two hairlines. */}
       {block.type !== 'pageBreak' && (
-        <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} py-0`}>
+        <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2`}>
           <SectionHeader>Content</SectionHeader>
           <ContentControls {...ctx} />
         </div>
