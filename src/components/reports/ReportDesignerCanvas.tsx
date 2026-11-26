@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
+import { TB_BTN_ICON } from '@gabriel/ui-kit';
+import { InspectorAction } from '../inspector';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode, ReportBlockStyle } from '../../types';
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem, type RibbonPrintOptions } from '../../lib/reportData';
 import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
@@ -25,6 +26,7 @@ import {
 } from './blockControls';
 import { ColumnsColumnEditorContent, TableColumnEditorContent } from './reportColumnControls';
 import { FloatingChrome } from '../FloatingChrome';
+import { ThemeScope } from '@gabriel/ui-kit';
 import Checkbox from '../Checkbox';
 import { TEST_IDS } from '../../lib/testIds';
 import type { ReportLocation } from '../../lib/reportWeather';
@@ -1142,6 +1144,7 @@ const BlockChrome: React.FC<{
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
   <FloatingChrome className="block-chrome" anchorMode="visible">
+    <ThemeScope mode="dark" surface="neutral" className="contents">
     <BlockEditorContent
       block={block}
       project={project}
@@ -1154,9 +1157,8 @@ const BlockChrome: React.FC<{
       onDuplicate={onDuplicate}
       onRemove={onRemove}
       onMove={onMove}
-      compact
       trailing={onToggleEditorMode ? (
-        <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+        <InspectorAction onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></InspectorAction>
       ) : undefined}
       relativeTarget={relativeTarget}
       availableLocations={availableLocations}
@@ -1164,6 +1166,7 @@ const BlockChrome: React.FC<{
       active={active}
       chipKey={chipKey}
     />
+    </ThemeScope>
   </FloatingChrome>
 );
 
@@ -1202,6 +1205,7 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
     <>
       <div ref={anchorRef} className="chrome-anchor" aria-hidden />
       <FloatingChrome className="table-column-chrome" reference={reference}>
+        <ThemeScope mode="dark" surface="neutral" className="contents">
         <div className="py-1.5">
           <TableColumnEditorContent
             block={block}
@@ -1215,10 +1219,11 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
             onDelete={onRemove}
             axis={block.axis ?? 'columns'}
             headerTrailing={onToggleEditorMode ? (
-              <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+              <InspectorAction onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></InspectorAction>
             ) : undefined}
           />
         </div>
+        </ThemeScope>
       </FloatingChrome>
     </>
   );
@@ -1236,6 +1241,7 @@ const ColumnBlockChrome: React.FC<{
   onToggleEditorMode?: () => void;
 }> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, onDelete, onToggleEditorMode }) => (
   <FloatingChrome className="column-chrome">
+    <ThemeScope mode="dark" surface="neutral" className="contents">
     <div className="py-1.5">
       <ColumnsColumnEditorContent
         colIndex={colIndex}
@@ -1245,10 +1251,11 @@ const ColumnBlockChrome: React.FC<{
         onMove={onMove}
         onDelete={onDelete}
         headerTrailing={onToggleEditorMode ? (
-          <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+          <InspectorAction onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></InspectorAction>
         ) : undefined}
       />
     </div>
+    </ThemeScope>
   </FloatingChrome>
 );
 

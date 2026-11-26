@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
+import { Seg, ChromeHeader, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportBlockStyle } from '../../types';
 import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
@@ -18,7 +18,7 @@ import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet, Palette } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet, Palette, MoreHorizontal, ArrowUp, ArrowDown, CopyPlus } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
@@ -27,7 +27,7 @@ import Checklist from '../Checklist';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, EditorSection, editorFieldCls, useBlockEditorPanel } from './reportEditorLayout';
-import { InspectorColor, InspectorGroup, InspectorMenu, InspectorNumber, InspectorRow, InspectorSeg, InspectorSubGroup, InspectorToggle, useInspectorSurface } from '../inspector';
+import { InspectorAction, InspectorColor, InspectorGroup, InspectorMenu, InspectorNumber, InspectorRow, InspectorSeg, InspectorSubGroup, InspectorToggle, useInspectorSurface } from '../inspector';
 import BudgetBlockControls from './BudgetBlockControls';
 import { AnchorGrid } from '../AnchorGrid';
 import { IMAGE_ALIGNS, IMAGE_ANCHOR_ROWS } from '../../lib/reportImageLayout';
@@ -73,7 +73,6 @@ export interface BlockEditorProps {
   onDuplicate?: () => void;
   onRemove?: () => void;
   onMove?: (dir: -1 | 1) => void;
-  compact?: boolean;   // chrome mode: icon-only structure buttons
   trailing?: React.ReactNode; // extra actions at the end of the Structure row
   /** Docked inspector layout — labels above controls, fields full-width. */
   panel?: boolean;
@@ -285,7 +284,7 @@ const SegControl: React.FC<React.ComponentProps<typeof Seg>> = ({ value, options
 
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles,
-  onDuplicate, onRemove, onMove, compact, trailing, panel, relativeTarget, availableLocations,
+  onDuplicate, onRemove, onMove, trailing, panel, relativeTarget, availableLocations,
   editorRef: editorRefProp, active: activeProp, chipKey: chipKeyProp,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
@@ -306,20 +305,21 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   // right after an affix rewrite until the canvas editor reports the new key.
   const [ownChipKey, setOwnChipKey] = React.useState<string | null>(null);
   const [chipOverride, setChipOverride] = React.useState<string | null>(null);
+  const [actionsOpen, setActionsOpen] = React.useState(false);
   React.useEffect(() => { setOwnChipKey(null); setChipOverride(null); }, [block.id]);
   React.useEffect(() => { setChipOverride(null); }, [chipKeyProp]);
   const chipKey = chipOverride ?? (chipKeyProp !== undefined ? chipKeyProp : ownChipKey);
   const chipField = chipKey ? parseToken(chipKey).field : null;
   const chipDef = chipField ? allFields.find(f => f.key === chipField) : undefined;
   const chipIsList = !!chipDef?.multiValue;
-  const sectionCls = panel ? 'flex flex-col gap-4 px-0 py-1 min-w-0 w-full' : 'flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max';
+  const sectionCls = panel ? 'flex flex-col gap-4 px-0 py-0 min-w-0 w-full' : 'flex flex-col gap-2 px-0 py-0 min-w-max';
   const styleLayoutCell = isTextLike ? (
     <div className={sectionCls}>
       {/* Style + Padding as stacked sections (roadmap 373) — Outline for field
           AND text blocks. Text blocks' Style row lives in the Content section's
           shared RichTextControls body (roadmap 191); field/link keep
           whole-block typography + alignment here. */}
-      <div className={panel ? 'flex flex-col gap-4 min-w-0' : 'flex items-start gap-5'}>
+      <div className={panel ? 'flex flex-col gap-4 min-w-0' : 'flex flex-col gap-2 min-w-max'}>
         {block.type !== 'text' && (
           <EditorSection label="Style">
             <InspectorRow>
@@ -352,7 +352,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   ) : null;
   return (
     <BlockEditorPanelContext.Provider value={panel ? 'panel' : 'bar'}>
-    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-2 min-w-max'}>
       {/* Header bar: block type (or attribute name) + quick controls — always
           full panel width on top; everything else stacks under it */}
       <ChromeHeader
@@ -381,22 +381,52 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
         }
         trailing={
           <>
-            {isTextLike && (
-              <ToolButton
-                onClick={() => onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' })}
-                title={emptyHidden ? 'Hidden when empty — click to show' : 'Show when empty — click to hide'}
-                className={TB_BTN_ICON}
+            {panel ? (
+              <DropdownMenu
+                open={actionsOpen}
+                onOpenChange={setActionsOpen}
+                theme="dark"
+                width="w-48"
+                trigger={
+                  <button type="button" title="Block actions" aria-label="Block actions" className={`${TB_BTN_ICON} shrink-0`}>
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                }
               >
-                {emptyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              </ToolButton>
+                {isTextLike && (
+                  <DropdownItem
+                    icon={emptyHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    onClick={() => { setActionsOpen(false); onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' }); }}
+                  >
+                    {emptyHidden ? 'Show when empty' : 'Hide when empty'}
+                  </DropdownItem>
+                )}
+                {isTextLike && <DropdownDivider />}
+                {onMove && <DropdownItem icon={<ArrowUp className="w-3.5 h-3.5" />} onClick={() => { setActionsOpen(false); onMove(-1); }}>Move up</DropdownItem>}
+                {onMove && <DropdownItem icon={<ArrowDown className="w-3.5 h-3.5" />} onClick={() => { setActionsOpen(false); onMove(1); }}>Move down</DropdownItem>}
+                {onDuplicate && <DropdownItem icon={<CopyPlus className="w-3.5 h-3.5" />} onClick={() => { setActionsOpen(false); onDuplicate(); }}>Duplicate</DropdownItem>}
+                {onRemove && <DropdownItem icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger" onClick={() => { setActionsOpen(false); onRemove(); }}>Delete</DropdownItem>}
+              </DropdownMenu>
+            ) : (
+              <>
+                {isTextLike && (
+                  <InspectorAction
+                    onClick={() => onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' })}
+                    title={emptyHidden ? 'Hidden when empty — click to show' : 'Show when empty — click to hide'}
+                    disabled={readOnly}
+                    className={TB_BTN_ICON}
+                  >
+                    {emptyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  </InspectorAction>
+                )}
+                {isTextLike && <div className={TB_DIVIDER} />}
+                {onMove && <InspectorAction title="Move up" onClick={() => onMove(-1)} disabled={readOnly} className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></InspectorAction>}
+                {onMove && <InspectorAction title="Move down" onClick={() => onMove(1)} disabled={readOnly} className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></InspectorAction>}
+                {onDuplicate && <InspectorAction title="Duplicate" onClick={onDuplicate} disabled={readOnly} className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></InspectorAction>}
+                {onRemove && <InspectorAction title="Delete" onClick={onRemove} disabled={readOnly} className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-3 h-3" /></InspectorAction>}
+                {!readOnly && <div className={TB_DIVIDER} />}
+              </>
             )}
-            <StructureControls
-              readOnly={readOnly}
-              onDuplicate={onDuplicate}
-              onRemove={onRemove}
-              onMove={onMove}
-              compact={compact}
-            />
             {trailing}
           </>
         }
@@ -408,8 +438,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           Format/Style, …) carries its own section rule, so a leading "Content"
           would stack two hairlines. */}
       {block.type !== 'pageBreak' && (
-        <div className={`flex flex-col gap-1.5 ${panel ? 'px-0' : 'px-2.5'} py-1.5`}>
-          {!panel && <SectionHeader>Content</SectionHeader>}
+        <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} py-0`}>
           <ContentControls {...ctx} />
         </div>
       )}
@@ -1008,7 +1037,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     const cols = block.cols || [];
     push(null,
       <ContentRow key="cols" label="Cols">
-        <ToolButton
+        <InspectorAction
           onClick={() => {
             const n = cols.length || 1;
             onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1), blocks: [] }].map(c => ({ ...c, width: 100 / (n + 1) })) });
@@ -1018,7 +1047,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           className={TB_BTN}
         >
           <Plus className="w-3 h-3" /> Add column
-        </ToolButton>
+        </InspectorAction>
       </ContentRow>,
     );
   }
@@ -1137,16 +1166,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     push(null,
       <ContentRow key="offset" label="Offset">
         <div className="flex items-center gap-1">
-          <ToolButton onClick={() => onPatch({ relativeOffset: offset - 1 })} disabled={disabled} title="Previous item" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
+          <InspectorAction onClick={() => onPatch({ relativeOffset: offset - 1 })} disabled={disabled} title="Previous item" className={TB_BTN}><Minus className="w-3 h-3" /></InspectorAction>
           <InspectorNumber label="Offset" value={offset} min={-20} max={20} fallback={1} onCommit={v => onPatch({ relativeOffset: v })} disabled={disabled} />
-          <ToolButton onClick={() => onPatch({ relativeOffset: offset + 1 })} disabled={disabled} title="Next item" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
+          <InspectorAction onClick={() => onPatch({ relativeOffset: offset + 1 })} disabled={disabled} title="Next item" className={TB_BTN}><Plus className="w-3 h-3" /></InspectorAction>
         </div>
       </ContentRow>,
       <ContentRow key="count" label="Count">
         <div className="flex items-center gap-1">
-          <ToolButton onClick={() => onPatch({ relativeCount: Math.max(1, count - 1) })} disabled={disabled} title="Fewer" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
+          <InspectorAction onClick={() => onPatch({ relativeCount: Math.max(1, count - 1) })} disabled={disabled} title="Fewer" className={TB_BTN}><Minus className="w-3 h-3" /></InspectorAction>
           <InspectorNumber label="Count" value={count} min={1} max={20} fallback={1} onCommit={v => onPatch({ relativeCount: Math.max(1, v) })} disabled={disabled} />
-          <ToolButton onClick={() => onPatch({ relativeCount: count + 1 })} disabled={disabled} title="More" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
+          <InspectorAction onClick={() => onPatch({ relativeCount: count + 1 })} disabled={disabled} title="More" className={TB_BTN}><Plus className="w-3 h-3" /></InspectorAction>
         </div>
       </ContentRow>,
       relativeTarget ? (
@@ -1226,9 +1255,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             {block.imageDataUrl ? 'Replace image…' : 'Attach image…'}
           </label>
           {block.imageDataUrl && (
-            <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageWidth: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER} shrink-0`}>
+            <InspectorAction onClick={() => onPatch({ imageDataUrl: undefined, imageWidth: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER} shrink-0`}>
               <Trash2 className="w-3 h-3" />
-            </ToolButton>
+            </InspectorAction>
           )}
         </div>
       </ContentRow>,
@@ -1338,22 +1367,22 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               >
                 {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
               </button>
-              <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
+              <InspectorAction onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
                 <MapPin className="w-3 h-3" /> Change
-              </ToolButton>
-              <ToolButton
+              </InspectorAction>
+              <InspectorAction
                 onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined })}
                 disabled={disabled}
                 title="Clear location"
                 className={`${TB_BTN_ICON} ${TB_DANGER}`}
               >
                 <Trash2 className="w-3 h-3" />
-              </ToolButton>
+              </InspectorAction>
             </>
           ) : (
-            <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Set location" className={TB_BTN}>
+            <InspectorAction onClick={() => setLocationOpen(true)} disabled={disabled} title="Set location" className={TB_BTN}>
               <MapPin className="w-3 h-3" /> Set location…
-            </ToolButton>
+            </InspectorAction>
           )}
         </InspectorRow>
       </EditorSection>,
@@ -1393,7 +1422,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             {s.rows}
           </EditorSection>
         ) : (
-          <div key={`flat${i}`} className="flex flex-col gap-1.5 min-w-0">{s.rows}</div>
+          <div key={`flat${i}`} className="flex flex-col gap-2 min-w-0">{s.rows}</div>
         )
       ))}
       {block.type === 'map' && (

@@ -48,7 +48,8 @@ import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells'
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, CalendarDays, Clock } from 'lucide-react';
 import Button from '../Button';
-import { ToolButton, TB_BTN_ICON, ThemeScope } from '@gabriel/ui-kit';
+import { TB_BTN_ICON, ThemeScope } from '@gabriel/ui-kit';
+import { InspectorAction } from '../inspector';
 import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: ReportCollection | null): ReportBlock {
@@ -960,8 +961,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // its headerTrailing (column) — no separate rail header bar (roadmap 205).
   const railActions = (
     <>
-      <ToolButton onClick={toggleEditorMode} title="Floating editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
-      <ToolButton onClick={() => setRail(p => ({ ...p, open: false }))} title="Collapse panel" className={TB_BTN_ICON}><PanelLeftClose className="w-3 h-3" /></ToolButton>
+      <InspectorAction onClick={toggleEditorMode} title="Floating editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></InspectorAction>
+      <InspectorAction onClick={() => setRail(p => ({ ...p, open: false }))} title="Collapse panel" className={TB_BTN_ICON}><PanelLeftClose className="w-3 h-3" /></InspectorAction>
     </>
   );
 

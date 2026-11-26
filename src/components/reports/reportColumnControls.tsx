@@ -1,12 +1,12 @@
 import React from 'react';
-import { ChromeHeader, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, TB_PICKER, ToolButton } from '@gabriel/ui-kit';
+import { ChromeHeader, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { Project, ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { fieldsForScope } from '../../lib/reportFields';
 import { tableFieldScope } from '../../lib/reportBlocks';
 import { FieldPicker } from './FieldPicker';
 import { ContentRow, EditorSection, editorFieldCls, useBlockEditorPanel } from './reportEditorLayout';
-import { InspectorGroup, InspectorRow, InspectorToggle } from '../inspector';
+import { InspectorAction, InspectorGroup, InspectorRow, InspectorToggle } from '../inspector';
 import { useReportControlContext } from './blockControls';
 
 // ---- column editors (table columns AND columns-block columns) -------------------
@@ -31,17 +31,17 @@ export const ColumnStructureControls: React.FC<{
     <EditorSection label="Structure">
       <InspectorRow>
         <InspectorGroup>
-          <ToolButton onClick={() => onInsertAt(colIndex)} disabled={readOnly} title={rows ? 'Insert row above' : 'Insert column before'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Above' : 'Before'}</ToolButton>
-          <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={readOnly} title={rows ? 'Insert row below' : 'Insert column after'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Below' : 'After'}</ToolButton>
+          <InspectorAction onClick={() => onInsertAt(colIndex)} disabled={readOnly} title={rows ? 'Insert row above' : 'Insert column before'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Above' : 'Before'}</InspectorAction>
+          <InspectorAction onClick={() => onInsertAt(colIndex + 1)} disabled={readOnly} title={rows ? 'Insert row below' : 'Insert column after'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Below' : 'After'}</InspectorAction>
         </InspectorGroup>
         <div className={TB_DIVIDER} />
         <InspectorGroup>
-          <ToolButton onClick={() => onMove(-1)} disabled={readOnly || colIndex <= 0} title={rows ? 'Move row up' : 'Move column left'} className={TB_BTN_ICON}>
+          <InspectorAction onClick={() => onMove(-1)} disabled={readOnly || colIndex <= 0} title={rows ? 'Move row up' : 'Move column left'} className={TB_BTN_ICON}>
             {rows ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowLeft className="w-2.5 h-2.5" />} {rows ? 'Up' : 'Left'}
-          </ToolButton>
-          <ToolButton onClick={() => onMove(1)} disabled={readOnly || colIndex >= colsCount - 1} title={rows ? 'Move row down' : 'Move column right'} className={TB_BTN_ICON}>
+          </InspectorAction>
+          <InspectorAction onClick={() => onMove(1)} disabled={readOnly || colIndex >= colsCount - 1} title={rows ? 'Move row down' : 'Move column right'} className={TB_BTN_ICON}>
             {rows ? <ArrowDown className="w-2.5 h-2.5" /> : <ArrowRight className="w-2.5 h-2.5" />} {rows ? 'Down' : 'Right'}
-          </ToolButton>
+          </InspectorAction>
         </InspectorGroup>
       </InspectorRow>
     </EditorSection>
@@ -63,7 +63,7 @@ const ColumnHeader: React.FC<{
       leading={<span className="text-[10px] font-semibold text-[color:var(--ui-text)] pr-1">{rows ? 'Row' : 'Column'} {colIndex + 1} of {colsCount}</span>}
       trailing={
         <>
-          <ToolButton onClick={onDelete} disabled={readOnly || colsCount <= 1} title={rows ? 'Delete row' : 'Delete column'} className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
+          <InspectorAction onClick={onDelete} disabled={readOnly || colsCount <= 1} title={rows ? 'Delete row' : 'Delete column'} className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></InspectorAction>
           {headerTrailing && (
             <>
               <div className={TB_DIVIDER} />

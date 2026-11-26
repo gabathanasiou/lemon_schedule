@@ -58,7 +58,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
   const noop = () => {};
 
   const body = colBlock && colSel ? (
-    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" onClick={e => e.stopPropagation()}>
+    <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3" onClick={e => e.stopPropagation()}>
       {colBlock.type === 'table' ? (
         <TableColumnEditorContent
           block={colBlock}
@@ -86,7 +86,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
       )}
     </div>
   ) : !block ? null : (
-    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" onClick={e => e.stopPropagation()}>
+    <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3" onClick={e => e.stopPropagation()}>
       <BlockEditorContent
         block={block}
         project={project}
@@ -97,7 +97,6 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
         onSaveTextStyles={onSaveTextStyles}
         onSaveBlockStyles={onSaveBlockStyles}
         panel
-        compact
         onDuplicate={onDuplicate}
         onRemove={onRemove}
         onMove={onMove}

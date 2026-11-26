@@ -255,7 +255,7 @@ const InspectorLab: React.FC = () => {
               <ThemeScope mode={theme} surface="neutral" className="block">
               <div
                   style={{ ['--inspector-text-scale' as string]: String(scale / 100) } as React.CSSProperties}
-                  className="flex flex-col gap-4 rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+                  className="flex flex-col gap-4 rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-2"
                 >
                   {surface === 'panel' ? (
                     <InspectorSurfaceContext.Provider value="panel">
@@ -273,7 +273,7 @@ const InspectorLab: React.FC = () => {
                 <ThemeScope mode={theme} surface="neutral" className="block">
                   <div
                     style={{ ['--inspector-text-scale' as string]: String(scale / 100) } as React.CSSProperties}
-                    className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+                    className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-2"
                   >
                     <InspectorSurfaceContext.Provider value="panel">
                       <RowSpecimens readOnly />
@@ -286,7 +286,7 @@ const InspectorLab: React.FC = () => {
                 <ThemeScope mode={theme} surface="neutral" className="block">
                   <div
                     style={{ ['--inspector-text-scale' as string]: String(scale / 100) } as React.CSSProperties}
-                    className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-4"
+                    className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] p-2"
                   >
                     <InspectorSurfaceContext.Provider value="panel">
                       <RowSpecimens disabled />

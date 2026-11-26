@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
-import { SectionHeader, Seg, TB_INPUT, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON } from '@gabriel/ui-kit';
+import { SectionHeader, Seg, TB_BTN, TB_INPUT, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON } from '@gabriel/ui-kit';
 import Checkbox from '../Checkbox';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -48,27 +48,32 @@ export interface InspectorSectionProps {
   className?: string;
 }
 
-/** A section: eyebrow + hairline rule, then rows with the 16px section gap.
- *  In a bar it is an inline label + 1px separator; its groups wrap as units. */
+/** A section: a raised card with an eyebrow + hairline rule and rows. The bar
+ *  keeps the same card but lays its label + controls inline. */
 export const InspectorSection: React.FC<InspectorSectionProps> = ({ label, children, className = '' }) => {
   const surface = useInspectorSurface();
   if (surface === 'bar') {
     return (
-      <div className={`flex min-w-0 flex-wrap items-center gap-2 ${className}`} aria-label={label}>
+      <section
+        className={`flex min-w-0 flex-wrap items-center gap-2 rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-band)] px-2.5 py-2 ${className}`}
+        aria-label={label}
+      >
         <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]" title={label}>{label}</span>
-        <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
+        <span className="h-5 w-px shrink-0 bg-[var(--ui-border)]" />
         {children}
-      </div>
+      </section>
     );
   }
   return (
-    <section className={`${SECTION_STACK} ${className}`} aria-label={label}>
+    <section
+      className={`${SECTION_STACK} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-band)] p-3 ${className}`}
+      aria-label={label}
+    >
       <SectionHeader>{label}</SectionHeader>
       <div className={ROW_STACK}>{children}</div>
     </section>
   );
 };
-
 export interface InspectorRowProps {
   /** Short label (≤6 characters fits the 42px column). Long concepts belong
    *  in the section label; the title always carries the full name. */
@@ -246,6 +251,34 @@ export const InspectorNumber: React.FC<InspectorNumberProps> = ({
     </span>
   );
 };
+
+export interface InspectorActionProps {
+  onClick: () => void;
+  /** Native tooltip + accessible name. Icon-only actions keep both. */
+  title: string;
+  disabled?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
+/** A bare icon/text action with a NATIVE title. The kit `ToolButton` wraps a
+ *  delayed tooltip bubble; dense inspector chrome wants the browser tooltip
+ *  that disappears with the pointer. Use the kit ToolButton where a styled
+ *  tooltip is the better affordance. */
+export const InspectorAction: React.FC<InspectorActionProps> = ({
+  onClick, title, disabled, className = TB_BTN, children,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    aria-label={title}
+    className={className}
+  >
+    {children}
+  </button>
+);
 
 export interface InspectorToggleProps {
   pressed: boolean;
