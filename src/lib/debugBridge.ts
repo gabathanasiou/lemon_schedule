@@ -25,6 +25,7 @@ import { makeBlankBudget, makeBudgetLine, makeBudgetVersion, makeExpense, makePu
 import { computeBudget } from './budget/calc';
 import { computeCostReport, flatCostRows } from './budget/costReport';
 import { deserializeProject } from './projectCodec';
+import { getLabState, type LabStateSnapshot } from './labState';
 import type { PresenceDiagnostics } from './supabase/presenceChannel';
 import type { PresenceAnchor } from './supabase/presence';
 import { probeAnchorAt } from './presenceAnchors';
@@ -364,6 +365,9 @@ export interface LemonAgentBridge {
   /** Presence anchor inspector (roadmap 236): the cursor anchor that WOULD be
    *  published for a viewport point — hover a surface and audit its coverage. */
   presenceAnchorAt: (x: number, y: number) => PresenceAnchor;
+  /** Modals Studio (roadmap 374): the DEV-only preview's active surface, or
+   *  null when the studio isn't open. Read-only; never project state. */
+  getLabState: () => LabStateSnapshot | null;
   /** Chrome symmetry audit (roadmap 264): every rendered `data-chrome-bar`
    *  checked against the shared spacing scale. Empty array = clean. */
   auditChrome: () => ChromeAuditViolation[];
@@ -467,6 +471,7 @@ function buildBridge(): LemonAgentBridge {
     '  presenceAnchorAt(x, y)       → the cursor anchor that WOULD be published at a viewport point (pointer-anchor coverage inspector)',
     '  auditChrome()                → chrome bar geometry vs the 16/8 spacing scale (roadmap 264); [] = every bar aligned',
     '  auditScript()                → project↔scriptDocument integrity report (duplicate numbers, orphan/dangling bodies, missing rows)',
+    '  getLabState()                → Modals Studio (roadmap 374): the active modal/dialog surface + selected entity, or null when the studio is closed',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
     'Writes (same Action union the UI uses; see src/store/reducer.ts — ~95 types):',
@@ -726,6 +731,7 @@ function buildBridge(): LemonAgentBridge {
     getSceneScript,
     decodeProject: (raw: string) => deserializeProject(raw),
     diagnostics: () => deepClone(api().getConnectivity()),
+    getLabState: () => deepClone(getLabState()),
     auditScript: () => deepClone(auditScriptMap(api().getProject())),
     repairScript: () => repairScriptMap(dispatch, api().getProject()),
     autoDaybreaks: (params: AgentBridgeAutoDaybreaksParams) => {

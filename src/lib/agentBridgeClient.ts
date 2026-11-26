@@ -149,6 +149,8 @@ export function createAgentBridgeRequestHandler(
         return bridge.historyDepth();
       case 'diagnostics':
         return bridge.diagnostics();
+      case 'getLabState':
+        return bridge.getLabState();
       case 'applyActions': {
         const p = (params ?? {}) as { actions?: unknown; atomic?: boolean };
         return applyActionsToBridge(bridge, p.actions, p.atomic !== false);

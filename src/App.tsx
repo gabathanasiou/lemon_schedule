@@ -117,6 +117,15 @@ const InspectorLab = import.meta.env.DEV
   ? React.lazy(() => import('./components/inspector/InspectorLab'))
   : null;
 
+// Dev-only Modals Studio (roadmap 374) — `#/lab/modals[/<surface-id>]`.
+// Lazy + DEV-gated: the studio (and its fixtures) never enter a production
+// bundle. It mounts inside the project provider so fixtures render the REAL
+// modals against the active project (the dialog provider gives the kit's
+// confirm/prompt/alert the same identity theme).
+const ModalsLab = import.meta.env.DEV
+  ? React.lazy(() => import('./lab/modals/ModalsLab'))
+  : null;
+
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
   const dialog = useDialog();
@@ -1516,6 +1525,21 @@ export default function App() {
       <React.Suspense fallback={null}>
         <InspectorLab />
       </React.Suspense>
+    );
+  }
+  if (import.meta.env.DEV && ModalsLab && window.location.hash.startsWith('#/lab/modals')) {
+    return (
+      <ProjectProvider>
+        <ProjectDialogProvider>
+          <NewCastNamingProvider>
+            <SceneDuplicateProvider>
+              <React.Suspense fallback={null}>
+                <ModalsLab />
+              </React.Suspense>
+            </SceneDuplicateProvider>
+          </NewCastNamingProvider>
+        </ProjectDialogProvider>
+      </ProjectProvider>
     );
   }
   return (

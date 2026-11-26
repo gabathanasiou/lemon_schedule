@@ -2,6 +2,7 @@ import { Modal as KitModal, ModalFooter } from '@gabriel/ui-kit';
 import type { ModalProps } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { useLocalOverlaySignal } from '../lib/localOverlaySignal';
+import { getModalThemeOverride } from '../lib/modalDevTheme';
 import { projectModalThemeOf } from '../lib/projectTheme';
 import { useProjectTheme } from '../store';
 
@@ -22,7 +23,7 @@ export default function Modal({ accent, surface, theme, ...props }: ModalProps) 
   return (
     <KitModal
       {...props}
-      theme={theme ?? modalThemeHarness() ?? 'dark'}
+      theme={theme ?? getModalThemeOverride() ?? modalThemeHarness() ?? 'dark'}
       accent={accent ?? projectModalTheme.accent}
       surface={surface ?? projectModalTheme.surface}
       morph={props.morph ?? overlayMorphOptIn()}

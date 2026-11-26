@@ -1,0 +1,78 @@
+import type { SurfaceMetaList } from '../types';
+
+/** Calendar-tab surfaces (events, day types, colour rules). */
+export const meta: SurfaceMetaList = [
+  {
+    id: 'event-editor',
+    title: 'Edit event',
+    group: 'Calendar',
+    note: 'One element\'s event card on one date — type, element, note, delete.',
+    kind: 'modal',
+    sources: ['src/components/calendar/EventModal.tsx'],
+  },
+  {
+    id: 'event-adder',
+    title: 'Add events',
+    group: 'Calendar',
+    note: 'The unified add-events modal — date, type, category rows, elements.',
+    kind: 'modal',
+    sources: ['src/components/calendar/EventAdderModal.tsx'],
+  },
+  {
+    id: 'day-events',
+    title: 'Day events',
+    group: 'Calendar',
+    note: 'The whole-day events editor: status, event type cards, rules, conflicts.',
+    kind: 'modal',
+    sources: ['src/components/calendar/DayEventsModal.tsx'],
+  },
+  {
+    id: 'production-dates',
+    title: 'Production dates',
+    group: 'Calendar',
+    note: 'Prep/production/post window + weekly days off, synced to the calendar.',
+    kind: 'modal',
+    sources: ['src/components/calendar/ProductionDatesModal.tsx'],
+  },
+  {
+    id: 'day-type-add',
+    title: 'Add day type',
+    group: 'Calendar',
+    note: 'Create a status day type (name, colour, attachable).',
+    kind: 'modal',
+    sources: ['src/components/calendar/DayTypeModals.tsx'],
+  },
+  {
+    id: 'day-type-edit',
+    title: 'Edit day type',
+    group: 'Calendar',
+    note: 'Edit an existing status day type.',
+    kind: 'modal',
+    sources: ['src/components/calendar/DayTypeModals.tsx'],
+  },
+  {
+    id: 'color-rule',
+    title: 'Colour rule',
+    group: 'Calendar',
+    note: 'Calendar colour rule editor (element + conditions + colour).',
+    kind: 'modal',
+    sources: ['src/components/ColorRuleEditModal.tsx'],
+  },
+  {
+    id: 'rule-editor',
+    title: 'Rule editor',
+    group: 'Calendar',
+    note: 'The shared scheduling-rule editor (Rules tab + element events manager).',
+    kind: 'modal',
+    sources: ['src/components/RulesTab.tsx', 'src/components/elements/ElementEventsSection.tsx'],
+  },
+  {
+    id: 'palette-colour',
+    title: 'Edit scene colour',
+    group: 'Calendar',
+    note: 'The Stripboard/Calendar palette editor for one scene colour slot.',
+    kind: 'modal',
+    sources: ['src/components/ColorsTab.tsx', 'src/components/rules/ColorRuleFormParts.tsx'],
+    width: 'sm',
+  },
+];

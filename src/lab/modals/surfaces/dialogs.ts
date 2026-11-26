@@ -1,0 +1,55 @@
+import type { SurfaceMetaList } from '../types';
+
+/** The kit's imperative confirm/prompt/alert dialog variants (useDialog). */
+export const meta: SurfaceMetaList = [
+  {
+    id: 'dialog-confirm',
+    title: 'Confirm',
+    group: 'Dialogs',
+    note: 'useDialog().confirm — title + message, Cancel / Confirm.',
+    kind: 'dialog',
+    sources: ['src/components/Dialog.tsx'],
+    projectless: true,
+    width: 'sm',
+  },
+  {
+    id: 'dialog-danger',
+    title: 'Destructive confirm',
+    group: 'Dialogs',
+    note: 'confirm({ danger: true }) — the red primary.',
+    kind: 'dialog',
+    sources: ['src/components/Dialog.tsx'],
+    projectless: true,
+    width: 'sm',
+  },
+  {
+    id: 'dialog-suppress',
+    title: 'Confirm + remember',
+    group: 'Dialogs',
+    note: 'confirm({ suppressKey }) — adds "Don\'t ask again (24 hours)".',
+    kind: 'dialog',
+    sources: ['src/components/Dialog.tsx'],
+    projectless: true,
+    width: 'sm',
+  },
+  {
+    id: 'dialog-prompt',
+    title: 'Prompt',
+    group: 'Dialogs',
+    note: 'useDialog().prompt — a text field with Cancel / Commit.',
+    kind: 'dialog',
+    sources: ['src/components/Dialog.tsx'],
+    projectless: true,
+    width: 'sm',
+  },
+  {
+    id: 'dialog-alert',
+    title: 'Alert',
+    group: 'Dialogs',
+    note: 'useDialog().alert — message + one Dismiss action.',
+    kind: 'dialog',
+    sources: ['src/components/Dialog.tsx'],
+    projectless: true,
+    width: 'sm',
+  },
+];

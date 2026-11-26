@@ -410,6 +410,14 @@ export const TOOL_DEFS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
   },
+  {
+    name: 'get_lab_state',
+    title: 'Get modals-studio state',
+    description:
+      'Which modal/dialog the Modals Studio (#/lab/modals) is previewing right now: surface id/title/group, its position, the open project, the preview theme/width/text-scale, and the entity the fixture is pointed at. Returns null when the studio is not open — use this to know exactly which surface the user means when they say "this one".',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: READ,
+  },
 ];
 
 function requireApp(ctx) {
@@ -694,8 +702,17 @@ export async function callTool(name, rawArgs, ctx) {
         } catch (err) {
           status.historyError = err instanceof Error ? err.message : String(err);
         }
+        try {
+          status.lab = await ctx.callApp('getLabState');
+        } catch (err) {
+          status.labError = err instanceof Error ? err.message : String(err);
+        }
       }
       return status;
+    }
+    case 'get_lab_state': {
+      requireApp(ctx);
+      return await ctx.callApp('getLabState');
     }
     default:
       throw new Error(`Unknown tool '${name}'.`);

@@ -2,6 +2,7 @@ import React from 'react';
 import { DialogProvider, ThemeProvider } from '@gabriel/ui-kit';
 import { useProjectTheme } from '../store';
 import { projectAccentNameOf, projectModalThemeOf } from '../lib/projectTheme';
+import { getModalThemeOverride } from '../lib/modalDevTheme';
 
 /**
  * App-root project identity + dialogs (roadmaps 332/333).
@@ -21,7 +22,7 @@ export function ProjectDialogProvider({ children }: { children: React.ReactNode 
   const modal = projectModalThemeOf(theme);
   return (
     <ThemeProvider accent={projectAccentNameOf(theme)}>
-      <DialogProvider theme="dark" accent={modal.accent} surface={modal.surface}>
+      <DialogProvider theme={getModalThemeOverride() ?? 'dark'} accent={modal.accent} surface={modal.surface}>
         {children}
       </DialogProvider>
     </ThemeProvider>

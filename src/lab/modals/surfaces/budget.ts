@@ -1,0 +1,77 @@
+import type { SurfaceMetaList } from '../types';
+
+/** Budget tab surfaces. */
+export const meta: SurfaceMetaList = [
+  {
+    id: 'budget-line',
+    title: 'Budget line',
+    group: 'Budget',
+    note: 'One budget line: amounts, schedule link, fringes, groups, formula overrides.',
+    kind: 'modal',
+    sources: ['src/components/budget/BudgetLineModal.tsx'],
+  },
+  {
+    id: 'budget-node',
+    title: 'Budget category/account',
+    group: 'Budget',
+    note: 'Chart editor for a category group or an account.',
+    kind: 'modal',
+    sources: ['src/components/budget/BudgetNodeModal.tsx'],
+  },
+  {
+    id: 'budget-group',
+    title: 'Budget group',
+    group: 'Budget',
+    note: 'Fringe/markup/global group editor.',
+    kind: 'modal',
+    sources: ['src/components/budget/BudgetGroupModal.tsx'],
+  },
+  {
+    id: 'budget-global',
+    title: 'Budget global',
+    group: 'Budget',
+    note: 'Project global formula editor (system globals read-only).',
+    kind: 'modal',
+    sources: ['src/components/budget/BudgetGlobalModal.tsx'],
+  },
+  {
+    id: 'expense',
+    title: 'Expense',
+    group: 'Budget',
+    note: 'Add/edit an expense: spend, budget allocation, notes + receipt.',
+    kind: 'modal',
+    sources: ['src/components/budget/ExpenseModal.tsx'],
+  },
+  {
+    id: 'overtime-policy',
+    title: 'Overtime policy',
+    group: 'Budget',
+    note: 'Per-day/per-department overtime tiers and rates.',
+    kind: 'modal',
+    sources: ['src/components/budget/OvertimePolicyModal.tsx'],
+  },
+  {
+    id: 'schedule-review',
+    title: 'Review schedule updates',
+    group: 'Budget',
+    note: 'Reviewed sync of schedule changes into the budget.',
+    kind: 'modal',
+    sources: ['src/components/budget/ScheduleReviewModal.tsx'],
+  },
+  {
+    id: 'budget-trash',
+    title: 'Budget version trash',
+    group: 'Budget',
+    note: 'Restore or permanently remove deleted budget versions.',
+    kind: 'modal',
+    sources: ['src/components/budget/BudgetVersionMenu.tsx'],
+  },
+  {
+    id: 'formula-book',
+    title: 'Formula book',
+    group: 'Budget',
+    note: 'Searchable formula symbols/functions reference (FormulaField).',
+    kind: 'modal',
+    sources: ['src/components/budget/FormulaField.tsx'],
+  },
+];
