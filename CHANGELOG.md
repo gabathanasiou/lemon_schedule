@@ -2,7 +2,23 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-11-26 — Reports get a box, grids get a glow
+
+**Features**
+- **Reports Designer** — image blocks can be dragged to scale, placed with the anchor grid, and fitted inside their box. Set a fixed height, or let Auto fit it; the designer now shows the page at true print width.
+- **Reports Designer** — drag any block between the page header, body and footer; empty zones accept a drop anywhere.
+- **Reports Designer** — image, text and title blocks gain outline controls: fill, border colour and width, corner radius, and saved style presets such as Black bar, Callout and Card.
+- **Breakdown** — cells briefly flash when you paste, fill, cut or clear them, and when a collaborator changes them.
+
+**Changes**
+- **Reports Designer** — related controls are grouped into sections, a block's title is its own group, and column resizing shows the new width.
+- **Elements** — the Element View's Properties panel is grouped into Identity, Contact, Agent and Booking.
+
 ## 2026-11-13 — Menus close, screens read
+
+**Features**
+- **Budget** — the reports designer can build a budget hierarchy (categories → accounts → lines), start from a one-click Budget View preset, and print a budget scoped to ATL/BTL/Post, categories, accounts or library line groups, with totals recomputed for the scope.
+- **Budget** — Print, Save as, Export and Import are separate actions, and the designer's budget collections live under one Budget menu.
 
 **Bug fixes**
 - **Menus** — a submenu now closes as soon as you move to another one; before, several could stay open and stack up across the screen.

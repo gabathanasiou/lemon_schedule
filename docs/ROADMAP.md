@@ -1364,3 +1364,28 @@ audit's component families: `TextStylesModal` toolbar, print/DOOD preview scene 
 low-contrast form controls; `npm run lint` + unit; manual light pass on every scenario.
 
 **Relations:** follows 374 (studio), `relates to` 302 (component theming), 229 (collaboration), 310.
+
+## 376. Full modal UI audit — every surface through the Modals Studio (`[ ]`)
+
+**Asked 2026-11-26 (user):** a hands-on pass through EVERY modal and dialog in
+the Modals Studio to confirm the UI works and looks right — the owner's own
+visual/interaction audit using `#/lab/modals`, not another engineering pass.
+
+**Scope:** all registered surfaces, each opened and closed at light + dark,
+width 240/300/360/400/560/Wide and text 100/125/150% on the demo project; check
+layout and wrapping, labels and empty states, dropdowns/pickers, tabs and
+segmented controls, form fields, footer/close reachability above the dock,
+Re-open/Replay, and that a surface never traps or clips the dialog. Use
+`audit_lab_surfaces` first to focus on known contrast/control issues; use the
+capability search (`dropdown`, `tabs`, …) to sweep by control type.
+
+**Output:** an ordered checklist grouped by studio section, with a note per
+surface; findings either fixed in a family batch or filed as a follow-up item.
+This is the user's sign-off pass — the studio previews the REAL components, so
+"perfect here" is the release bar for the modal UI.
+
+**Verify:** every surface visited in both themes; no unreachable footer/close;
+no console errors; the checklist signed off by the user.
+
+**Relations:** `depends on` 374 (studio); `relates to` 375 (dummy scenarios /
+light-theme cleanup), 302 (component theming), 333 (modal theme).
