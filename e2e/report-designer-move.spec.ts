@@ -296,6 +296,46 @@ test('columns block resize keeps all three columns proportional after release', 
   }
 });
 
+test('a header image block can be dragged into the body', async ({ page }) => {
+  await openSeededProject(page, undefined);
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+
+  const blockId = 'e2e-header-image';
+  await page.evaluate((id) => {
+    const b = (window as any).__lemonSchedule;
+    const project = b.getState().present;
+    const stored = localStorage.getItem('lemon_schedule_report_active_design');
+    const design = project.reportDesigns.find((d: any) => d.id === stored)
+      || project.reportDesigns.find((d: any) => d.id === project.activeReportId)
+      || project.reportDesigns[0];
+    const block = {
+      id,
+      type: 'image',
+      imageDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      imageWidth: 40,
+      imageHeight: 80,
+      imageFit: 'cover',
+    };
+    b.dispatch({ type: 'UPDATE_REPORT_DESIGN', payload: { id: design.id, header: [...(design.header || []), block] } });
+  }, blockId);
+
+  const card = page.locator(`[data-block-id="${blockId}"]`);
+  await expect(card).toBeVisible();
+  const body = page.locator('[data-zone-list="body"]').first();
+  await card.dragTo(body);
+
+  await page.waitForFunction((id) => {
+    const b = (window as any).__lemonSchedule;
+    const project = b.getState().present;
+    const design = project.reportDesigns.find((d: any) =>
+      (d.blocks || []).some((x: any) => x.id === id) || (d.header || []).some((x: any) => x.id === id));
+    return !!design
+      && !(design.header || []).some((x: any) => x.id === id)
+      && (design.blocks || []).some((x: any) => x.id === id);
+  }, blockId);
+});
+
 test('keys/values toggle switches text blocks and table cells', async ({ page }) => {
   await openSeededProject(page, undefined, { editorMode: 'floating' });
   const lead = await seedLeadCast(page);

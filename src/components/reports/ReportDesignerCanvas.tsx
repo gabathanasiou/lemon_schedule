@@ -963,7 +963,15 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       {bare ? 'No blocks yet — click or drag from the palette.' : 'No blocks yet — click or drag from the palette to build the report.'}
     </div>
   );
-  const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : <div className="flex flex-col">{renderBlocks(blocks, 0, bare ? parentCollection : undefined, bare ? rootItem : undefined)}</div>;
+  const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : (
+    <div
+      className="flex flex-col"
+      data-zone-list="body"
+      {...zoneDropHandlers('body', onInsertIntoZone, isDrag, pendingRef, endDrag)}
+    >
+      {renderBlocks(blocks, 0, bare ? parentCollection : undefined, bare ? rootItem : undefined)}
+    </div>
+  );
 
   // A press anywhere outside an editable clears the current text selection —
   // a title/text selection left highlighted after clicking the background or
@@ -1090,7 +1098,7 @@ const ReportZone: React.FC<{
     className="report-zone"
     data-zone-list={zone}
     style={{ border: '1.5px dashed #a1a1aa', borderRadius: 8, padding: '8px 10px', ...(gap === 'after' ? { marginBottom: 16 } : { marginTop: 16 }) }}
-    {...(empty ? zoneDropHandlers(zone, onInsert, isDrag, pendingRef, endDrag) : {})}
+    {...zoneDropHandlers(zone, onInsert, isDrag, pendingRef, endDrag)}
   >
     <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
       <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>

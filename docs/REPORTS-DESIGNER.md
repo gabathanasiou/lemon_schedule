@@ -71,6 +71,10 @@ Never re-derive them.
 
 ## Hard-won gotchas
 
+- **Zone drag/drop (roadmap 370):** the header/footer zone containers and the non-empty body
+  accept a block drop ANYWHERE (the 10px inter-block zones are shortcuts, not the only targets), so
+  blocks move between header/body/footer; image blocks drag from the image itself (the card has
+  padding 0 and the image is the drag surface).
 - `aux.index` is 0-based; `counterStart` (block prop) decides where the Counter field starts.
 - Nested `elementsOfCategory` repeats render their same-collection tables **once per category** (summary tables — the `onceTables` special case in `ReportRepeatView`, `ReportBlockView.tsx:273`). Don't "fix" this; it's intentional.
 - Table axis: `columns` = attributes as columns (one row per item), `rows` = matrix (attributes as rows). `tableItemCollection`/`tableFieldScope` derive the effective collection/field scope — use them, don't inline.

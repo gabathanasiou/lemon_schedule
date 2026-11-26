@@ -120,7 +120,6 @@ export const ImageBlockView: React.FC<ImageBlockViewProps> = ({ block, boxed, hi
         ref={imgRef}
         src={block.imageDataUrl}
         alt=""
-        draggable={false}
         style={{
           display: 'block',
           width: '100%',
