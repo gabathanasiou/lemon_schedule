@@ -3,15 +3,13 @@ import { ChevronLeft, ChevronRight, CornerDownLeft, Redo2, RotateCcw, Undo2 } fr
 import { SearchMenu, Seg } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import Button from '../../components/Button';
-import DropdownMenu from '../../components/DropdownMenu';
-import DropdownItem from '../../components/DropdownItem';
 import { SURFACE_GROUPS, type ModalSurfaceMeta } from './types';
 
 /** The studio's floating chrome. It sits ABOVE the live modal (z 10001, the
  *  same layer as kit menus — menu portals render later, so they still win) and
  *  only its own surface takes pointer events, leaving the rest of the modal
  *  fully usable. All controls are kit primitives (Button / Seg / SearchMenu /
- *  DropdownMenu) — the studio has no bespoke widgets. */
+ *  SearchMenu) — the studio has no bespoke widgets. */
 
 export const STUDIO_WIDTHS = [
   { v: 'auto', l: 'Auto' },
@@ -83,7 +81,6 @@ export function StudioDock({
   onSelect, onPrev, onNext, onTheme, onWidth, onScale, onOpenProject, onDemo, onReopen,
   onReplay, onToggleBridge, onUndo, onRedo,
 }: StudioDockProps) {
-  const [projectOpen, setProjectOpen] = React.useState(false);
   const [dockEl, setDockEl] = React.useState<HTMLDivElement | null>(null);
   const groups: SearchMenuGroup[] = SURFACE_GROUPS
     .filter((g) => surfaces.some((s) => s.group === g))
@@ -177,29 +174,26 @@ export function StudioDock({
           </Button>
           <span className="flex items-center gap-1.5">
             <span className="text-[9px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Project</span>
-            <DropdownMenu
-              open={projectOpen}
-              onOpenChange={setProjectOpen}
+            <SearchMenu
+              items={projectList.map((p) => ({ id: p.id, label: p.title }))}
+              mode="expandable"
+              triggerLabel={projectTitle || 'Open project'}
+              triggerVariant="outline"
               theme="dark"
-              trigger={<Button theme="dark" variant="subtle" size="minimal" className="max-w-[200px] truncate">{projectTitle || 'Open project'}</Button>}
-            >
-              {projectList.map((p) => (
-                <DropdownItem
-                  key={p.id}
-                  selected={p.id === projectId}
-                  onClick={() => { setProjectOpen(false); onOpenProject(p.id); }}
-                >
-                  <span className="truncate">{p.title}</span>
-                </DropdownItem>
-              ))}
-              {projectList.length === 0 && <DropdownItem disabled onClick={() => {}}>No local projects</DropdownItem>}
-              <DropdownItem
-                onClick={() => { setProjectOpen(false); onDemo(); }}
-                trailing={demoBusy ? <span className="text-[9px] text-[color:var(--ui-text-faint)]">loading…</span> : undefined}
-              >
-                Load demo project
-              </DropdownItem>
-            </DropdownMenu>
+              browseAll
+              selectedId={projectId ?? undefined}
+              onSelect={(item) => onOpenProject(item.id)}
+              collapsedWidth={200}
+              expandedWidth={200}
+              panelWidth={300}
+              emptyTitle="No local projects"
+              emptyHint="Create one in the app, or load the demo."
+              footerActions={[{
+                label: demoBusy ? 'Loading demo project…' : 'Load demo project',
+                onClick: () => onDemo(),
+              }]}
+              portalTarget={dockEl}
+            />
           </span>
           {closed && (
             <Button theme="dark" variant="outline" size="minimal" onClick={onReopen}>
