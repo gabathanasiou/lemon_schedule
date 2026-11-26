@@ -63,7 +63,6 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
               open={groupOpen}
               onOpenChange={setGroupOpen}
               width="w-56"
-              theme="dark"
               trigger={
                 <button type="button" aria-labelledby={`${uid}-section ${uid}-section-value`} className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
                   <span id={`${uid}-section-value`} className="truncate">{group || 'Other'}</span>

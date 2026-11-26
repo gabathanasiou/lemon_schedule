@@ -1,6 +1,6 @@
 import React from 'react';
 import { Palette, Trash2 } from 'lucide-react';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import type { BudgetGroup } from '../../types';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -55,7 +55,6 @@ export function BudgetGroupModal({
         <Field label="In budget">
           <Seg
             variant="track"
-            theme="dark"
             value={group.inBudget === false ? 'no' : 'yes'}
             options={[{ v: 'yes', l: 'In budget' }, { v: 'no', l: 'Excluded' }]}
             onChange={v => onUpdate({ inBudget: v === 'yes' })}

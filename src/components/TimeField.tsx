@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { inputCls } from '@gabriel/ui-kit';
 import { useTouchMode } from '../lib/useMarquee';
+import { useAmbientKitMode } from '../lib/useAmbientKitMode';
 import TimeKeypad from './TimeKeypad';
 import { isImeConfirm } from '../lib/keys';
 
@@ -25,7 +26,7 @@ export interface TimeFieldProps {
   /** Show a reset-to-auto affordance when an override is stored. */
   onReset?: () => void;
   autoFocus?: boolean;
-  /** Dark chrome (the modal surfaces). Default light (the Day Manager page). */
+  /** Explicit chrome overrides; omitted = the ambient modal/page mode. */
   theme?: 'light' | 'dark';
   /** Hide the amber "overridden" dot. For fields where a non-empty value is
    *  the configured default rather than an override (e.g. call-stage leads). */
@@ -50,14 +51,15 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   className = '',
   onReset,
   autoFocus,
-  theme = 'light',
+  theme,
   hideOverrideDot,
   ariaLabel,
   align = 'center',
   boxed = false,
 }) => {
   const isTouch = useTouchMode();
-  const dark = theme === 'dark';
+  const ambient = useAmbientKitMode();
+  const dark = (theme ?? ambient) === 'dark';
   const alignCls = align === 'left' ? 'text-left' : 'text-center';
 
   const [focused, setFocused] = useState(false);

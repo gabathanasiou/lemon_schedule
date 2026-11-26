@@ -318,7 +318,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
       {headerTarget && createPortal(
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen} width="w-44" trigger={
-          <Button theme="dark">
+          <Button>
             <span className="text-xs font-semibold text-[color:var(--ui-text-muted)]">Edit</span>
             <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
           </Button>

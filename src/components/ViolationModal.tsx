@@ -81,7 +81,7 @@ export const ShootViolationsModal: React.FC<ShootViolationsModalProps> = ({
         {dayViolations.filter(d => d.violations.length > 0).map((day, i) => (
           <div key={i}>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] font-bold text-white">{day.dayLabel}</span>
+              <span className="text-[11px] font-bold text-[color:var(--ui-text-strong)]">{day.dayLabel}</span>
               {day.dateStr && (
                 <span className="text-[10px] text-[color:var(--ui-text-faint)]">{day.dateStr}</span>
               )}

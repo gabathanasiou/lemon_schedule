@@ -47,7 +47,7 @@ export function MergeRowsModal({ title, intro, groups, confirmLabel = 'Merge', o
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                     <span className="text-xs text-[color:var(--ui-text)] font-medium">{m.sourceNames.join(', ')}</span>
                     <ArrowRight className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
-                    <span className="text-xs text-white font-semibold">{m.targetName}</span>
+                    <span className="text-xs text-[color:var(--ui-text-strong)] font-semibold">{m.targetName}</span>
                   </div>
                   {m.summary && <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0 tabular-nums">{m.summary}</span>}
                 </div>

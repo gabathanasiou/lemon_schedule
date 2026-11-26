@@ -4,6 +4,7 @@ import { SearchMenu, Seg } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import Button from '../../components/Button';
 import { SURFACE_GROUPS, type ModalSurfaceMeta } from './types';
+import { capabilitiesForSurface, capabilityKeywords } from './capabilities';
 
 /** The studio's floating chrome. It sits ABOVE the live modal (z 10001, the
  *  same layer as kit menus — menu portals render later, so they still win) and
@@ -72,6 +73,11 @@ interface StudioDockProps {
   onToggleBridge: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  /** Reports the dock's occupied height so the studio can cap modals above it. */
+  onMeasure?: (height: number) => void;
+  /** The library/project search is taking focus: close the preview's modal so
+   *  Radix's focus trap cannot steal the search field. */
+  onSearchOpen?: () => void;
 }
 
 export function StudioDock({
@@ -79,9 +85,17 @@ export function StudioDock({
   theme, width, scale, closed, replayable, bridgeAvailable, bridgeEnabled, bridgeStatus, demoBusy,
   canUndo, canRedo,
   onSelect, onPrev, onNext, onTheme, onWidth, onScale, onOpenProject, onDemo, onReopen,
-  onReplay, onToggleBridge, onUndo, onRedo,
+  onReplay, onToggleBridge, onUndo, onRedo, onMeasure, onSearchOpen,
 }: StudioDockProps) {
   const [dockEl, setDockEl] = React.useState<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!dockEl || !onMeasure) return;
+    const measure = () => onMeasure(window.innerHeight - dockEl.getBoundingClientRect().top);
+    const ro = new ResizeObserver(measure);
+    ro.observe(dockEl);
+    measure();
+    return () => ro.disconnect();
+  }, [dockEl, onMeasure]);
   const groups: SearchMenuGroup[] = SURFACE_GROUPS
     .filter((g) => surfaces.some((s) => s.group === g))
     .map((g) => ({
@@ -89,13 +103,16 @@ export function StudioDock({
       label: g,
       count: surfaces.filter((s) => s.group === g).length,
     }));
-  const items: SearchMenuItem[] = surfaces.map((s) => ({
-    id: s.id,
-    label: s.title,
-    group: s.group,
-    detail: s.kind === 'dialog' ? 'Dialog' : undefined,
-    keywords: s.note,
-  }));
+  const items = React.useMemo<SearchMenuItem[]>(() => surfaces.map((s) => {
+    const caps = capabilitiesForSurface(s);
+    return {
+      id: s.id,
+      label: s.title,
+      group: s.group,
+      detail: s.kind === 'dialog' ? 'Dialog' : undefined,
+      keywords: `${s.note} ${capabilityKeywords(caps)} ${s.kind}`,
+    };
+  }), [surfaces]);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[10001] flex justify-center p-3 print:hidden">
@@ -128,7 +145,9 @@ export function StudioDock({
             collapsedWidth={270}
             expandedWidth={270}
             panelWidth={380}
+            placeholder="Search — try 'dropdown' or 'tabs'…"
             portalTarget={dockEl}
+            onOpenChange={(open) => { if (open) onSearchOpen?.(); }}
           />
           <span className="hidden max-w-[280px] truncate text-[10px] text-[color:var(--ui-text-faint)] md:inline" title={surface.note}>
             {surface.note}
@@ -193,6 +212,7 @@ export function StudioDock({
                 onClick: () => onDemo(),
               }]}
               portalTarget={dockEl}
+              onOpenChange={(open) => { if (open) onSearchOpen?.(); }}
             />
           </span>
           {closed && (

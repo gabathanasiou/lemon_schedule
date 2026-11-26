@@ -65,7 +65,6 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
     >
       <div className="space-y-5 p-6" data-testid={TEST_IDS.sceneDuplicateModal}>
         <RadioList
-          theme="dark"
           value={mode}
           onChange={id => setMode(id as DuplicateMode)}
           items={MODES.map(m => ({

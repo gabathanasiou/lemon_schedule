@@ -83,7 +83,6 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
         ) : (
           <>
             <RadioList
-              theme="dark"
               title="Cut before"
               maxHeight={176}
               value={splitIndex}

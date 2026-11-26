@@ -7,7 +7,7 @@ import Checkbox from '../Checkbox';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { useDialog } from '../Dialog';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import { useProject } from '../../store';
 import { useSupabaseAuth } from '../../lib/supabase/auth';
 import {
@@ -51,6 +51,18 @@ function expiryIso(value: 'never' | '7' | '30'): string | null {
   return new Date(Date.now() + Number(value) * 86_400_000).toISOString();
 }
 
+/** Preview data for the Modals Studio (roadmap 374): the REAL sharing panel
+ *  with dummy people/link, no network and no persistence. Never used by the
+ *  app; the live modal passes nothing. */
+export interface SharingPreview {
+  title?: string;
+  state: SharingState;
+  suggestions?: InviteSuggestion[];
+  mode?: AccessMode;
+  linkHref?: string;
+  expired?: boolean;
+}
+
 /**
  * The User & sharing panel (roadmap 229 S2, docs/COLLABORATION.md §6 S2 map + docs/PRESENCE.md §Header cluster):
  * Who can access (Only invited people / Anyone with the link), per-person
@@ -58,27 +70,28 @@ function expiryIso(value: 'never' | '7' | '30'): string | null {
  * Copy Link, Stop Sharing. One instance, driven by the OPEN shared project;
  * every action goes through src/lib/supabase/sharing.ts (RLS enforces).
  */
-export function SharingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SharingModal({ open, onClose, preview }: { open: boolean; onClose: () => void; preview?: SharingPreview }) {
   const { currentProjectId, projectList, state } = useProject();
   const auth = useSupabaseAuth();
   const dialog = useDialog();
 
-  const onlineId = projectList.find(p => p.id === currentProjectId)?.onlineId ?? null;
-  const projectTitle = state.present.title || 'Untitled Project';
+  const onlineId = preview ? 'preview' : (projectList.find(p => p.id === currentProjectId)?.onlineId ?? null);
+  const projectTitle = preview?.title ?? (state.present.title || 'Untitled Project');
 
-  const [share, setShare] = useState<SharingState | null>(null);
+  const [share, setShare] = useState<SharingState | null>(preview?.state ?? null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<InviteSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<InviteSuggestion[]>(preview?.suggestions ?? []);
+  const [previewMode, setPreviewMode] = useState<AccessMode | null>(preview?.mode ?? null);
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [copied, setCopied] = useState(false);
   const [expiryOpen, setExpiryOpen] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!onlineId) return;
+    if (!onlineId || preview) return;
     setLoading(true);
     try {
       const next = await getSharingState(onlineId);
@@ -101,16 +114,22 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   }, [open, onlineId, refresh]);
 
   useEffect(() => {
+    if (preview) {
+      setShare(preview.state);
+      setSuggestions(preview.suggestions ?? []);
+      setPreviewMode(preview.mode ?? null);
+      return;
+    }
     if (open) return;
     setNotice(null);
     setActionError(null);
     setLoadError(null);
     setSuggestions([]);
     setCopied(false);
-  }, [open]);
+  }, [open, preview]);
 
   const run = useCallback(async (fn: () => Promise<void>) => {
-    if (!onlineId || busy) return;
+    if (!onlineId || busy || preview) return;
     setBusy(true);
     setActionError(null);
     setNotice(null);
@@ -130,14 +149,15 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   const isOwner = myRole === 'owner';
   const canInvite = isOwner || (myRole === 'editor' && !!share?.allowInvites);
   const activeLink = share?.links[0] ?? null;
-  const expired = !!activeLink?.expiresAt && Date.parse(activeLink.expiresAt) < Date.now();
-  const mode: AccessMode = activeLink ? 'link' : 'invite';
+  const expired = preview?.expired ?? (!!activeLink?.expiresAt && Date.parse(activeLink.expiresAt) < Date.now());
+  const mode: AccessMode = preview ? (previewMode ?? preview.mode ?? 'invite') : (activeLink ? 'link' : 'invite');
   // The raw token is stored (inviter-only) so the link is always displayable;
   // links created before that change have none — those rotate on Copy.
-  const linkHref = activeLink?.token ? shareLinkUrl(activeLink.token, window.location.origin, import.meta.env.BASE_URL) : '';
+  const linkHref = preview?.linkHref ?? (activeLink?.token ? shareLinkUrl(activeLink.token, window.location.origin, import.meta.env.BASE_URL) : '');
   const needsNewLink = !linkHref || expired;
 
   const handleModeChange = (next: string) => {
+    if (preview) { setPreviewMode(next as AccessMode); return; }
     if (next === 'link') {
       void run(async () => {
         if (!activeLink) await createShareLink(onlineId, null);
@@ -274,6 +294,11 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
       }
     >
       <div className="p-6 space-y-5">
+        {preview && (
+          <p className="rounded border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2 text-[10px] text-[color:var(--ui-text-muted)]">
+            Preview data — actions are disabled. The live panel is driven by the open shared project.
+          </p>
+        )}
         {!share && loading && (
           <div className="flex items-center gap-2 text-xs text-[color:var(--ui-text-muted)]">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading access…
@@ -290,7 +315,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                 <>
                   <Seg
                     variant="track"
-                    theme="dark"
                     stretch
                     value={mode}
                     disabled={busy || loading}
@@ -317,7 +341,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                             onFocus={e => e.currentTarget.select()}
                             className={`${PANEL_INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
                           />
-                          <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy} className="shrink-0">
+                          <Button variant="subtle" onClick={handleCopyLink} disabled={busy} className="shrink-0">
                             <Copy className="w-3.5 h-3.5" /> {needsNewLink ? 'Create New Link' : (copied ? 'Copied' : 'Copy Link')}
                           </Button>
                         </div>
@@ -327,8 +351,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                             onOpenChange={setExpiryOpen}
                             align="left"
                             width="w-36"
-                            theme="dark"
-                            trigger={
+                                    trigger={
                               <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] rounded transition-colors disabled:opacity-40">
                                 Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
                               </button>
@@ -338,7 +361,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                               <DropdownItem key={o.v} onClick={() => handleExpiry(o.v)}>{o.l}</DropdownItem>
                             ))}
                           </DropdownMenu>
-                          <Button variant="danger-ghost" theme="dark" onClick={handleRevokeLink} disabled={busy}>
+                          <Button variant="danger-ghost" onClick={handleRevokeLink} disabled={busy}>
                             Revoke Link
                           </Button>
                         </div>
@@ -386,7 +409,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                   <PeoplePicker suggestions={suggestions} onCommit={handleInviteTarget} />
                   <Seg
                     variant="track"
-                    theme="dark"
                     value={inviteRole}
                     disabled={busy}
                     options={[
@@ -405,7 +427,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
             {/* Allow others to invite ---------------------------------------- */}
             <section>
               <Checkbox
-                theme="dark"
                 block
                 checked={share.allowInvites}
                 onChange={v => void run(() => setAllowInvites(onlineId, v))}

@@ -6,7 +6,8 @@ import { RULE_TYPE_META, RuleType, describeRule, getRuleGroupKey, getRuleSearchT
 import { RuleCard } from './rules/RuleCard';
 import { RuleEditorModal } from './rules/RuleEditorModal';
 import Button from './Button';
-import { inputCls, Seg, ThemeScope } from '@gabriel/ui-kit';
+import { inputCls, ThemeScope } from '@gabriel/ui-kit';
+import Seg from './Seg';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {

@@ -149,7 +149,7 @@ function SplitReconcileCard({ group, local, incoming, action, onAction }: {
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {(['apply-both', 'merge-back', 'keep'] as const).map(a => (
-          <Button key={a} theme="dark" variant="subtle" type="button" active={action === a} onClick={() => onAction(a)}>
+          <Button key={a} variant="subtle" type="button" active={action === a} onClick={() => onAction(a)}>
             {a === 'merge-back' ? `Merge ${fragLabels} back` : SPLIT_ACTION_LABEL[a]}
           </Button>
         ))}

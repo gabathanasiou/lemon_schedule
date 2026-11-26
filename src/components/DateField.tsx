@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DropdownMenu from './DropdownMenu';
 import DatePicker from './DatePicker';
+import { useAmbientKitMode } from '../lib/useAmbientKitMode';
 import { DD_TOKEN_TRIGGER_CLASS } from '../lib/dropdown';
 import { ChevronDown } from 'lucide-react';
 
@@ -53,7 +54,9 @@ export function summaryLabel(value: string[], placeholder: string): string {
   return `${shortLabel(sorted[0])}, ${shortLabel(sorted[1])} +${sorted.length - 2}`;
 }
 
-const Picker = ({ value, onChange, multi, initialView }: { value: string[]; onChange: (dates: string[]) => void; multi?: boolean; initialView?: string }) => (
+const Picker = ({ value, onChange, multi, initialView }: { value: string[]; onChange: (dates: string[]) => void; multi?: boolean; initialView?: string }) => {
+  const ambient = useAmbientKitMode();
+  return (
   <DatePicker
     selected={value}
     onChange={(ds) => {
@@ -65,12 +68,14 @@ const Picker = ({ value, onChange, multi, initialView }: { value: string[]; onCh
         onChange(ds.length > 0 ? [ds[ds.length - 1]] : []);
       }
     }}
-    theme="dark"
+    theme={ambient}
     initialView={initialView}
   />
-);
+  );
+};
 
 export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', initialView, className, triggerClassName }: DateFieldProps) {
+  const ambient = useAmbientKitMode();
   const [open, setOpen] = useState(false);
   const hasValue = value.length > 0;
   const fullWidth = !!className;
@@ -89,7 +94,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
         open={open}
         onOpenChange={setOpen}
         width="w-64"
-        theme="dark"
+        theme={ambient}
         trigger={
           <button
             type="button"

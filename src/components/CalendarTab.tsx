@@ -9,7 +9,8 @@ import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '
 import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, Eye, ListFilter, Maximize2, Minimize2, Trash2, Plus, Tags } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
-import { Seg, ThemeScope } from '@gabriel/ui-kit';
+import { ThemeScope } from '@gabriel/ui-kit';
+import Seg from './Seg';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';

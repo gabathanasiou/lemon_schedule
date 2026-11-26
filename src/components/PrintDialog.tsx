@@ -156,7 +156,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 <DropdownMenu
                   open={ribbonMenuOpen}
                   onOpenChange={setRibbonMenuOpen}
-                  theme="dark"
                   align="left"
                   width="min-w-[180px]!"
                   contentClassName="z-[10001]"
@@ -185,7 +184,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 <DropdownMenu
                   open={pageSizeOpen}
                   onOpenChange={setPageSizeOpen}
-                  theme="dark"
                   align="right"
                   width="min-w-[180px]!"
                   contentClassName="z-[10001]"

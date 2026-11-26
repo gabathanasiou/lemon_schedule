@@ -200,7 +200,6 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 ) : (
                   <SearchMenu
                     mode="expandable"
-                    theme="dark"
                     items={TIMEZONE_ITEMS}
                     triggerLabel={clipTriggerLabel(productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`, 190)}
                     triggerIcon={<Globe className="w-3.5 h-3.5" />}
@@ -259,7 +258,6 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   {!locked && (
                     <SearchMenu
                       mode="expandable"
-                      theme="dark"
                       items={items}
                       groups={groups}
                       triggerLabel="Assign"

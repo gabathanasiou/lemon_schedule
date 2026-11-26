@@ -25,7 +25,10 @@ import { makeBlankBudget, makeBudgetLine, makeBudgetVersion, makeExpense, makePu
 import { computeBudget } from './budget/calc';
 import { computeCostReport, flatCostRows } from './budget/costReport';
 import { deserializeProject } from './projectCodec';
-import { getLabState, type LabStateSnapshot } from './labState';
+import {
+  getLabState, getLabControls,
+  type LabAuditOptions, type LabAuditResult, type LabShowOptions, type LabStateSnapshot, type LabSurfaceSummary,
+} from './labState';
 import type { PresenceDiagnostics } from './supabase/presenceChannel';
 import type { PresenceAnchor } from './supabase/presence';
 import { probeAnchorAt } from './presenceAnchors';
@@ -368,6 +371,12 @@ export interface LemonAgentBridge {
   /** Modals Studio (roadmap 374): the DEV-only preview's active surface, or
    *  null when the studio isn't open. Read-only; never project state. */
   getLabState: () => LabStateSnapshot | null;
+  /** Modals Studio surface index (ids + capabilities) for the agent. */
+  getLabSurfaces: () => LabSurfaceSummary[];
+  /** Drive the studio: switch surface and preview theme/width/scale. */
+  showLabSurface: (params: LabShowOptions & { surfaceId: string }) => boolean;
+  /** DOM contrast audit of the studio's surfaces (default: the current one). */
+  auditLabSurfaces: (params?: LabAuditOptions) => Promise<LabAuditResult | null>;
   /** Chrome symmetry audit (roadmap 264): every rendered `data-chrome-bar`
    *  checked against the shared spacing scale. Empty array = clean. */
   auditChrome: () => ChromeAuditViolation[];
@@ -472,6 +481,9 @@ function buildBridge(): LemonAgentBridge {
     '  auditChrome()                → chrome bar geometry vs the 16/8 spacing scale (roadmap 264); [] = every bar aligned',
     '  auditScript()                → project↔scriptDocument integrity report (duplicate numbers, orphan/dangling bodies, missing rows)',
     '  getLabState()                → Modals Studio (roadmap 374): the active modal/dialog surface + selected entity, or null when the studio is closed',
+    '  getLabSurfaces()             → studio surface index: id/title/group/kind/capabilities (dropdown, tabs, segmented, …)',
+    '  showLabSurface({surfaceId,theme?,width?,scale?}) → drive the studio preview; false for an unknown id',
+    '  auditLabSurfaces({surfaceIds?|group?,theme?,restore?}) → DOM contrast audit of the open modal(s); returns structured issues',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
     'Writes (same Action union the UI uses; see src/store/reducer.ts — ~95 types):',
@@ -732,6 +744,9 @@ function buildBridge(): LemonAgentBridge {
     decodeProject: (raw: string) => deserializeProject(raw),
     diagnostics: () => deepClone(api().getConnectivity()),
     getLabState: () => deepClone(getLabState()),
+    getLabSurfaces: () => deepClone(getLabControls()?.list() ?? []),
+    showLabSurface: (params) => getLabControls()?.show(params.surfaceId, { theme: params.theme, width: params.width, scale: params.scale }) ?? false,
+    auditLabSurfaces: (params) => getLabControls()?.audit(params) ?? Promise.resolve(null),
     auditScript: () => deepClone(auditScriptMap(api().getProject())),
     repairScript: () => repairScriptMap(dispatch, api().getProject()),
     autoDaybreaks: (params: AgentBridgeAutoDaybreaksParams) => {

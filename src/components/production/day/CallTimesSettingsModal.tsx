@@ -18,7 +18,7 @@ import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { CategoryDropdown } from '../../rules/CategoryDropdown';
 import Modal, { ModalFooter } from '../../Modal';
 import ModalFooterButton from '../../ModalFooterButton';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from '../../Seg';
 import { CommitInput } from '../../CommitInput';
 import Button from '../../Button';
 import { ruleModalSizes } from '../../rules/ColorRuleFormParts';
@@ -107,7 +107,6 @@ const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onCh
             readOnly={readOnly}
             placeholder="-1h"
             className="w-full"
-            theme="dark"
             hideOverrideDot
           />
         )}
@@ -357,7 +356,6 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 >
                   <span className={`${CREM_TEXT} text-[color:var(--ui-text)] flex-1`}>{dept.name}</span>
                   <TimeField
-                    theme="dark"
                     value={template.departmentPrecalls?.[dept.name] || ''}
                     onChange={v => {
                       const next = { ...(template.departmentPrecalls || {}) };

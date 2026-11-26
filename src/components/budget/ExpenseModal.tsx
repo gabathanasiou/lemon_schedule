@@ -195,7 +195,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                   open={methodOpen}
                   onOpenChange={setMethodOpen}
                   width="w-44"
-                  theme="dark"
                   trigger={<LabelButton label={EXPENSE_METHOD_LABELS[expense.method]} disabled={!!readOnly} />}
                 >
                   {EXPENSE_METHODS.map(method => (
@@ -216,7 +215,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                   open={statusOpen}
                   onOpenChange={setStatusOpen}
                   width="w-48"
-                  theme="dark"
                   trigger={<LabelButton label={EXPENSE_STATUS_LABELS[expense.status]} disabled={!!readOnly} />}
                 >
                   {EXPENSE_STATUSES.map(status => (
@@ -235,7 +233,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                   open={currencyOpen}
                   onOpenChange={setCurrencyOpen}
                   width="w-44"
-                  theme="dark"
                   trigger={<LabelButton label={currencyLabel} disabled={!!readOnly || currencies.length === 0} />}
                 >
                   <DropdownItem
@@ -266,7 +263,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                 open={accountOpen}
                 onOpenChange={setAccountOpen}
                 width="w-72"
-                theme="dark"
                 searchable
                 searchPlaceholder="Search accounts…"
                 trigger={<LabelButton label={accountLabel} disabled={!!readOnly || accounts.length === 0} />}
@@ -298,7 +294,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                 open={lineOpen}
                 onOpenChange={setLineOpen}
                 width="w-72"
-                theme="dark"
                 searchable={accountLines.length > 8}
                 searchPlaceholder="Search lines…"
                 trigger={<LabelButton label={lineLabel} disabled={!!readOnly || !account} />}
@@ -330,7 +325,6 @@ export function ExpenseModal({ expenseId, project, dispatch, readOnly, onClose }
                 open={poOpen}
                 onOpenChange={setPoOpen}
                 width="w-72"
-                theme="dark"
                 trigger={<LabelButton label={po ? `${po.number}${po.vendor ? ` · ${po.vendor}` : ''}` : 'No purchase order'} disabled={!!readOnly || purchaseOrders.length === 0} />}
               >
                 <DropdownItem

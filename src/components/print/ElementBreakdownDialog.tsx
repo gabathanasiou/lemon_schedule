@@ -93,7 +93,6 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
           <DropdownMenu
             open={showCategories}
             onOpenChange={setShowCategories}
-            theme="dark"
             align="left"
             width="min-w-[180px]!"
             initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}

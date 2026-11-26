@@ -170,7 +170,7 @@ export function BudgetLineModal({
                   searchable
                   searchPlaceholder="Search the schedule…"
                   trigger={
-                    <Button variant="outline" theme="dark" className="w-full justify-between" disabled={readOnly}>
+                    <Button variant="outline" className="w-full justify-between" disabled={readOnly}>
                       <span className="truncate">{linkOptions.find(o => o.id === currentLink)?.label || 'Not linked'}</span>
                       <ChevronDown className="w-3 h-3 shrink-0" />
                     </Button>
@@ -231,7 +231,7 @@ export function BudgetLineModal({
                 width="w-48"
                 theme="light"
                 trigger={
-                  <Button variant="outline" theme="dark" className="w-full justify-between" disabled={readOnly}>
+                  <Button variant="outline" className="w-full justify-between" disabled={readOnly}>
                     <span className="truncate">{units.find(u => u.id === line.unit)?.name || 'Unit'}</span>
                     <ChevronDown className="w-3 h-3 shrink-0" />
                   </Button>
@@ -251,7 +251,7 @@ export function BudgetLineModal({
                 width="w-44"
                 theme="light"
                 trigger={
-                  <Button variant="outline" theme="dark" className="w-full justify-between" disabled={readOnly}>
+                  <Button variant="outline" className="w-full justify-between" disabled={readOnly}>
                     <span className="truncate">{currencyItems.find(c => c.id === (line.currency || model.settings.currency))?.label || 'Currency'}</span>
                     <ChevronDown className="w-3 h-3 shrink-0" />
                   </Button>

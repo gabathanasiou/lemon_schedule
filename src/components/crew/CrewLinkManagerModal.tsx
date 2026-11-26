@@ -8,7 +8,8 @@ import { isLinkableCategory } from '../../lib/elementLinks';
 import { CREW_LINK_TARGET, crewLinkViews, crewLinkToUnified } from '../../lib/crewLinks';
 import { crewRoleGroup, resolveRoleCategories } from '../../lib/crewCatalog';
 import { crewDeptTargetId } from '../../lib/linkTargets';
-import { CardSection, Seg } from '@gabriel/ui-kit';
+import { CardSection } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from '../rules/ElementPicker';
@@ -246,7 +247,6 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
       <div className="p-6 space-y-5">
         <Seg
           variant="track"
-          theme="dark"
           tablist
           ariaLabel="Crew links view"
           value={tab}
@@ -293,7 +293,6 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
                 <div>
                   <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1.5 block">Crew member</span>
                   <GroupedSelect
-                    theme="dark"
                     mode="single"
                     items={personItems}
                     selectedIds={g.personId ? [g.personId] : []}
@@ -311,7 +310,6 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
                         <span className="text-xs text-[color:var(--ui-text-faint)] font-medium shrink-0">=</span>
                         <GroupedSelect
                           className="flex-1 min-w-0"
-                          theme="dark"
                           mode="multi"
                           items={personItems}
                           selectedIds={getFieldItems(CREW_LINK_TARGET, l.elementKey)}
@@ -414,7 +412,6 @@ const PositionsTab: React.FC<{
               <span className="w-40 shrink-0 text-[11px] font-medium text-[color:var(--ui-text)]">{role.label}</span>
               <GroupedSelect
                 className="flex-1 min-w-0"
-                theme="dark"
                 mode="multi"
                 items={options.map(o => ({ id: o.key, name: o.label }))}
                 selectedIds={resolveRoleCategories(role)}

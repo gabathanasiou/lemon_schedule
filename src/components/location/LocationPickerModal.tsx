@@ -250,7 +250,6 @@ export const LocationPickerModal: React.FC<{
               onChange={setTypeLabel}
               options={typeOptions.map(t => t.label)}
               standalone
-              theme="dark"
               placeholder="Location type"
             />
           </div>

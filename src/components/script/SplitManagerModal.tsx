@@ -70,11 +70,10 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {onOpen && (
-                    <Button variant="subtle" theme="dark" type="button" onClick={() => { onOpen(group.original.id); onClose(); }}>Open</Button>
+                    <Button variant="subtle" type="button" onClick={() => { onOpen(group.original.id); onClose(); }}>Open</Button>
                   )}
                   <Button
                     variant="subtle"
-                    theme="dark"
                     type="button"
                     disabled={locked || !needsRenumber || renumberClash}
                     title={renumberClash ? 'A target number is already used by another scene' : 'Normalize the group’s scene numbers'}
@@ -84,7 +83,6 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                   </Button>
                   <Button
                     variant="subtle"
-                    theme="dark"
                     type="button"
                     disabled={locked || !canMoveBreak}
                     title={canMoveBreak ? 'Move the cut break' : 'Needs every member’s script body'}
@@ -94,7 +92,6 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                   </Button>
                   <Button
                     variant="subtle"
-                    theme="dark"
                     type="button"
                     disabled={locked}
                     title="Rebuild a missing body / re-anchor drifted tags"
@@ -102,7 +99,7 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                   >
                     <Wrench className="w-3.5 h-3.5" /> Resolve
                   </Button>
-                  <Button variant="subtle" theme="dark" type="button" disabled={locked} onClick={() => mergeBack(group.original.id, label)}>
+                  <Button variant="subtle" type="button" disabled={locked} onClick={() => mergeBack(group.original.id, label)}>
                     <GitMerge className="w-3.5 h-3.5" /> Merge back
                   </Button>
                 </div>

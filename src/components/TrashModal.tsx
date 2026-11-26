@@ -274,7 +274,6 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
         {totalItems > 0 && (
           <SearchMenu
             mode="inline"
-            theme="dark"
             items={searchItems}
             groups={searchGroups}
             onSelect={jumpToTrashEntry}

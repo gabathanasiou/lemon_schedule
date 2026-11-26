@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { SharingModal } from '../../../components/sharing/SharingModal';
+import { SharingModal, type SharingPreview as SharingPreviewData } from '../../../components/sharing/SharingModal';
+import type { InviteSuggestion, SharingState } from '../../../lib/supabase/sharing';
 import { CollaborateModal } from '../../../components/collaboration/CollaborateModal';
-import { useProject } from '../../../store';
 import Button from '../../../components/Button';
 import type { FixtureContext, SurfaceRender } from '../types';
 import { meta } from '../surfaces/collaboration';
@@ -24,25 +24,42 @@ const PreviewHint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="text-[11px] leading-relaxed text-[color:var(--ui-text-muted)]">{children}</p>
 );
 
-/** SharingModal is driven by the OPEN shared project — on a local project it
- *  renders nothing (the real behaviour), so the studio explains why. */
+/** Dummy collaboration data for the studio: the REAL SharingModal renders
+ *  the live panel with a representative owner/editor/viewer + invite + link.
+ *  Actions are disabled inside the modal's preview mode; the invite/link
+ *  segment still switches the two access states locally. */
+const PREVIEW_SHARE: SharingState = {
+  ownerId: 'studio-owner',
+  allowInvites: true,
+  myUserId: 'studio-owner',
+  myRole: 'owner',
+  members: [
+    { userId: 'studio-owner', name: 'Ava Sterling', avatarUrl: null, role: 'owner' },
+    { userId: 'studio-editor', name: 'Marcus Reed', avatarUrl: null, role: 'editor' },
+    { userId: 'studio-viewer', name: 'Nina Park', avatarUrl: null, role: 'viewer' },
+  ],
+  pendingInvites: [
+    { id: 'studio-invite', email: 'sam@example.com', role: 'editor', createdAt: new Date().toISOString() },
+  ],
+  links: [
+    { id: 'studio-link', createdAt: new Date().toISOString(), expiresAt: null, token: 'studio-preview-token' },
+  ],
+};
+
+const PREVIEW_SUGGESTIONS: InviteSuggestion[] = [
+  { userId: 'studio-sugg-1', name: 'Jordan Blake', avatarUrl: null, email: 'jordan@example.com', source: 'team' },
+  { userId: 'studio-sugg-2', name: 'Priya Shah', avatarUrl: null, email: 'priya@example.com', source: 'collaborator' },
+];
+
 const SharingPreview: React.FC<{ ctx: FixtureContext }> = ({ ctx }) => {
-  const { currentProjectId, projectList } = useProject();
-  const onlineId = projectList.find(p => p.id === currentProjectId)?.onlineId ?? null;
-  return (
-    <>
-      <SharingModal open onClose={ctx.close} />
-      {!onlineId && (
-        <PreviewPanel>
-          <PreviewTitle>This project isn't shared yet</PreviewTitle>
-          <PreviewHint>
-            The real SharingModal renders nothing until the open project is a shared (online)
-            project. Open one from the studio's project picker, or run Collaborate first.
-          </PreviewHint>
-        </PreviewPanel>
-      )}
-    </>
-  );
+  const preview: SharingPreviewData = {
+    title: ctx.project?.title || 'Untitled Project',
+    state: PREVIEW_SHARE,
+    suggestions: PREVIEW_SUGGESTIONS,
+    mode: 'link',
+    linkHref: `${window.location.origin}/#/share/studio-preview-token`,
+  };
+  return <SharingModal open onClose={ctx.close} preview={preview} />;
 };
 
 /** The collaborate modal is presentation-only here: the fixture simulates the

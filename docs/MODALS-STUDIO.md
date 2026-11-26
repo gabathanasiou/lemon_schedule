@@ -68,6 +68,45 @@ before the `?modalTheme=` harness, so the theme knob reaches every app modal.
 The studio also nests a `DialogProvider` so confirm/prompt/alert follow the
 same knob. Width and text scale are preview-only CSS on `.ui-modal`.
 
+## Agent control & audit (agent-useful studio)
+
+The studio is not just visual: the debug bridge / local MCP exposes a small
+control surface. Everything is studio UI only — it never edits project data.
+
+- `getLabSurfaces()` / MCP `list_lab_surfaces` — every surface with id, title,
+  group, kind and **capability tags** (`dropdown`, `segmented`, `tabs`,
+  `checklist`, `date`, `colour`, `map`, `rich-text`, `file`, `table`, `grid`,
+  `form`). Tags are derived automatically from each surface's source imports —
+  never maintained by hand.
+- `showLabSurface({ surfaceId, theme?, width?, scale? })` / MCP
+  `show_lab_surface` — drive the preview (open a surface, switch light/dark,
+  width, text scale). `false` for an unknown id.
+- `auditLabSurfaces({ surfaceIds? | group?, theme?, restore? })` / MCP
+  `audit_lab_surfaces` — DOM contrast audit of the open modal(s): low-contrast
+  text/controls and dark controls on a light surface. Returns structured
+  issues with selector/text/colours; restores the studio afterwards.
+
+### Search by capability
+
+The picker is the kit's morph-to-search `SearchMenu`. Its record keywords are
+`note + capability tags`, so typing **dropdown**, **tabs**, **segmented**,
+**map**, **form**, … filters to the modals that use them. No tag list is shown;
+the capability index is hidden metadata.
+
+### Dummy-data scenarios
+
+A surface that needs a non-local project state should render the real
+component with a **preview path** rather than a parallel mock. The first one is
+`SharingModal` (`preview` prop): owner/editor/viewer members, a pending invite,
+a share link and invite suggestions, with actions disabled and the access-mode
+segment still switchable. The studio never creates a shared project.
+
+### Dock boundary
+
+The dock measures its occupied height and the studio caps every modal above it
+(with an 8px gap), so a tall modal's footer/close row can never hide under the
+controls.
+
 ## MCP / debug bridge
 
 - `window.__lemonSchedule.getLabState()` → the snapshot below, or `null` when
@@ -79,9 +118,13 @@ same knob. Width and text scale are preview-only CSS on `.ui-modal`.
   `selection {kind,id?,label?}`, and `hash`.
 - Deep links: `#/lab/modals/<surface-id>`; the studio keeps the hash in sync.
 - The studio writes NOTHING to the project store except through a fixture's
-  own dispatch; it never edits lab state into project state.
+  own dispatch; it never edits lab state into project state. `showLabSurface`
+  changes studio UI only.
 - The dock's **MCP** chip is the same consent toggle as File → Connect agent
   bridge, so the studio can be driven from an agent without leaving the lab.
+- On port 3000 (the standard dev server) the helper accepts the app origin; a
+  worktree server on another port can preview the studio but the MCP socket
+  will be refused by the helper's origin allowlist.
 
 ## Manual verification
 
@@ -96,6 +139,13 @@ same knob. Width and text scale are preview-only CSS on `.ui-modal`.
 5. `window.__lemonSchedule.getLabState()` reports the surface on screen; the
    MCP `get_lab_state` tool returns the same.
 6. `npm run build` → the production `dist/` contains no lab/modals chunk.
+7. Agent pass: `list_lab_surfaces` → surfaces with capabilities; filter for
+   `dropdown`; `show_lab_surface` a light modal; `audit_lab_surfaces` returns
+   structured contrast findings and restores the previous view.
+8. Tall-modal check: Help at 1000×700 — the modal bottom stays above the dock.
+
+Light-theme findings and the remaining component-family work: see
+`docs/audits/2026-11-26-modal-light-theme.md`.
 
 ## MUST NOT
 

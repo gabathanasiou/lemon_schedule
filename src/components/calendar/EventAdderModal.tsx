@@ -221,7 +221,6 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                 open={statusMenuOpen}
                 onOpenChange={setStatusMenuOpen}
                 width="w-52"
-                theme="dark"
                 trigger={
                   <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                     <span className="flex items-center gap-1.5 min-w-0">
@@ -294,11 +293,10 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                         checked={r.all}
                         onChange={() => patchRow(r.id, { all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] })}
                         label="All"
-                        theme="dark"
                         variant="plain"
                         className="shrink-0"
                       />
-                      <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
+                      <Button variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
                         <X className="w-3 h-3" />
                       </Button>
                     </div>

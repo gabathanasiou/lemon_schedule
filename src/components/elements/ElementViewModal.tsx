@@ -4,7 +4,8 @@ import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS } from '../../lib/categories';
 import { elementKey, elementMatchId } from '../../lib/elements';
 import { clipTriggerLabel } from '../../lib/searchMenuTrigger';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import { Seg, SearchMenu } from '@gabriel/ui-kit';
+import { SearchMenu } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import type { SearchMenuItem } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -53,7 +54,6 @@ function ElementPicker({ options, selectedKey, onSelect, groupIcon }: {
       </button>
       <SearchMenu
         mode="expandable"
-        theme="dark"
         items={items}
         triggerLabel={clipTriggerLabel(selected ? selected.label : 'Select element', collapsedWidth)}
         triggerIcon={groupIcon}
@@ -131,7 +131,6 @@ export function ElementViewModal({ category, rowKey, onClose }: {
         <div className="px-6 pt-3">
           <Seg
             variant="track"
-            theme="dark"
             dense
             stretch
             tablist

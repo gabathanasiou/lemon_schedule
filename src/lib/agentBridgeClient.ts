@@ -151,6 +151,12 @@ export function createAgentBridgeRequestHandler(
         return bridge.diagnostics();
       case 'getLabState':
         return bridge.getLabState();
+      case 'getLabSurfaces':
+        return bridge.getLabSurfaces();
+      case 'showLabSurface':
+        return bridge.showLabSurface((params ?? {}) as Parameters<LemonAgentBridge['showLabSurface']>[0]);
+      case 'auditLabSurfaces':
+        return bridge.auditLabSurfaces((params ?? {}) as Parameters<LemonAgentBridge['auditLabSurfaces']>[0]);
       case 'applyActions': {
         const p = (params ?? {}) as { actions?: unknown; atomic?: boolean };
         return applyActionsToBridge(bridge, p.actions, p.atomic !== false);

@@ -45,7 +45,6 @@ export const CategoryDropdown: React.FC<{
     <DropdownMenu
       open={open}
       onOpenChange={onOpenChange}
-      theme="dark"
       initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}
       width={minWidth ? `${minWidth}!` : 'min-w-[160px]!'}
       contentClassName="z-[10001]"

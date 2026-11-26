@@ -418,6 +418,49 @@ export const TOOL_DEFS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
   },
+  {
+    name: 'list_lab_surfaces',
+    title: 'List modals-studio surfaces',
+    description:
+      'The studio registry: every modal/dialog surface with its id, title, group, kind and capability tags (dropdown, segmented, tabs, checklist, date, colour, map, rich-text, file, table, grid, form). Use it to answer "which modals use a dropdown/tabs?" or to pick an id for show_lab_surface.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: READ,
+  },
+  {
+    name: 'show_lab_surface',
+    title: 'Drive the modals studio',
+    description:
+      'Open a surface in the Modals Studio and optionally set its preview theme (light/dark), width (auto/240/300/360/400/560/wide) and text scale (100/125/150). UI-only: never touches project data. Returns false for an unknown surface id.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        surfaceId: { type: 'string', description: 'A surface id from list_lab_surfaces.' },
+        theme: { type: 'string', enum: ['light', 'dark'] },
+        width: { type: 'string', enum: ['auto', '240', '300', '360', '400', '560', 'wide'] },
+        scale: { type: 'number', enum: [100, 125, 150] },
+      },
+      required: ['surfaceId'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  {
+    name: 'audit_lab_surfaces',
+    title: 'Audit studio surfaces for contrast issues',
+    description:
+      'Runs the studio DOM contrast audit on the open modal(s): low-contrast text/controls and dark form controls or dropdown triggers on a light surface. Pass surfaceIds or a group (e.g. "Calendar", "Collaboration"); omit both to audit the current surface. Returns per-surface issues with selector, text and colours. The studio restores its previous surface/theme afterwards unless restore:false.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        surfaceIds: { type: 'array', items: { type: 'string' } },
+        group: { type: 'string', description: 'Studio group, e.g. Schedule, Calendar, Production, Elements & Links, Reports & Print, Budget, Script, App & Account, Collaboration, Dialogs.' },
+        theme: { type: 'string', enum: ['light', 'dark'] },
+        restore: { type: 'boolean', description: 'Put the studio back where it was (default true).' },
+      },
+      additionalProperties: false,
+    },
+    annotations: READ,
+  },
 ];
 
 function requireApp(ctx) {
@@ -681,6 +724,23 @@ export async function callTool(name, rawArgs, ctx) {
     case 'redo': {
       requireApp(ctx);
       return await ctx.callApp('redo');
+    }
+    case 'list_lab_surfaces': {
+      requireApp(ctx);
+      return await ctx.callApp('getLabSurfaces');
+    }
+    case 'show_lab_surface': {
+      requireApp(ctx);
+      if (typeof args.surfaceId !== 'string' || !args.surfaceId.trim()) {
+        throw new Error('show_lab_surface requires a surfaceId (list_lab_surfaces).');
+      }
+      const { surfaceId, ...preview } = args;
+      const shown = await ctx.callApp('showLabSurface', { surfaceId, ...preview });
+      return { shown, state: await ctx.callApp('getLabState') };
+    }
+    case 'audit_lab_surfaces': {
+      requireApp(ctx);
+      return await ctx.callApp('auditLabSurfaces', args ?? {});
     }
     case 'get_bridge_status': {
       const connected = ctx.isAppConnected();

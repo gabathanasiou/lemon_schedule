@@ -15,7 +15,8 @@ import DropdownDivider from '../DropdownDivider';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
-import { CardSection, Seg } from '@gabriel/ui-kit';
+import { CardSection } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { removeItemsFrom, setNote, computeDayTypeCards } from '../../lib/events';
 import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS, getCustomIcon } from '../../lib/categories';
@@ -226,7 +227,6 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
               onClose={() => setStatusMenuOpen(false)}
               onOpenChange={setStatusMenuOpen}
               width="w-52"
-              theme="dark"
               trigger={
                 <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer`}>
                   {StatusIcon(statusKey, XSZ, activeType?.color)}
@@ -250,7 +250,6 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
           </div>
           <Seg
             variant="track"
-            theme="dark"
             value={activeTab}
             options={[
               { v: 'events', l: 'Events' },
@@ -269,7 +268,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                 <Link2 className={`${XSZ} text-[color:var(--ui-text-muted)]`} />
                 Events
               </span>
-              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={locked}>
+              <Button variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={locked}>
                 <Plus className="w-3 h-3" /> Add Event
               </Button>
             </div>
@@ -395,7 +394,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                 <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
                 Rules
               </span>
-              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
+              <Button variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
                 <Plus className="w-3 h-3" /> Add rule
               </Button>
             </div>

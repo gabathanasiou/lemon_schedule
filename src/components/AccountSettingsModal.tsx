@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from './Seg';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { AccountAvatar } from './AccountAvatar';
@@ -95,7 +95,6 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
       <div className="p-6 space-y-5">
         <Seg
           variant="track"
-          theme="dark"
           stretch
           tablist
           ariaLabel="Settings"

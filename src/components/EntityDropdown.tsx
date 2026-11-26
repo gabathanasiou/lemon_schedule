@@ -34,6 +34,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { PickerField, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
+import { useAmbientKitMode } from '../lib/useAmbientKitMode';
 import { Scene } from '../types';
 import { boardLabel } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
@@ -210,6 +211,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   resolveClosed = false,
   resolveBy,
 }) => {
+  const ambientKitMode = useAmbientKitMode();
   const items = externalItems ?? [];
   const [boardIdDisplay] = useBoardIdDisplay();
   const [keyboardMode] = useKeyboardMode();
@@ -379,7 +381,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       initialQuery={initialQuery}
       allowFreeText={allowFreeText}
       uppercase={uppercase}
-      theme={variant === 'chip' ? 'dark' : undefined}
+      theme={variant === 'chip' ? ambientKitMode : undefined}
       className={className}
       style={style}
       panelWidth={panelWidthOf(panelMinWidth)}

@@ -36,7 +36,7 @@ export function CollaborateModal({ open, projectTitle, busy, error, onCancel, on
     >
       <div className="p-6 space-y-3">
         <p className="text-sm text-[color:var(--ui-text)]">
-          <span className="font-medium text-white">{projectTitle}</span> will be added to your
+          <span className="font-medium text-[color:var(--ui-text-strong)]">{projectTitle}</span> will be added to your
           shared projects and kept in sync automatically.
         </p>
         <p className="text-xs text-[color:var(--ui-text-muted)]">

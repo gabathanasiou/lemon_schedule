@@ -117,6 +117,14 @@ modals, or a modal that matches the app header's project chrome — instead of t
   A per-call `surface="accent"` / local accent override remains available. The app branch
   adopts kit v0.1.116; app modal bodies are tokenised (310, archived) and the kit
   primitives still take explicit `theme` props (remaining below).
+**Progress (stage 3 — 2026-11-26 light audit)**: the Modals Studio's DOM audit swept all 77
+surfaces in light mode. Shared fixes: light body `#f4f4f5`/white inputs, soft-black text + zinc-800
+local solids, darker muted/faint/label/danger tokens, ambient wrappers for Button / Seg / Checkbox /
+Checklist / RadioList / TimeField / DateField and the dropdown adapters, `FieldBox` tokenised, and
+explicit dark props removed from modal-only controls. Remaining component families (TextStyles
+toolbar, print/DOOD previews, kit danger-ghost) are listed in
+`docs/audits/2026-11-26-modal-light-theme.md` and item 375.
+
 **Remaining**: ambient theme adoption for the kit components that still take an explicit
 `theme` prop (Button / SearchMenu / Seg / RuleCard — a light modal still shows those dark
 until they read the scope), chrome onto kit scopes (311), grouped picker adoption (312),
@@ -1335,3 +1343,24 @@ one-off row styles remain in the migrated files.
 **Relations:** `supersedes` the INTERIM inspector layout of 371/372 (features stay); `relates to`
 205/324/344 (chrome/editor/control faces), 56 (promote primitives to the kit once stable), 302 (kit
 theming in flight); `blocks` the batch migrations.
+
+## 375. Modals Studio — dummy-data scenarios + light-theme component cleanup (`[ ]`)
+
+**Asked 2026-11-26 (user):** the studio should be an interactive library that works for the agent
+too: search by capability, drive/audit it from MCP, and give data-dependent modals real dummy data
+(collaboration should not need a live shared project).
+
+**Shipped in 374 follow-up:** capability index + picker search, `getLabSurfaces` /
+`showLabSurface` / `auditLabSurfaces` (bridge + MCP), the light-theme audit and shared ambient-theme
+shims, and the `SharingModal` preview path with owner/editor/viewer/invite/link dummy data.
+
+**Remaining:** a tiny scenario registry so every data-dependent surface can offer preview variants
+(signed-in account settings, teams/sessions, a shared-project view) without touching the user's
+project; render the real component with a `preview` path (never a parallel mock). Finish the light
+audit's component families: `TextStylesModal` toolbar, print/DOOD preview scene colours,
+`SharingModal` danger-ghost contrast, and the audit's remaining false-positive settling.
+
+**Verify:** scenario switches render without network or project writes; light audit has no
+low-contrast form controls; `npm run lint` + unit; manual light pass on every scenario.
+
+**Relations:** follows 374 (studio), `relates to` 302 (component theming), 229 (collaboration), 310.

@@ -78,3 +78,78 @@ export function isLabSandboxProject(id: string): boolean {
     return false;
   }
 }
+
+/* ── Agent control surface (roadmap 374) ────────────────────────────────
+   The studio registers these while mounted. The debug bridge / local MCP
+   exposes them so an agent can drive the preview (switch surface/theme/width)
+   and run the DOM contrast audit without brittle UI clicks. `null` outside
+   the studio. */
+
+export interface LabSurfaceSummary {
+  id: string;
+  title: string;
+  group: string;
+  kind: LabSurfaceKind;
+  projectless: boolean;
+  capabilities: string[];
+}
+
+export interface LabAuditIssue {
+  /** low-contrast = WCAG text contrast below the threshold;
+   *  dark-on-light = a dark form control/dropdown trigger on a light surface. */
+  kind: 'low-contrast' | 'dark-on-light';
+  tag: string;
+  selector: string;
+  text: string;
+  bg: string;
+  fg: string;
+  contrast: number;
+}
+
+export interface LabAuditSurface {
+  id: string;
+  title: string;
+  kind: LabSurfaceKind;
+  capabilities: string[];
+  issues: LabAuditIssue[];
+  /** Set when the surface rendered no modal at all (empty/projectless state). */
+  note?: string;
+}
+
+export interface LabAuditResult {
+  theme: 'light' | 'dark';
+  surfaces: LabAuditSurface[];
+  summary: { surfaces: number; withIssues: number; issues: number };
+}
+
+export interface LabShowOptions {
+  theme?: 'light' | 'dark';
+  width?: string;
+  scale?: number;
+}
+
+export interface LabAuditOptions {
+  /** Subset of surfaces to audit; omit for the current surface. */
+  surfaceIds?: string[];
+  /** Audit every surface in one studio group (Calendar, Budget, …). */
+  group?: string;
+  theme?: 'light' | 'dark';
+  /** Put the studio back where it was after the run (default true). */
+  restore?: boolean;
+}
+
+export interface LabControls {
+  list: () => LabSurfaceSummary[];
+  show: (surfaceId: string, options?: LabShowOptions) => boolean;
+  audit: (options?: LabAuditOptions) => Promise<LabAuditResult>;
+}
+
+let controls: LabControls | null = null;
+
+export function registerLabControls(next: LabControls | null): void {
+  controls = next;
+}
+
+export function getLabControls(): LabControls | null {
+  return controls;
+}

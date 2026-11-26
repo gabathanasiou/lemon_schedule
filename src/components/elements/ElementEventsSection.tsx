@@ -209,7 +209,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
               <CalendarDays className="w-3 h-3 text-[color:var(--ui-text-muted)]" />
               Events
             </span>
-            <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={locked}>
+            <Button variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={locked}>
               <Plus className="w-3 h-3" /> Add Event
             </Button>
           </div>
@@ -334,7 +334,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
                 Rules
               </span>
               {isCast && !locked && (
-                <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
+                <Button variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
                   <Plus className="w-3 h-3" /> Add Rule
                 </Button>
               )}

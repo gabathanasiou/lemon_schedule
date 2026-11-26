@@ -810,3 +810,76 @@ p, li {
 @media (prefers-reduced-motion: reduce) {
   .presence-pointer-in { animation: none; }
 }
+
+/* Light modal surfaces (roadmap 374 light-theme audit): a pure-white body on
+   a white page read as a void, and grey tokenised fields disappeared into it.
+   Use the palette's light-grey well for the body and keep fields white so
+   they still read as inputs. Applies to neutral AND accent light modals; the
+   header/footer bands stay as designed. */
+html [data-mode="light"].ui-modal {
+  --ui-modal-bg: #fafafa;
+  --ui-modal-body-bg: #f4f4f5;
+  --ui-input-bg: #ffffff;
+}
+
+/* Light modal text contrast: the light-grey body made the kit's base muted/
+   faint greys fall to ~4.4 / ~2.3 against it. Darken them inside light modals
+   (the accent surface already had darker values; keep those). */
+html [data-mode="light"].ui-modal {
+  --ui-text-muted: #52525b;
+  --ui-text-faint: #6b6b73;
+}
+html [data-mode="light"][data-surface="accent"].ui-modal {
+  --ui-text-muted: #3f3f46;
+  --ui-text-faint: #52525b;
+}
+
+/* Nested kit controls (RadioList, Seg, Checkbox, CardSection…) carry their
+   own light token scope inside a modal, so the modal-level override above
+   doesn't reach them. Darken the same text tokens on those scopes. */
+html [data-mode="light"].ui-modal,
+html [data-mode="light"].ui-modal * {
+  --ui-text-muted: #52525b !important;
+  --ui-text-faint: #6b6b73 !important;
+  --ui-label: #52525b !important;
+  --ui-danger-text: #b91c1c !important;
+}
+html [data-mode="light"][data-surface="accent"].ui-modal,
+html [data-mode="light"][data-surface="accent"].ui-modal * {
+  --ui-text-muted: #3f3f46 !important;
+  --ui-text-faint: #52525b !important;
+  --ui-label: #3f3f46 !important;
+  --ui-danger-text: #b91c1c !important;
+}
+
+/* Semantic status text tuned for dark modals (red-400/amber-400) is too light
+   on the light modal body. Darken the same classes only inside light modals. */
+html [data-mode="light"].ui-modal .text-red-400 { color: #b91c1c; }
+html [data-mode="light"].ui-modal .text-amber-400 { color: #b45309; }
+html [data-mode="light"].ui-modal .text-emerald-400 { color: #047857; }
+
+/* Soft-black in light modals (owner note 2026-11-26): pure #09090b/#18181b
+   on a light body feels harsh. Keep the identity header, soften body text and
+   the LOCAL/zinc solid controls; blue/emerald keep their project primaries. */
+html [data-mode="light"].ui-modal {
+  --ui-text: #3f3f46 !important;
+  --ui-text-strong: #18181b !important;
+}
+html [data-mode="light"][data-accent="zinc"].ui-modal {
+  --ui-btn-solid-bg: #27272a !important;
+  --ui-btn-solid-hover-bg: #3f3f46 !important;
+  --ui-btn-solid-border: #27272a !important;
+  --ui-btn-solid-hover-border: #3f3f46 !important;
+  --ui-footer-hero-bg: #27272a !important;
+  --ui-footer-hero-hover-bg: #3f3f46 !important;
+  --ui-footer-hero-border: #27272a !important;
+  --ui-footer-hero-hover-border: #3f3f46 !important;
+  --ui-tab-pill-plain: #27272a !important;
+}
+
+/* A few components still paint their labels through `--ui-label` / zinc
+   utilities directly (the token override above is not reaching those class
+   rules). Pin the same readable colours on the light modal surface. */
+html [data-mode="light"].ui-modal [class*="text-[color:var(--ui-label)]"] { color: #52525b !important; }
+html [data-mode="light"].ui-modal .text-zinc-500 { color: #52525b !important; }
+html [data-mode="light"].ui-modal .text-zinc-400 { color: #52525b !important; }

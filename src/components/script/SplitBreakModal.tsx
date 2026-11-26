@@ -67,9 +67,9 @@ export default function SplitBreakModal({ group, onClose }: { group: SplitGroup;
           blocks below move into {second.sceneNumber}.
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="subtle" theme="dark" type="button" disabled={boundary <= 1} onClick={() => setBoundary(b => Math.max(1, b - 1))}>◀ Earlier</Button>
+          <Button variant="subtle" type="button" disabled={boundary <= 1} onClick={() => setBoundary(b => Math.max(1, b - 1))}>◀ Earlier</Button>
           <span className="text-[11px] text-[color:var(--ui-text-muted)] tabular-nums">Block {boundary} / {stream.merged.length}</span>
-          <Button variant="subtle" theme="dark" type="button" disabled={boundary >= max} onClick={() => setBoundary(b => Math.min(max, b + 1))}>Later ▶</Button>
+          <Button variant="subtle" type="button" disabled={boundary >= max} onClick={() => setBoundary(b => Math.min(max, b + 1))}>Later ▶</Button>
         </div>
         <div className="max-h-[380px] overflow-y-auto rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-seg-track-bg)] px-4 py-3 font-mono text-[12.5px] leading-[1.45] text-[color:var(--ui-input-text)]">
           {stream.merged.map((block, i) => (

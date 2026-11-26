@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { PickerField, type PickerItem } from '@gabriel/ui-kit';
+import { useAmbientKitMode } from '../lib/useAmbientKitMode';
 
 /**
  * Strict single-choice picker for ribbon cells and a few form fields
@@ -40,9 +41,11 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   autoFocus = false,
   onTabExit,
   style,
-  theme = 'light',
+  theme,
   allowFreeText = true,
 }) => {
+  const ambient = useAmbientKitMode();
+  const resolvedTheme = theme ?? (standalone ? ambient : 'light');
   const items = useMemo<PickerItem[]>(
     () => options.map(option => ({ id: option, label: option })),
     [options],
@@ -64,7 +67,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
       placeholder={placeholder}
       readOnly={readOnly}
       defaultOpen={autoFocus}
-      theme={theme}
+      theme={resolvedTheme}
       className={className}
       style={style}
       panelMinWidth={120}

@@ -242,7 +242,6 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               open={typeMenuOpen}
               onOpenChange={setTypeMenuOpen}
               width="w-56"
-              theme="dark"
               trigger={
                 <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className="flex items-center gap-1.5 min-w-0">

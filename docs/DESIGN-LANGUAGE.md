@@ -667,7 +667,18 @@ Schedule stripboard, not popout editors).
 
 **Preview every surface**: the DEV-only Modals Studio (`#/lab/modals`, roadmap 374 — manual in
 `docs/MODALS-STUDIO.md`) renders each registered modal/dialog live against the open project with
-theme/width/text-scale controls; the unit scan fails when a modal file is unmapped.
+theme/width/text-scale controls; the unit scan fails when a modal file is unmapped. It also exposes
+agent control/audit tools (`getLabSurfaces`, `showLabSurface`, `auditLabSurfaces`) and capability
+search (type `dropdown`, `tabs`, …).
+
+**Ambient controls**: `Button`, `Seg`, `Checkbox`, `Checklist`, `RadioList`, `TimeField`,
+`DateField` and the dropdown adapters default their theme to the ambient modal/page mode. A modal
+must never force `theme="dark"` on a control it renders; pass nothing and let the surface decide.
+
+**Light modal surface**: the app overrides the kit's white body to `#f4f4f5` (shell `#fafafa`,
+white inputs), soft-black text (`--ui-text-strong` zinc-900 / body zinc-700), darker muted/faint/
+label tokens, and zinc-800 local solid buttons/pills. Status red/amber text is darkened inside light
+modals. Findings and remaining component-family work: `docs/audits/2026-11-26-modal-light-theme.md`.
 
 Structure (all in `src/components/Modal.tsx`):
 - **Theme (roadmap 302)**: the shell reads kit tokens, never Tailwind zinc. `theme` picks the mode

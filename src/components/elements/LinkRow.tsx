@@ -68,7 +68,6 @@ export const LinkRow: React.FC<{
 
         <GroupedSelect
           className="flex-1 min-w-0"
-          theme="dark"
           mode="multi"
           items={targetItems}
           selectedIds={selectedIds}

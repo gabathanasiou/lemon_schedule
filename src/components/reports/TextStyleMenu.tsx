@@ -49,7 +49,6 @@ export const TextStyleMenu: React.FC<{
     <DropdownMenu
       open={open}
       onOpenChange={setOpen}
-      theme="dark"
       width="w-52"
       trigger={
         <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>

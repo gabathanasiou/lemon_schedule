@@ -5,7 +5,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import type { HeadingMapping, HeadingValueChoice } from '../../lib/import';
 
 /**
@@ -43,7 +43,6 @@ function ValueMenu({ value, options, onChange }: { value: string; options: strin
     <DropdownMenu
       open={open}
       onOpenChange={setOpen}
-      theme="dark"
       align="left"
       width="w-44"
       contentClassName="z-[10001]"
@@ -76,7 +75,6 @@ function Row({ value, known, choice, onChange }: {
       <div className="min-w-0 flex-1 text-sm font-semibold text-[color:var(--ui-text-strong)] truncate">{value}</div>
       <Seg
         variant="track"
-        theme="dark"
         value={isMatch ? 'map' : 'add'}
         options={[
           { v: 'add', l: 'New option' },

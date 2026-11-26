@@ -301,7 +301,6 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
             <DropdownMenu
               open={pageOpen}
               onOpenChange={setPageOpen}
-              theme="dark"
               align="left"
               width="min-w-[180px]!"
               contentClassName="z-[10001]"
@@ -363,7 +362,6 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               <div className="space-y-1.5">
                 <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Categories</div>
                 <Checklist
-                  theme="dark"
                   items={budgetCategories.map(c => ({ id: c.category.id, label: `${c.category.number} ${c.category.name}`.trim() }))}
                   selected={budgetSel.cats}
                   onToggle={id => toggleBudgetCategory(String(id))}
@@ -377,7 +375,6 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               <div className="space-y-1.5">
                 <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Accounts</div>
                 <Checklist
-                  theme="dark"
                   items={visibleBudgetAccounts.map(a => ({
                     id: a.account.id,
                     label: `${a.category.number} · ${a.account.number} ${a.account.name}`.trim(),
@@ -397,7 +394,6 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               <div className="space-y-1.5">
                 <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Line groups</div>
                 <Checklist
-                  theme="dark"
                   items={budgetGroups.map(g => ({ id: g.id, label: g.name }))}
                   selected={budgetSel.groups}
                   onToggle={id => toggleBudgetGroup(String(id))}
@@ -459,7 +455,6 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                   <DropdownMenu
                     open={ribbonMenuOpenId === b.id}
                     onOpenChange={(o) => setRibbonMenuOpenId(o ? b.id : null)}
-                    theme="dark"
                     align="left"
                     width="min-w-[180px]!"
                     contentClassName="z-[10001]"

@@ -4,11 +4,13 @@ import Button from '../../components/Button';
 import { useProject, useProjectTheme } from '../../store';
 import { projectModalThemeOf } from '../../lib/projectTheme';
 import type { CalendarVersion, Project } from '../../types';
-import { setLabState, markLabSandboxProject, type LabSelection } from '../../lib/labState';
+import { setLabState, getLabState, markLabSandboxProject, registerLabControls, type LabAuditOptions, type LabAuditResult, type LabSelection } from '../../lib/labState';
 import { setModalThemeOverride } from '../../lib/modalDevTheme';
 import { useAgentBridge } from '../../lib/useAgentBridge';
 import { SURFACES, surfaceById, surfaceRenderer } from './registry';
-import { StudioDock, STUDIO_WIDTH_CSS, type StudioWidth } from './StudioDock';
+import { capabilitiesForSurface } from './capabilities';
+import { auditCurrentSurface } from './audit';
+import { StudioDock, STUDIO_WIDTHS, STUDIO_WIDTH_CSS, type StudioWidth } from './StudioDock';
 import type { FixtureContext, FixturePicks } from './types';
 
 /**
@@ -99,6 +101,7 @@ const ModalsLab: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [width, setWidth] = useState<StudioWidth>('auto');
   const [scale, setScale] = useState(100);
+  const [dockH, setDockH] = useState(140);
   const [selection, setSelection] = useState<LabSelection | undefined>();
   const [closed, setClosed] = useState(false);
   const [runKey, setRunKey] = useState(0);
@@ -215,6 +218,80 @@ const ModalsLab: React.FC = () => {
     [project, activeCalendarVersion],
   );
 
+  /* Agent control surface: the bridge/MCP drives the same state the dock does. */
+  const listSurfaces = useCallback(
+    () => SURFACES.map((s) => ({
+      id: s.id,
+      title: s.title,
+      group: s.group,
+      kind: s.kind,
+      projectless: !!s.projectless,
+      capabilities: capabilitiesForSurface(s),
+    })),
+    [],
+  );
+
+  /** Set the modal theme override synchronously BEFORE the state update:
+   *  the Modal shim reads it during render, and an after-render effect left
+   *  already-mounted modals on their old theme (and poisoned the audit). */
+  const applyTheme = useCallback((next: 'light' | 'dark') => {
+    setModalThemeOverride(next);
+    setTheme(next);
+  }, []);
+
+  const showSurface = useCallback((id: string, options?: { theme?: 'light' | 'dark'; width?: string; scale?: number }) => {
+    if (!surfaceById(id)) return false;
+    if (options?.theme) applyTheme(options.theme);
+    if (options?.width && STUDIO_WIDTHS.some((w) => w.v === options.width)) setWidth(options.width as StudioWidth);
+    if (options?.scale) setScale(options.scale);
+    goTo(id);
+    return true;
+  }, [goTo, applyTheme]);
+
+  const runAudit = useCallback(async (options?: LabAuditOptions): Promise<LabAuditResult> => {
+    const requested = options?.surfaceIds?.length
+      ? options.surfaceIds.filter((id) => !!surfaceById(id))
+      : options?.group
+        ? SURFACES.filter((s) => s.group === options.group).map((s) => s.id)
+        : surface ? [surface.id] : [];
+    const targetTheme = options?.theme ?? theme;
+    const original = { surfaceId: surface?.id, theme, width, scale };
+    if (!requested.length) {
+      return { theme: targetTheme, surfaces: [], summary: { surfaces: 0, withIssues: 0, issues: 0 } };
+    }
+    if (targetTheme !== theme) applyTheme(targetTheme);
+    const surfaces: LabAuditResult['surfaces'] = [];
+    for (const id of requested) {
+      const meta = surfaceById(id);
+      if (!meta) continue;
+      showSurface(id, { theme: targetTheme });
+      const started = Date.now();
+      while (getLabState()?.surfaceId !== id && Date.now() - started < 2500) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      // Let the modal mount + finish its open transform, then read colours.
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 260))));
+      surfaces.push(auditCurrentSurface(meta, targetTheme));
+    }
+    if (options?.restore !== false && original.surfaceId && original.theme) {
+      showSurface(original.surfaceId, { theme: original.theme, width: original.width, scale: original.scale });
+    }
+    return {
+      theme: targetTheme,
+      surfaces,
+      summary: {
+        surfaces: surfaces.length,
+        withIssues: surfaces.filter((s) => s.issues.length > 0).length,
+        issues: surfaces.reduce((n, s) => n + s.issues.length, 0),
+      },
+    };
+  }, [surface, theme, width, scale, showSurface, applyTheme]);
+
+  useEffect(() => {
+    registerLabControls({ list: listSurfaces, show: showSurface, audit: runAudit });
+    return () => registerLabControls(null);
+  }, [listSurfaces, showSurface, runAudit]);
+
   const openDemo = useCallback(async () => {
     setDemoBusy(true);
     setDemoError(null);
@@ -264,7 +341,11 @@ const ModalsLab: React.FC = () => {
       <ThemeProvider mode={theme} surface="neutral">
       <DialogProvider accent={projectModalTheme.accent} surface={projectModalTheme.surface}>
       <style>{`
-        html[data-modals-studio] .ui-modal {${widthCss ? ` max-width: ${widthCss} !important;` : ''}${scale !== 100 ? ` scale: ${scale / 100}; transform-origin: center center;` : ''}}
+        html[data-modals-studio] { --studio-dock-h: ${dockH}px; }
+        html[data-modals-studio] .ui-modal {
+          max-height: max(240px, calc((100dvh - 2 * var(--studio-dock-h) - 16px) / ${scale / 100})) !important;
+          ${widthCss ? `max-width: ${widthCss} !important;` : ''}${scale !== 100 ? `scale: ${scale / 100}; transform-origin: center center;` : ''}
+        }
         html[data-modals-studio] .ui-modal-overlay { background: rgba(0,0,0,0.35); }
       `}</style>
       {needsProject ? (
@@ -327,13 +408,15 @@ const ModalsLab: React.FC = () => {
         onSelect={goTo}
         onPrev={prev}
         onNext={next}
-        onTheme={setTheme}
+        onTheme={applyTheme}
         onWidth={setWidth}
         onScale={setScale}
         onOpenProject={(id) => { void onOpenProject(id); }}
         onDemo={() => { void openDemo(); }}
         onReopen={() => { setClosed(false); setRunKey((n) => n + 1); }}
         onReplay={() => setRunKey((n) => n + 1)}
+        onMeasure={setDockH}
+        onSearchOpen={() => setClosed(true)}
         onToggleBridge={() => { if (agentBridge.enabled) agentBridge.disable(); else agentBridge.enable(); }}
         onUndo={() => { undo(); }}
         onRedo={() => { redo(); }}

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { PickerField, type PickerItem, type SearchMenuGroup } from '@gabriel/ui-kit';
+import { useAmbientKitMode } from '../../../lib/useAmbientKitMode';
 
 /**
  * Light/dark grouped selection picker (locations by type, crew by department,
@@ -50,6 +51,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   theme,
   groupToken,
 }) => {
+  const ambient = useAmbientKitMode();
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
   const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
@@ -97,7 +99,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       groups={groups}
       browse="accordion"
       groupToken={groupToken}
-      theme={theme}
+      theme={theme ?? ambient}
       /* Bare check glyph instead of the checkbox box — the same tick-list look
          as every EntityDropdown panel. */
       indicator="check"

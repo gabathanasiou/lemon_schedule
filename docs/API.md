@@ -119,6 +119,9 @@ API; `e2e/debug-bridge.spec.ts` proves it.
 | `undo` / `redo` | write | Step the history stacks. |
 | `get_bridge_status` | read | App connectivity, open project, read-only flag, sync diagnostics, and `lab` (the Modals Studio surface when open). |
 | `get_lab_state` | read | The Modals Studio (`#/lab/modals`) active surface/kind/position/theme/width/scale/project + selected entity; `null` outside the studio. |
+| `list_lab_surfaces` | read | Studio surface index: id/title/group/kind + auto-derived capability tags (dropdown, tabs, segmented, map, form, …). |
+| `show_lab_surface` | ui | Open a studio surface at a theme/width/text-scale. Studio UI only; never project data. |
+| `audit_lab_surfaces` | read | DOM contrast audit (light/dark) of one/current/all surfaces in a group; structured issues + restore. |
 
 Blocked over the bridge: `LOAD` (replaces the project + clears history) and
 `EMPTY_TRASH` (irreversible). Writes are refused while
@@ -338,7 +341,7 @@ proxy → primary { v:1, id, method:'tool.call', params:{ name, args } }
 
 Whitelisted app methods: `getProject`, `getProjectList`, `getCurrentProjectId`,
 `getVersion`, `getRows`, `getSceneValues`, `getSceneScript`,
-`getCalendarVersion`, `diagnostics`, `getLabState`, `applyActions`, `makeScene`, `undo`,
+`getCalendarVersion`, `diagnostics`, `getLabState`, `getLabSurfaces`, `showLabSurface`, `auditLabSurfaces`, `applyActions`, `makeScene`, `undo`,
 `redo`, `autoDaybreaks`, `deleteAllDaybreaks`, `moveRows`, `insertRow`,
 `reorderRows`, `sortRows`, `getReportRegistry`, `getReportDesign`,
 `makeReportBlock`, `getDays`, `getDay`, `getViolations`, `getElementStats`,

@@ -4,7 +4,7 @@ import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import ColorField from '../ColorField';
 import { IconGrid } from '../elements/IconGrid';
-import { Seg } from '@gabriel/ui-kit';
+import Seg from '../Seg';
 import { isImeConfirm } from '../../lib/keys';
 
 interface DayTypeFormProps {
@@ -67,7 +67,6 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
           <div className="mt-1">
             <Seg
               variant="track"
-              theme="dark"
               stretch
               value={attachable ? 'yes' : 'no'}
               options={[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }]}

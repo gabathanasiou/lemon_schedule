@@ -89,7 +89,6 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               open={ieOpen}
               onOpenChange={setIeOpen}
               width="w-40"
-              theme="dark"
               trigger={
                 <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className={`truncate ${intExt ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{intExt || 'INT / EXT'}</span>
@@ -108,7 +107,6 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               open={dnOpen}
               onOpenChange={setDnOpen}
               width="w-40"
-              theme="dark"
               trigger={
                 <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className={`truncate ${dayNight ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{dayNight || 'DAY / NIGHT'}</span>
