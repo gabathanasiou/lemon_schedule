@@ -36,10 +36,11 @@ test('floating block editor shows per-type controls on selection', async ({ page
   // picker — no separate insert control)
   await expect(chrome.getByText('Format', { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByRole('button', { name: 'Bold' })).toBeVisible({ timeout: 3000 });
-  // Style + Padding sections (side by side); Outline is field-block-only since
-  // the contextual format bar landed (roadmap 192)
+  // Style + Padding sections (side by side); text blocks now also carry the
+  // Outline row (fill/border, roadmap 371).
   await expect(chrome.getByText('Style', { exact: true })).toBeVisible({ timeout: 3000 });
-  await expect(chrome.getByText('Outline', { exact: true })).toHaveCount(0);
+  // Text blocks now share the field blocks' Outline row (371): fill + border.
+  await expect(chrome.getByText('Outline', { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByText('Padding', { exact: true }).first()).toBeVisible({ timeout: 3000 });
 
   // editing inline on the canvas updates the canvas render

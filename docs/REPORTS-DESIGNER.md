@@ -16,7 +16,7 @@ Never re-derive them.
 
 ## The three pillars (canonical — don't re-derive)
 
-1. **Block tree** — `types.ts:301` `ReportBlock` (types: `text | field | repeat | table | columns | ribbon | pageBreak | spacer | callTimes | crewTable | precalls | budgetTable`; repeat/relative render children — a **table is a leaf**, its `children` never render anywhere). `ReportDesign` = `blocks/header/footer/page`. All tree ops go through `lib/reportBlocks.ts` helpers (`insertInto`, `listOwnerOf`, `moveIntoChildren`, …) — never hand-roll tree manipulation. New blocks: `makeReportBlock(type, partial)`. Render props: `background`/`border` on text/field blocks (auto text color via relative luminance).
+1. **Block tree** — `types.ts:301` `ReportBlock` (types: `text | field | repeat | table | columns | ribbon | pageBreak | spacer | callTimes | crewTable | precalls | budgetTable`; repeat/relative render children — a **table is a leaf**, its `children` never render anywhere). `ReportDesign` = `blocks/header/footer/page`. All tree ops go through `lib/reportBlocks.ts` helpers (`insertInto`, `listOwnerOf`, `moveIntoChildren`, …) — never hand-roll tree manipulation. New blocks: `makeReportBlock(type, partial)`. Render props: `background`/`border`/`borderColor`/`borderWidth`/`borderRadius` on text/field/title blocks (auto text color via relative luminance).
 
 2. **Collection resolver** — `lib/reportData.ts`: `resolveCollection` (base list per collection) + `resolveCollectionItems` (applies category filters, `scopedToParent` Lego intersection, nested context). EVERY repeat/table iterates through it — never build a parallel item list in a view.
    - Context-passing contract (item/parentCollection/parentCategory/outerItem/scopeFilter/aux): `docs/REPORTS-LEGO-CONTEXT.md` — canonical, read before touching `resolveCollectionItems`/`ReportRepeatView`/`ReportTableView`.
@@ -26,6 +26,13 @@ Never re-derive them.
 
 ## What already exists (check before building anything)
 
+- **Block surface & presets (roadmaps 371/372)**: `OutlineSection` on text/field/title blocks —
+  fill, border colour, border width (px), corner radius and padding. `lib/reportLook.ts`
+  `blockOutlineStyle` renders it (legacy `border: true` = 1px default); `lib/reportBlockStyles.ts`
+  normalizes the surface + built-ins (Black bar / Callout / Card) and the user presets live in
+  `project.reportBlockStyles` (saved through `UPDATE_PROJECT`). Presets are COPIED onto the block,
+  never linked — changing a preset never restyles existing blocks. Title blocks (`titleBlock`)
+  get the same Outline row and render through the same `TextBlockView`.
 - **Smart fields** (`SMART_FIELDS`, `reportFields.ts:238`): `shootTime`, `breakTime`, `smartPages` — context-aware sums (top = production totals, day = day total, scene = own value, element/cast/category = Lego-scoped sum over scenes). Plus `smartElementCount`/`smartSceneCount` — contextual **counts** (day → distinct elements/scenes, category → scoped to the ancestor chain, element → 1, top → totals). Counts run over SCHEDULED scenes only (`sceneInfos`); cast counts by ID.
 - **Precomputed counts as fields**: per-day `daySceneCount`/`dayTotalPages`; per-element `sceneCount`/`totalPages`/`workDays`/`holdDays`/`travelDays`; per-category `categoryElementCount`/`categorySceneCount`/`categoryOccurrences`; production `totalScenes`/`totalShootDays`/`totalShootTime`/`totalBreakTime`/`schedulePages`.
 - **Element collection order (roadmap 143 + 305)**: `getElementsFor` sorts EVERY category by **Board ID** — cast's id, other categories' `ProjectElement.boardId` — numeric, ties by name, unnumbered last, via `sortReportElements` (`reportData.ts`); tables, repeats and `elementCallsOfDay` all agree. Element items carry `boardId`, surfaced as the `elementBoardId` field and the call-sheet grid's **Board ID** column (`elementCallId`); names stay plain beside it. Document surfaces always prefix "N. NAME" through `boardLabel` (`lib/elements.ts`); on-screen closed labels follow the **IDs: Cast / All** pref (`boardLabelForDisplay`, roadmap 321). `EntityDropdown`/pickers keep their own order; never fork a table-only sort.

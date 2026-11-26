@@ -9,7 +9,7 @@ import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap, type ReportFieldDef } from '../../lib/reportFields';
 import { useSunWeather } from '../../lib/useSunWeather';
 import type { ReportCtx } from '../../lib/reportData';
-import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
+import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportBlockStyle, ReportViewMode } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlockWithId,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
@@ -945,6 +945,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     readOnly: locked,
     onPatch: (p: Partial<ReportBlock>) => selId && patch(selId, p),
     onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
+    onSaveBlockStyles: (styles: ReportBlockStyle[]) => dispatch({ type: 'UPDATE_PROJECT', payload: { reportBlockStyles: styles } }),
     onDuplicate: () => selId && duplicateBlockSelect(selId),
     onRemove: () => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } },
     onMove: (d: -1 | 1) => selId && commitZone(selId, list => moveBlock(list, selId, d)),
@@ -1054,6 +1055,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               bare={zoneMode}
               ribbonOverrides={ribbonOverrides}
       onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
+      onSaveBlockStyles={styles => dispatch({ type: 'UPDATE_PROJECT', payload: { reportBlockStyles: styles } })}
       onToggleEditorMode={toggleEditorMode}
       viewWidth={zoneMode ? null : viewWidth}
               pageSize={activeDesign?.page}

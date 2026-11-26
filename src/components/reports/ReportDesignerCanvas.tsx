@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
-import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode } from '../../types';
+import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode, ReportBlockStyle } from '../../types';
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem, type RibbonPrintOptions } from '../../lib/reportData';
 import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
 import { sampleRepeatItem } from '../../lib/reportSampling';
@@ -68,6 +68,7 @@ export interface ReportDesignerCanvasProps {
    *  canvas resolve `{{tokens}}` against it instead of showing raw tags. */
   rootItem?: any;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
   onSelect: (id: string | null) => void;
   onSelectCol: (sel: ColSel | null) => void;
   onPatch: (id: string, patch: Partial<ReportBlock>) => void;
@@ -219,7 +220,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp, presenceAnchorPrefix, ribbonOverrides }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, onSaveBlockStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp, presenceAnchorPrefix, ribbonOverrides }) => {
 
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -691,6 +692,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 parentCategory={parentCategory}
                 readOnly={readOnly}
                 onSaveTextStyles={onSaveTextStyles}
+                onSaveBlockStyles={onSaveBlockStyles}
                 onPatch={p => onPatch(b.id, p)}
                 onDuplicate={() => onDuplicate(b.id)}
                 onRemove={() => onRemove(b.id)}
@@ -1121,6 +1123,7 @@ const BlockChrome: React.FC<{
   parentCategory?: string;
   readOnly: boolean;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onDuplicate: () => void;
   onRemove: () => void;
@@ -1134,7 +1137,7 @@ const BlockChrome: React.FC<{
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   active?: RichTextState;
   chipKey?: string | null;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onToggleEditorMode, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onSaveBlockStyles, onPatch, onDuplicate, onRemove, onMove, onToggleEditorMode, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -1146,6 +1149,7 @@ const BlockChrome: React.FC<{
       parentCategory={parentCategory}
       readOnly={readOnly}
       onSaveTextStyles={onSaveTextStyles}
+      onSaveBlockStyles={onSaveBlockStyles}
       onPatch={onPatch}
       onDuplicate={onDuplicate}
       onRemove={onRemove}

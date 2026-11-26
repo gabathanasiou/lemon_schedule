@@ -1815,6 +1815,21 @@
           "type": "boolean"
         },
         {
+          "name": "borderColor",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "borderWidth",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "borderRadius",
+          "optional": true,
+          "type": "number"
+        },
+        {
           "name": "height",
           "optional": true,
           "type": "number"

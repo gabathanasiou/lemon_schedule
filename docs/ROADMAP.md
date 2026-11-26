@@ -1279,3 +1279,54 @@ numeric cast rates are data/bridge-editable.
 **Verify:** real iPad (not only WebKit emulation) — stacked dialog Cancel/Done leaves `pointer-events:auto` (`e2e/ipad-touch-scroll.spec.ts`), overlay tap dismisses, menu/submenu inside a modal opens and scrolls, Call Times → Crew template Glide editor takes one character per key, nested menu FLIP; then the full suite.
 
 **Relations:** revisits the archived pins 71/78 and the 69/155 workarounds; `relates to` 289 (dependency automation is a separate parked policy — this is a one-off experiment, not a Dependabot decision).
+
+## 373. Inspector control system — Lego primitives, dev lab, design language (`[ ]`, big)
+
+**Asked 2026-11-26 (user):** the Report Designer inspector is busy and inconsistent — controls don't
+group/wrap predictably, padding and widths drift, and there is no shared grammar. Build a small
+design system (Lego rows/groups), a dev-only lab to decide it, freeze it in the design language + a
+reusable skill, then migrate the existing inspector surfaces (sub-agents, one batch each).
+
+**Read first:** `docs/DESIGN-LANGUAGE.md` §Control faces + §The chrome spacing scale (this item adds
+§Inspector & control rows), `docs/UI-PRIMITIVES.md`, `src/components/reports/reportEditorLayout.tsx`
+(`ContentRow`/`EditorGroup`/`EditorSection`), the kit `LiveNumberInput` / `ColorField` / `Seg`.
+
+**Non-negotiables (the grammar):**
+- THREE levels: **Row** (one concept) → **Group** (related controls; atomic when wrapping) →
+  **Sub-group** (atomic pair, e.g. toggle + swatch, W + R). A group drops to the next line WHOLE;
+  only a sub-group may wrap internally when the control column is narrower than the group.
+- **Panel** (docked rail): fixed 42px label column + control column; row height 28 (compact 24);
+  section gap 12, row gap 6, group gap 2–4; spacing only from 2/4/6/8/12/16/24/32.
+- **Bar** (floating chrome): inline labels + 1px group separators; groups wrap as units.
+- Colour = **swatch only** (no hex entry; tooltip/aria may name the value). Number = kit
+  `LiveNumberInput`, fixed width by expected range (never auto-grow with the value), right-aligned,
+  unit in the tooltip/aria. All controls share the kit radius/height.
+- Wrap test at **240/300/360/400** and **150% text scale**; no horizontal scroll/clipping;
+  read-only, disabled, long labels and long values included.
+- Presets (371/372) keep working; they are copied values, never linked. The interim Outline layout
+  in 371/372 is the first specimen and may be replaced.
+
+**Work:**
+1. Dev-only **`InspectorLab`** (hash route, dynamic import so it never ships): width switch
+   240/300/360/400, dark/light, panel/bar, 150% text scale; specimens: rows, groups, Fill/Border,
+   presets, long labels, read-only, disabled, long text, seg/checkbox/menu.
+2. **`src/components/inspector/` primitives**: `InspectorSection`, `InspectorRow`, `InspectorGroup`,
+   `InspectorColor` (swatch-only), `InspectorNumber`, `InspectorToggle`, `InspectorMenu`;
+   panel/bar from `BlockEditorPanelContext`; optional tiny control registry for repeated kinds
+   (custom JSX always remains possible — never a rigid schema).
+3. Freeze the grammar in `docs/DESIGN-LANGUAGE.md` §Inspector & control rows; create the global
+   **`inspector-controls` skill** in the private `opencode-skills` repo (workflow + checklist +
+   host-doc pointer), link with `install.sh`, commit/push.
+4. Migrate in parallel batches (sub-agents via `parallel-work` worktrees; the main agent owns the
+   shared primitives): (a) block editor text/field/link/image/map; (b) table/repeat/columns +
+   table-column/free-table cell controls; (c) budget block controls/cost; (d) modal/manager property
+   panels. Each batch: file list + manual checklist; report primitive gaps to the main agent, never
+   fork a row.
+
+**Verify:** lab pass at every width/theme/scale; `npm run lint` + unit; each batch is a rule-7 manual
+pass (wrapping, padding, read-only, touch) and the 371/372 outline/preset flows still work; no
+one-off row styles remain in the migrated files.
+
+**Relations:** `supersedes` the INTERIM inspector layout of 371/372 (features stay); `relates to`
+205/324/344 (chrome/editor/control faces), 56 (promote primitives to the kit once stable), 302 (kit
+theming in flight); `blocks` the batch migrations.

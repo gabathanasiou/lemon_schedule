@@ -1,6 +1,6 @@
 import React from 'react';
 import { TB_DIVIDER } from '@gabriel/ui-kit';
-import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
+import { ReportBlock, ReportCollection, ReportTextStyle, ReportBlockStyle } from '../../types';
 import { Project } from '../../types';
 import {
   BlockEditorContent,
@@ -24,6 +24,7 @@ interface ReportToolbarProps {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
@@ -49,7 +50,7 @@ interface ReportToolbarProps {
 
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
   block, parentCollection, parentCategory, project, readOnly,
-  onPatch, onSaveTextStyles,
+  onPatch, onSaveTextStyles, onSaveBlockStyles,
   onDuplicate, onRemove, onMove,
   colSel, colBlock, onColPatch, onColInsertAt, onColMove, onColDelete,
   cellControls, editorRef, active, chipKey, headerActions,
@@ -94,6 +95,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
         readOnly={readOnly}
         onPatch={onPatch}
         onSaveTextStyles={onSaveTextStyles}
+        onSaveBlockStyles={onSaveBlockStyles}
         panel
         compact
         onDuplicate={onDuplicate}

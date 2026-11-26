@@ -1,7 +1,7 @@
 import { ReportBlock, Project } from '../../types';
 import { CSSProperties } from 'react';
 import { getTextStyles } from '../../lib/reportTextStyles';
-import { autoTextColor, getReportBorder } from '../../lib/reportLook';
+import { autoTextColor, blockOutlineStyle } from '../../lib/reportLook';
 
 // Single source for report block typography/spacing (screen + print). Like
 // getRibbonCellBaseStyle for the reports designer.
@@ -23,7 +23,7 @@ export function getReportBlockBaseStyle(b: ReportBlock, project?: Project): CSSP
     // Auto text color: white on dark backgrounds, black on light (roadmap 28).
     color: autoTextColor(b.background),
     ...(b.background ? { background: b.background } : {}),
-    ...(b.border ? { border: getReportBorder(true) } : {}),
+    ...blockOutlineStyle(b),
   };
 }
 

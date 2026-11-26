@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
-import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
+import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportBlockStyle } from '../../types';
 import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
@@ -18,7 +18,7 @@ import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users, Wallet, Palette } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
@@ -31,6 +31,9 @@ import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, edito
 import BudgetBlockControls from './BudgetBlockControls';
 import { AnchorGrid } from '../AnchorGrid';
 import { IMAGE_ALIGNS, IMAGE_ANCHOR_ROWS } from '../../lib/reportImageLayout';
+import { useDialog } from '../Dialog';
+import DropdownDivider from '../DropdownDivider';
+import { BUILTIN_BLOCK_STYLES, blockStyleMatches, blockStylePatch, blockStyleFromBlock, blockSurfaceOf } from '../../lib/reportBlockStyles';
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -66,6 +69,7 @@ export interface BlockEditorProps {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
   onDuplicate?: () => void;
   onRemove?: () => void;
   onMove?: (dir: -1 | 1) => void;
@@ -300,7 +304,7 @@ const SegControl: React.FC<React.ComponentProps<typeof Seg>> = (props) => {
 };
 
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
-  block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
+  block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles,
   onDuplicate, onRemove, onMove, compact, trailing, panel, relativeTarget, availableLocations,
   editorRef: editorRefProp, active: activeProp, chipKey: chipKeyProp,
 }) => {
@@ -316,7 +320,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const editorRef = editorRefProp ?? ownEditorRef;
   const [ownActive, setOwnActive] = React.useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const rtActive = activeProp ?? ownActive;
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive };
   // The item-formatting affix follows the editor's chip SELECTION — it shows
   // only while a chip is selected. An optimistic override keeps the panel live
   // right after an affix rewrite until the canvas editor reports the new key.
@@ -332,12 +336,11 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const rowCls = editorRowCls(panel);
   const styleLayoutCell = isTextLike ? (
     <div className={sectionCls}>
-      {/* Style + Padding side by side (two columns) — Outline only for field
-          blocks. Text blocks' Style row lives in the Content section's shared
-          RichTextControls body (roadmap 191); field/link keep whole-block
-          typography + alignment here. Text blocks have no Style column, so the
-          panel gives Padding the full width (a reserved empty column left the
-          section rule half-length). */}
+      {/* Style + Padding side by side (two columns) — Outline for field AND
+          text blocks. Text blocks' Style row lives in the Content section's
+          shared RichTextControls body (roadmap 191); field/link keep
+          whole-block typography + alignment here. Text blocks have no Style
+          column, so the panel gives Padding the full width. */}
       <div className={panel ? (block.type === 'text' ? 'flex flex-col gap-1.5 min-w-0' : 'grid grid-cols-2 gap-2 items-start') : 'flex items-start gap-5'}>
         {block.type !== 'text' && (
           <div className="flex flex-col gap-1.5 min-w-0">
@@ -354,11 +357,11 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           </div>
         </div>
       </div>
-      {block.type === 'field' && (
+      {(block.type === 'field' || block.type === 'text') && (
         <>
           <SectionHeader>Outline</SectionHeader>
           <div className={rowCls}>
-            <OutlineControls {...ctx} />
+            <OutlineSection {...ctx} />
           </div>
         </>
       )}
@@ -454,6 +457,7 @@ export interface BlockCtx {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
   /** Docked inspector layout (labels above controls, fields full-width). */
   panel?: boolean;
   /** Text blocks only: the editor handle (formatting + chip rewriting). */
@@ -739,7 +743,7 @@ const TextContentControls: React.FC<{
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection, parentCategory);
   const disabled = readOnly;
   const fieldPickerCls = panel ? `w-full ${TB_PICKER}` : `w-36 ${TB_PICKER}`;
@@ -804,6 +808,17 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       {titleBlock && block.showTitle === true ? (
         <ContentRow key="titlePad" label="Padding">
           <LayoutControls block={titleBlock} project={project} readOnly={disabled} onPatch={p => patchTitle?.(p)} panel={panel} />
+        </ContentRow>
+      ) : null}
+      {titleBlock && block.showTitle === true ? (
+        <ContentRow key="titleOutline" label="Outline">
+          <OutlineSection
+            block={titleBlock}
+            project={project}
+            readOnly={disabled}
+            onPatch={p => patchTitle?.(p)}
+            onSaveBlockStyles={onSaveBlockStyles}
+          />
         </ContentRow>
       ) : null}
     </>
@@ -1555,36 +1570,209 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
   );
 };
 
-// ---- outline controls (background fill + border — text/field blocks only) ------
-// The link block keeps its fixed link blue (unreadable on dark fills). The text
-// color auto-switches white on dark backgrounds.
+// ---- outline & style presets (fill + border + block styles) --------------------
+// Shared by text, field and title blocks. The link block keeps its fixed link
+// blue. Text colour auto-switches white on dark fills.
+//
+// Layout grammar (docs/DESIGN-LANGUAGE.md §Inspector & control rows):
+// - panel (docked rail): label column + control column, one concept per row
+// - bar (floating chrome): groups in one wrapping row, separated by rules
+// - colour is a swatch only (no hex entry); units live in tooltips/aria
 
-export const OutlineControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => (
-  <>
-    <Tooltip content="Background color — text turns white on dark fills">
-      <span className="flex items-center">
-        <ColorField value={block.background ?? '#FFFFFF'} onChange={v => onPatch({ background: v })} size="sm" hexVariant="sm" />
-      </span>
-    </Tooltip>
-    {block.background && (
-      <Tooltip content="Remove background">
-        <button disabled={readOnly} onClick={() => onPatch({ background: undefined })} className={TB_BTN_ICON} title="Remove background">
-          <X className="w-3 h-3" />
+interface OutlineSectionProps {
+  block: ReportBlock;
+  project: Project;
+  readOnly?: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+  onSaveBlockStyles?: (styles: ReportBlockStyle[]) => void;
+}
+
+const OUTLINE_LABEL_CLS = 'text-[9px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]';
+
+const BlockStyleMenu: React.FC<OutlineSectionProps & { fullWidth?: boolean }> = ({
+  block, project, readOnly, onPatch, onSaveBlockStyles, fullWidth,
+}) => {
+  const dialog = useDialog();
+  const [open, setOpen] = useState(false);
+  const disabled = !!readOnly;
+  const userStyles = project.reportBlockStyles ?? [];
+  const allStyles = [...userStyles, ...BUILTIN_BLOCK_STYLES];
+  const matched = allStyles.find(s => blockStyleMatches(block, s));
+  const matchedUser = userStyles.find(s => s.id === matched?.id);
+  const swatch = (style: ReportBlockStyle) => (
+    <span
+      className="block h-3 w-3 rounded-[3px] border border-black/10"
+      style={{ background: style.background || 'transparent' }}
+    />
+  );
+  const applyStyle = (style: ReportBlockStyle) => {
+    setOpen(false);
+    onPatch(blockStylePatch(style));
+  };
+  const saveStyle = async () => {
+    setOpen(false);
+    if (!onSaveBlockStyles) return;
+    const name = await dialog.prompt({ title: 'Save block style', placeholder: 'Style name' });
+    if (!name?.trim()) return;
+    onSaveBlockStyles([...userStyles, blockStyleFromBlock(name.trim(), block)]);
+  };
+  const updateStyle = () => {
+    if (!matchedUser || !onSaveBlockStyles) return;
+    const updated = { ...blockStyleFromBlock(matchedUser.name, block), id: matchedUser.id };
+    onSaveBlockStyles(userStyles.map(s => (s.id === matchedUser.id ? updated : s)));
+    setOpen(false);
+  };
+  const deleteStyle = async () => {
+    if (!matchedUser || !onSaveBlockStyles) return;
+    setOpen(false);
+    const ok = await dialog.confirm({
+      title: `Delete “${matchedUser.name}”?`,
+      message: 'Blocks already using this style keep their look.',
+      danger: true,
+    });
+    if (ok) onSaveBlockStyles(userStyles.filter(s => s.id !== matchedUser.id));
+  };
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      width="w-52"
+      trigger={
+        <button
+          type="button"
+          disabled={disabled}
+          title="Block style presets"
+          className={`inline-flex h-7 items-center gap-1.5 rounded border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] px-2 text-[10px] font-medium text-[color:var(--ui-text-muted)] transition-colors hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)] disabled:opacity-40 ${fullWidth ? 'w-full justify-between' : 'max-w-[150px]'}`}
+        >
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Palette className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{matched?.name ?? 'Preset'}</span>
+          </span>
+          <ChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      }
+    >
+      {userStyles.map(style => (
+        <DropdownItem key={style.id} icon={swatch(style)} onClick={() => applyStyle(style)}>
+          {style.name}
+        </DropdownItem>
+      ))}
+      {userStyles.length > 0 && <DropdownDivider />}
+      {BUILTIN_BLOCK_STYLES.map(style => (
+        <DropdownItem key={style.id} icon={swatch(style)} onClick={() => applyStyle(style)}>
+          {style.name}
+        </DropdownItem>
+      ))}
+      <DropdownDivider />
+      <DropdownItem onClick={() => void saveStyle()}>Save current as style…</DropdownItem>
+      {matchedUser && <DropdownItem onClick={() => updateStyle()}>Update “{matchedUser.name}”</DropdownItem>}
+      {matchedUser && <DropdownItem onClick={() => void deleteStyle()}>Delete “{matchedUser.name}”</DropdownItem>}
+    </DropdownMenu>
+  );
+};
+
+export const OutlineSection: React.FC<OutlineSectionProps> = (props) => {
+  const { block, onPatch, readOnly } = props;
+  const panel = useBlockEditorPanel();
+  const disabled = !!readOnly;
+  const surface = blockSurfaceOf(block);
+  const fill = (
+    <div className="flex min-w-0 items-center gap-1">
+      <Tooltip content="Background colour — text turns white on dark fills">
+        <span className="flex items-center">
+          <ColorField
+            value={block.background ?? '#FFFFFF'}
+            onChange={v => onPatch({ background: v })}
+            size="sm"
+            ariaLabel="Background colour"
+          />
+        </span>
+      </Tooltip>
+      {block.background && (
+        <Tooltip content="Remove background">
+          <button disabled={disabled} onClick={() => onPatch({ background: undefined })} className={TB_BTN_ICON} title="Remove background">
+            <X className="w-3 h-3" />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+  const border = (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <Tooltip content="Border around the block">
+        <button
+          disabled={disabled}
+          onClick={() => onPatch({ border: !block.border })}
+          className={`${TB_TOGGLE} ${block.border ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+          title="Border"
+        >
+          <span className="w-3 h-3 border border-current" />
         </button>
       </Tooltip>
-    )}
-    <Tooltip content="Border around the block">
-      <button
-        disabled={readOnly}
-        onClick={() => onPatch({ border: !block.border })}
-        className={`${TB_TOGGLE} ${block.border ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-        title="Border"
-      >
-        <span className="w-3 h-3 border border-current" />
-      </button>
-    </Tooltip>
-  </>
-);
+      <Tooltip content="Border colour">
+        <span className="flex items-center">
+          <ColorField
+            value={surface.borderColor}
+            onChange={v => onPatch({ borderColor: v, border: true })}
+            size="sm"
+            ariaLabel="Border colour"
+          />
+        </span>
+      </Tooltip>
+      <label className="flex items-center gap-1 text-[9px] text-[color:var(--ui-text-faint)]" title="Border width (px)">
+        W
+        <LiveNumberInput
+          value={block.borderWidth ?? 1}
+          min={0}
+          max={12}
+          step={1}
+          fallback={1}
+          disabled={disabled}
+          ariaLabel="Border width"
+          className={TB_INPUT + ' w-10 text-right'}
+          onCommit={v => onPatch({ borderWidth: v })}
+        />
+      </label>
+      <label className="flex items-center gap-1 text-[9px] text-[color:var(--ui-text-faint)]" title="Corner radius (px)">
+        R
+        <LiveNumberInput
+          value={block.borderRadius ?? 0}
+          min={0}
+          max={40}
+          step={1}
+          fallback={0}
+          disabled={disabled}
+          ariaLabel="Corner radius"
+          className={TB_INPUT + ' w-10 text-right'}
+          onCommit={v => onPatch({ borderRadius: v })}
+        />
+      </label>
+    </div>
+  );
+  if (panel) {
+    return (
+      <div className="grid grid-cols-[42px_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5">
+        <span className={OUTLINE_LABEL_CLS}>Preset</span>
+        <BlockStyleMenu {...props} fullWidth />
+        <span className={OUTLINE_LABEL_CLS}>Fill</span>
+        {fill}
+        <span className={OUTLINE_LABEL_CLS}>Border</span>
+        {border}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <BlockStyleMenu {...props} />
+      <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
+      <span className={OUTLINE_LABEL_CLS}>Fill</span>
+      {fill}
+      <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
+      <span className={OUTLINE_LABEL_CLS}>Border</span>
+      {border}
+    </div>
+  );
+};
 
 // ---- layout controls (padding — text/field only) -------------------------------
 

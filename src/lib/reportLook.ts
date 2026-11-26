@@ -1,7 +1,10 @@
 // Shared "table look" for the reports designer (roadmap 28). Table cells AND
-// text/field blocks consume the same border color, table header background and
-// the auto-text-color luminance helper, so future table-look changes happen in
-// ONE place and update both.
+// text/field/title blocks consume the same border color, table header
+// background and the auto-text-color luminance helper, so future table-look
+// changes happen in ONE place and update both.
+
+import type { CSSProperties } from 'react';
+import type { ReportBlock } from '../types';
 
 /** Cell border for bordered tables and bordered text blocks. */
 export const REPORT_BORDER_COLOR = '#d4d4d8';
@@ -12,6 +15,20 @@ export const REPORT_TABLE_HEADER_BG = '#f4f4f5';
 /** The shared border string — 'none' when the block/table has borders off. */
 export function getReportBorder(showBorders: boolean): string {
   return showBorders ? `1px solid ${REPORT_BORDER_COLOR}` : 'none';
+}
+
+/** Block-surface outline (roadmaps 371): fill/border colour + width + radius.
+ *  `border: true` with no overrides keeps the legacy 1px REPORT_BORDER_COLOR. */
+export function blockOutlineStyle(
+  b: Pick<ReportBlock, 'border' | 'borderColor' | 'borderWidth' | 'borderRadius'>,
+): CSSProperties {
+  const out: CSSProperties = {};
+  if (b.border) {
+    const width = Math.max(0, b.borderWidth ?? 1);
+    out.border = `${width}px solid ${b.borderColor || REPORT_BORDER_COLOR}`;
+  }
+  if (b.borderRadius != null) out.borderRadius = Math.max(0, b.borderRadius);
+  return out;
 }
 
 /** WCAG relative luminance of a 3/6-digit hex color (0 = black, 1 = white).

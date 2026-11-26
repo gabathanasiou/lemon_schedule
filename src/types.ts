@@ -912,8 +912,12 @@ export interface ReportBlock {
   /** Background fill (hex) for text/field blocks — auto text color follows
    *  the background's relative luminance (roadmap 28). */
   background?: string;
-  /** Full-box 1px border for text/field blocks (default off). */
+  /** Full-box border for text/field/title blocks (default off). The colour,
+   *  width and corner radius fall back to the legacy 1px default. */
   border?: boolean;
+  borderColor?: string;            // outline colour; unset = REPORT_BORDER_COLOR
+  borderWidth?: number;            // px; unset = 1
+  borderRadius?: number;           // px; unset = 0
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
@@ -964,6 +968,20 @@ export interface ReportTextStyle {
   fontFamily?: string;
   bold?: boolean;
   italic?: boolean;
+}
+
+/** Named block-surface preset (fill + outline + padding). Presets are COPIED
+ *  onto the block — changing a preset never restyles existing blocks. */
+export interface ReportBlockStyle {
+  id: string;
+  name: string;
+  background?: string;
+  border?: boolean;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  paddingV?: number;
+  paddingH?: number;
 }
 
 export interface ReportTrashItem {
@@ -1339,6 +1357,8 @@ export interface Project {
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];
   reportTextStyles?: ReportTextStyle[];
+  /** Named block-surface presets (roadmap 372) — applied by copying values. */
+  reportBlockStyles?: ReportBlockStyle[];
   /** Retained screenplay body (roadmap 123 Phase 0) — see ScriptDocument. */
   scriptDocument?: ScriptDocument;
   /** The last imported screenplay (roadmap 123 Phase 0): the reference for
