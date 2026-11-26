@@ -27,7 +27,7 @@ import Checklist from '../Checklist';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, EditorSection, editorFieldCls, useBlockEditorPanel } from './reportEditorLayout';
-import { InspectorAction, InspectorColor, InspectorGroup, InspectorMenu, InspectorNumber, InspectorRow, InspectorSeg, InspectorSubGroup, InspectorToggle, useInspectorSurface } from '../inspector';
+import { InspectorAction, InspectorColor, InspectorGroup, InspectorGroupCard, InspectorMenu, InspectorNumber, InspectorRow, InspectorSeg, InspectorSubGroup, InspectorToggle, useInspectorSurface } from '../inspector';
 import BudgetBlockControls from './BudgetBlockControls';
 import { AnchorGrid } from '../AnchorGrid';
 import { IMAGE_ALIGNS, IMAGE_ANCHOR_ROWS } from '../../lib/reportImageLayout';
@@ -438,10 +438,13 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           Format/Style, …) carries its own section rule, so a leading "Content"
           would stack two hairlines. */}
       {block.type !== 'pageBreak' && (
-        <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2`}>
-          <SectionHeader>Content</SectionHeader>
-          <ContentControls {...ctx} />
-        </div>
+        <>
+          <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2`}>
+            <SectionHeader>Content</SectionHeader>
+            <ContentControls {...ctx} />
+          </div>
+          <BlockTitleSection {...ctx} />
+        </>
       )}
     </div>
     </BlockEditorPanelContext.Provider>
@@ -730,6 +733,62 @@ const TextContentControls: React.FC<{
   );
 };
 
+/** The optional block title — a nested text block (`titleBlock`). It is its
+ *  own "Block title" group card for every title-capable block type, never
+ *  folded into the Content umbrella. */
+const BlockTitleSection: React.FC<BlockCtx> = ({
+  block, project, parentCollection, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles, panel, editorRef, active,
+}) => {
+  if (!supportsTitle(block.type)) return null;
+  const disabled = readOnly;
+  const titleBlock = block.titleBlock;
+  const patchTitle = titleBlock ? (p: Partial<ReportBlock>) => onPatch({ titleBlock: { ...titleBlock, ...p } }) : undefined;
+  return (
+    <InspectorGroupCard label="Block title">
+      <ContentRow full>
+        <EditorGroup className={panel ? 'w-full' : undefined}>
+          <EditorCheckbox
+            checked={block.showTitle === true}
+            disabled={disabled}
+            onChange={on => onPatch(on
+              ? { showTitle: true, titleBlock: block.titleBlock || { ...makeReportBlock('text', { text: reportTitleAutoLabel(block, parentCollection) }), align: 'center', bold: true, fontSize: 12, paddingV: 10 } }
+              : { showTitle: false })}
+            label="Show title"
+          />
+          {block.showTitle === true && titleRepeatable(block.type) && (
+            <EditorCheckbox checked={block.titleRepeat === true} disabled={disabled} onChange={on => onPatch({ titleRepeat: on })} label="Repeat on each page" />
+          )}
+        </EditorGroup>
+      </ContentRow>
+      {titleBlock && block.showTitle === true && (
+        <>
+          <TextContentControls
+            block={titleBlock}
+            project={project}
+            onPatch={p => patchTitle?.(p)}
+            onSaveTextStyles={onSaveTextStyles}
+            editorRef={editorRef}
+            active={active ?? RICH_TEXT_STATE_IDLE}
+            disabled={disabled}
+          />
+          <EditorSection label="Padding">
+            <LayoutControls block={titleBlock} project={project} readOnly={disabled} onPatch={p => patchTitle?.(p)} panel={panel} />
+          </EditorSection>
+          <EditorSection label="Outline">
+            <OutlineSection
+              block={titleBlock}
+              project={project}
+              readOnly={disabled}
+              onPatch={p => patchTitle?.(p)}
+              onSaveBlockStyles={onSaveBlockStyles}
+            />
+          </EditorSection>
+        </>
+      )}
+    </InspectorGroupCard>
+  );
+};
+
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, onSaveBlockStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection, parentCategory);
   const disabled = readOnly;
@@ -765,50 +824,8 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     for (const r of rows) if (r != null) s.rows.push(r);
   };
 
-  // Optional title (item 140) — table-shaped blocks, the repeat (heading) and
-  // image/map (caption). The title IS a text block (`titleBlock`): same
-  // renderer, same Format/Style body and padding controls as any text block,
-  // default centered/bold. Turning it on seeds it from the block's auto label.
-  const titleBlock = block.titleBlock;
-  const patchTitle = titleBlock ? (p: Partial<ReportBlock>) => onPatch({ titleBlock: { ...titleBlock, ...p } }) : undefined;
-  const titleSection = supportsTitle(block.type) ? (
-    <>
-      <ContentRow key="showTitle" label="Title">
-        <EditorGroup className={panel ? 'w-full' : undefined}>
-          <EditorCheckbox
-            checked={block.showTitle === true}
-            disabled={disabled}
-            onChange={on => onPatch(on
-              ? { showTitle: true, titleBlock: block.titleBlock || { ...makeReportBlock('text', { text: reportTitleAutoLabel(block, parentCollection) }), align: 'center', bold: true, fontSize: 12, paddingV: 10 } }
-              : { showTitle: false })}
-            label="Show title"
-          />
-          {block.showTitle === true && titleRepeatable(block.type) && (
-            <EditorCheckbox checked={block.titleRepeat === true} disabled={disabled} onChange={on => onPatch({ titleRepeat: on })} label="Repeat on each page" />
-          )}
-        </EditorGroup>
-      </ContentRow>
-      {titleBlock && block.showTitle === true ? (
-        <TextContentControls key="titleFormat" block={titleBlock} project={project} onPatch={p => patchTitle?.(p)} onSaveTextStyles={onSaveTextStyles} editorRef={editorRef} active={rtActive} disabled={disabled} />
-      ) : null}
-      {titleBlock && block.showTitle === true ? (
-        <EditorSection key="titlePad" label="Padding">
-          <LayoutControls block={titleBlock} project={project} readOnly={disabled} onPatch={p => patchTitle?.(p)} panel={panel} />
-        </EditorSection>
-      ) : null}
-      {titleBlock && block.showTitle === true ? (
-        <EditorSection key="titleOutline" label="Outline">
-          <OutlineSection
-            block={titleBlock}
-            project={project}
-            readOnly={disabled}
-            onPatch={p => patchTitle?.(p)}
-            onSaveBlockStyles={onSaveBlockStyles}
-          />
-        </EditorSection>
-      ) : null}
-    </>
-  ) : null;
+  // Optional title (item 140) is its own Block title group card — rendered by
+  // BlockEditorContent, never folded into the Content umbrella.
 
   if (block.type === 'text') {
     // The block edits INLINE on the canvas (roadmap 191) — the chrome's
@@ -891,7 +908,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           </InspectorGroup>
         </InspectorRow>
       </EditorSection>,
-      titleSection,
     );
   } else if (block.type === 'repeat' || block.type === 'table') {
     // Order reads: what the table IS (Display) → over what (Table over) →
@@ -947,7 +963,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             <DayFormatMenu value={block.dayFormat || 'dayNumDate'} disabled={disabled} onChange={v => onPatch({ dayFormat: v as DayFormatMode })} />
           </ContentRow>
         ) : null,
-        titleSection,
       );
     }
     push(null,
@@ -988,7 +1003,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       block.type === 'repeat' ? (
         <GapRow key="gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />
       ) : null,
-      titleSection,
     );
     const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
     const skipEmpty = block.collection ? SKIP_EMPTY_TEST[block.collection] : undefined;
@@ -1078,7 +1092,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         </InspectorRow>
       </EditorSection>,
       <GapRow key="gap" label="Gap" ariaLabel="Table gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />,
-      titleSection,
     );
   } else if (block.type === 'crewTable') {
     push(null,
@@ -1102,7 +1115,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           />
         </EditorGroup>
       </ContentRow>,
-      titleSection,
     );
   } else if (block.type === 'precalls') {
     // "All" mode can be narrowed to a picked set — the block prints only the
@@ -1153,11 +1165,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
         />
       </ContentRow>,
-      titleSection,
     );
   } else if (block.type === 'budgetTable') {
     push(null,
-      <BudgetBlockControls key="budget" block={block} project={project} readOnly={disabled} onPatch={onPatch} panel={panel} title={titleSection} />,
+      <BudgetBlockControls key="budget" block={block} project={project} readOnly={disabled} onPatch={onPatch} panel={panel} />,
     );
   }
 
@@ -1262,7 +1273,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           )}
         </div>
       </ContentRow>,
-      titleSection,
     );
     if (block.imageDataUrl) {
       push('Size',
@@ -1390,7 +1400,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="height" label="Height">
         <InspectorNumber label="Map height" unit="px" value={block.mapHeight} min={80} max={1200} fallback={240} onCommit={v => onPatch({ mapHeight: v })} disabled={disabled} />
       </ContentRow>,
-      titleSection,
     );
     push('Map',
       <ContentRow key="inherit" label="Day">

@@ -21,11 +21,9 @@ interface BudgetBlockControlsProps {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   panel?: boolean;
-  /** The shared block Title section (rendered after the budget controls). */
-  title?: React.ReactNode;
 }
 
-const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, project, readOnly, onPatch, panel, title }) => {
+const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, project, readOnly, onPatch, panel }) => {
   const budget = project.budget;
   const mode = budgetReportMode(block.budgetMode);
   const [versionMenu, setVersionMenu] = useState<'primary' | 'compare' | null>(null);
@@ -269,8 +267,6 @@ const BudgetBlockControls: React.FC<BudgetBlockControlsProps> = ({ block, projec
           </InspectorGroup>
         </InspectorRow>
       </EditorSection>
-
-      {title}
     </>
   );
 };

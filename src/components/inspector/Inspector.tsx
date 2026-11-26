@@ -150,6 +150,25 @@ export const InspectorSubGroup: React.FC<InspectorSubGroupProps> = ({ children, 
   <div className={`inline-flex min-w-0 shrink-0 flex-nowrap items-center gap-0.5 ${className}`}>{children}</div>
 );
 
+export interface InspectorGroupCardProps {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+/** A big section-level group card (the Content umbrella, Block title) that
+ *  holds section cards. Raised above the recessed section cards so the
+ *  hierarchy reads: chrome → group card → section card → group. */
+export const InspectorGroupCard: React.FC<InspectorGroupCardProps> = ({ label, children, className = '' }) => (
+  <div
+    className={`flex min-w-0 flex-col gap-2 rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2 ${className}`}
+    aria-label={label}
+  >
+    <SectionHeader>{label}</SectionHeader>
+    <div className="flex min-w-0 flex-col gap-2">{children}</div>
+  </div>
+);
+
 // ---- control faces ------------------------------------------------------------
 
 export interface InspectorColorProps {
