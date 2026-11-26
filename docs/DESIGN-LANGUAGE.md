@@ -320,6 +320,21 @@ re-exports it as `BlockEditorPanelContext`):
   (`bg-[var(--ui-border)]`), groups wrap as units, controls keep their kit height. A bar may stack
   its sections; it does not grow a label column.
 
+#### Master groups in the block chrome
+
+The block/column/cell chrome stacks MASTER GROUPS (`InspectorGroupCard` — a raised card whose
+eyebrow header names it), and each master group holds recessed `InspectorSection` cards
+(`--ui-card-band`). Order in the block chrome: **Appearance → Content → Block title** (Appearance
+is absent for blocks with no surface, Block title for types without `supportsTitle`).
+
+| Master group | Holds | Rules |
+|---|---|---|
+| **Appearance** | Padding · Outline (preset · fill · border · W/R) | Surface blocks only (text/field/link/title). The preset is the kit `ItemManagerDropdown` (swatch rows + rename/duplicate/delete/create); built-ins are the defaults until the project stores its own list. The `RotateCcw` action RESETS background + border/colour/width/radius. |
+| **Content** | The block's own sections in reading order | Renders ONLY when the block has content controls — never an empty header. `callSheetEdit` gets an `Editable area` help card instead. |
+| **Block title** | Repeat on each page + the title's own Format/Style/Padding/Outline | Universal for every `supportsTitle` type, OUTSIDE Content. The on/off checkbox is the header's `headerLeft` (no label text — the eyebrow already names the group); Repeat sits under the header; the body renders only when ON and the card shrinks to its header when empty. |
+| **Column settings** | Field · column · structure rows | The table-column/row editor's one master group. |
+| **Style · Cell controls** | Style = Format + Style; Cell controls = Row + Column | The free-table cell chrome's TWO master groups. Row and Column sit side by side when the bar is wide and stack when narrow. |
+
 **Control faces — one shared face per kind:**
 
 | Kind | Face | Rules |
@@ -335,10 +350,13 @@ re-exports it as `BlockEditorPanelContext`):
   `InspectorControls` registry. The registry exists for REPEATED kinds only — never a rigid schema.
 - **Read-only / disabled are first-class**: every face takes `readOnly`/`disabled`; the lab renders
   both, plus long labels, long values, 150% text and every width.
-- **Wrap test**: the panel must stay free of horizontal scroll/clipping at
-  **240 / 300 / 360 / 400px** and **150% text**. A group wraps between its sub-groups; a pair
-  (W + R, V + H) always travels together. The row grid carries `min-w-0` so the control column
-  actually constrains its children — without it the row overflows and never wraps.
+- **Wrap test**: BOTH surfaces must stay free of horizontal scroll/clipping at
+  **240 / 300 / 360 / 400px** and **150% text**. Panel rows wrap between groups; bar roots and rows
+  wrap too — **never force `min-w-max`/`flex-nowrap` on a bar row** (the floating chrome is clamped
+  to `100vw - 16px`, so a max-content row silently scrolls sideways). A label travels WITH its
+  control (label + swatch, label + toggle are one sub-group), so “Fill”/“Border” never strand at a
+  line end; a pair (W + R, V + H) always travels together. The row grid carries `min-w-0` so the
+  control column actually constrains its children — without it the row overflows and never wraps.
 - **MUST NOT**: fork a row layout, add a hex colour entry, auto-grow a number box, use a flat
   char-limit abbreviation without a `title`, put a form/label stack inside a panel row, or
   hand-copy the 42px/28px/8/16 numbers into a call site. **No CSS scopes over kit controls** — the
