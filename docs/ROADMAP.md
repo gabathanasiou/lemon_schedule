@@ -1360,3 +1360,45 @@ fails on an unmapped fixture; manual pass at 240/300/360/400 + 150% text; `npm r
 
 **Relations:** `relates to` 373 (inspector grammar being applied), 97 (MCP bridge), 176 (hash
 navigation), 322/333 (picker/theme faces); `depends on` the debug bridge.
+
+## 375. Cast rate — one numeric source of truth (budget) (`[ ]`)
+
+**Asked 2026-11-26 (user):** the Element View / Element Manager must sync with the Budget tab for
+cast rate/per; **the Budget is the source of truth**.
+
+**Model:** `CastMember.rateCents` + `rateUnit` (hour/day/flat) are canonical; the MMS-facing
+`rate`/`per` strings become a derived display/export projection (kept in sync on write, parsed on
+load). ONE helper module `src/lib/castRate.ts` (read/patch/parse/backfill) used by the Element View,
+the Element Manager details, the Budget cast lens and reports — never a second parser. Element View
+Rate row = shared `MoneyField` (`src/components/budget/fields.tsx`) + a unit `InspectorMenu`; the
+Budget Crew-card OT lens keeps its existing editors writing the same fields. Load backfill: infer
+from legacy `rate`/`per` only when unambiguous; **never overwrite** an existing numeric; ambiguous
+units (week/episode/TBD) leave the numeric unset so the Budget keeps showing **Set rate**.
+
+**Verify:** unit parse/mapping (currency, day/hour/flat, blanks/TBD/week), load backfill + no
+overwrite, e2e edit in Element View → Budget cast lens shows the same value and OT cost changes,
+Element Manager details display; `castRate`/`castRateCents` report fields stay consistent;
+`npm run lint` + unit.
+
+**Relations:** `relates to` 361 (OT cast lens), 157 (MMS strings), 334 (budget), 373 (Element View
+panel); `depends on` 334's numeric model (shipped).
+
+## 376. Element Manager — linked-element indicator (`[ ]`)
+
+**Asked 2026-11-26 (user):** an element row should show a little indication when the element is
+linked to something.
+
+**Shape:** in the View/actions cell render a small `Link2` glyph + count pill when `project.links`
+has a record where the element is the anchor or the target (any kind: element/crew/department/
+location). Compute ONE memoized `Map<elementKey, count>` from `project.links` (legacy links are
+already migrated on load) using `elementSideOf` / `elementValueMatches` — never a per-row scan.
+Clicking the pill opens the Element View on the **Links** tab (add `initialTab` to
+`ElementViewModal`); same panel, no second modal. Unlinked rows render nothing (no ghost slot), and
+the pill is visible at rest (muted accent), not hover-only. No new column.
+
+**Verify:** unit for the count map (anchor + target, crew→element, case-insensitive names, cast
+Board IDs); e2e badge appears on a linked row and opens the Links tab, absent on an unlinked row;
+`npm run lint`; no N+1 scans.
+
+**Relations:** `relates to` 44/308 (links), 306 (Element View), 153 (manager), 374 (studio);
+`depends on` the unified `project.links` store (shipped).

@@ -345,6 +345,8 @@ is absent for blocks with no surface, Block title for types without `supportsTit
 
 **Control faces — one shared face per kind:**
 
+Modal property panels: `docs/MODAL-PROPERTY-PANELS.md` (pilot: Element View → Properties).
+
 | Kind | Face | Rules |
 |---|---|---|
 | Colour | `InspectorColor` — 28px swatch (`input[type=color]`, 18px inner chip) + optional clear X | **Swatch only: no hex entry.** Value in the tooltip/aria only. |
