@@ -1246,7 +1246,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           {block.imageDataUrl ? 'Replace image…' : 'Attach image…'}
         </label>
         {block.imageDataUrl && (
-          <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
+          <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageWidth: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
             <Trash2 className="w-3 h-3" />
           </ToolButton>
         )}
@@ -1255,6 +1255,22 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
     if (block.imageDataUrl) {
       push('Size',
+        <ContentRow key="width" label="Width (%)">
+          <input
+            type="number"
+            min={5}
+            max={100}
+            step={0.5}
+            disabled={disabled}
+            className={TB_INPUT + ' w-14'}
+            value={block.imageWidth ?? 100}
+            onChange={e => {
+              const n = e.target.value ? Number(e.target.value) : 100;
+              onPatch({ imageWidth: n >= 100 ? undefined : Math.min(100, Math.max(5, n)) });
+            }}
+          />
+          <span className="text-[9px] text-[color:var(--ui-text-faint)]">100 = full width; drag the corner to resize</span>
+        </ContentRow>,
         <ContentRow key="height" label="Height (px)">
           <input
             type="number"
@@ -1266,7 +1282,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             placeholder="Auto"
             onChange={e => onPatch({ imageHeight: e.target.value ? Number(e.target.value) : undefined })}
           />
-          <span className="text-[9px] text-[color:var(--ui-text-faint)]">blank = natural size (fits the container)</span>
+          <span className="text-[9px] text-[color:var(--ui-text-faint)]">blank = natural aspect ratio</span>
         </ContentRow>,
         <ContentRow key="fit" label="Fit">
           <SegControl

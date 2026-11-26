@@ -1835,6 +1835,11 @@
           "type": "string"
         },
         {
+          "name": "imageWidth",
+          "optional": true,
+          "type": "number"
+        },
+        {
           "name": "imageHeight",
           "optional": true,
           "type": "number"

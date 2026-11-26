@@ -920,7 +920,8 @@ export interface ReportBlock {
   spacerThickness?: number;      // px; line style only
   // image
   imageDataUrl?: string;         // attached image (data URL, embedded in the design)
-  imageHeight?: number;          // px; unset = natural aspect ratio at container width
+  imageWidth?: number;           // percent of the content width; unset/100 = full width
+  imageHeight?: number;          // px; unset = natural aspect ratio at the chosen width
   imageFit?: 'contain' | 'cover' | 'fill'; // only meaningful with imageHeight
   // map
   mapLat?: number;

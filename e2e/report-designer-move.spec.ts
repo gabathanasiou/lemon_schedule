@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, seedProjectScript, seedTitle, seedLeadCast, seedElement } from './helpers';
+import { openSeededProject, loadSeedProject, seedProjectScript, seedTitle, seedLeadCast, seedElement, waitForPersistedProject } from './helpers';
 
 test('reports designer lives in design tab; collection menu uses submenu', async ({ page }) => {
   await openSeededProject(page, undefined, { editorMode: 'floating' });
@@ -41,42 +41,106 @@ test('table over menu drops cast and nests categories in an elements submenu', a
   await expect(page.getByRole('button', { name: 'Elements · Cast', exact: true })).toBeVisible({ timeout: 3000 });
 });
 
-test('reports designer view toggle switches canvas width (portrait/landscape/full)', async ({ page }) => {
+test('reports designer page renders at the true print width (view modes are display-only)', async ({ page }) => {
   const seed = loadSeedProject();
   await page.addInitScript(seedProjectScript(seed));
   await page.addInitScript(() => localStorage.setItem('lemon_schedule_view_mode', 'portrait'));
   await page.goto('/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  
+
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  
+
   const sheet = page.getByTestId('report-page');
-  const w0 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
+  const read = () => sheet.evaluate(el => ({
+    width: (el as HTMLElement).style.width,
+    zoom: parseFloat((el as HTMLElement).style.zoom || '1'),
+  }));
+
+  // The seeded design is landscape: the designer page IS the print page
+  // (REPORT_PAGE_METRICS.landscape.contentWidth 960 + 28px gutters).
+  const first = await read();
+  expect(first.width).toBe('1016px');
+
+  // A4 Portrait switches the design page → the portrait print width.
+  await page.getByRole('button', { name: /View:/ }).click();
+  await page.locator('.ui-menu').getByText('A4 Portrait', { exact: true }).click();
+  const portrait = await read();
+  expect(portrait.width).toBe('753px');
+  expect(portrait.zoom).toBeLessThanOrEqual(1);
 
   await page.getByRole('button', { name: /View:/ }).click();
-  await page.getByText('A4 Landscape', { exact: true }).click();
-    const w1 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
-  expect(w1).toBe(1060);
-  expect(w1).toBeGreaterThan(w0);
+  await page.locator('.ui-menu').getByText('A4 Landscape', { exact: true }).click();
+  const landscape = await read();
+  expect(landscape.width).toBe('1016px');
+  expect(landscape.zoom).toBeLessThanOrEqual(1);
 
+  // Landscape always fits the viewport now — the canvas never scrolls sideways.
   const canvas = page.getByTestId('report-canvas');
   const maxScroll = await canvas.evaluate(el => el.scrollWidth - el.clientWidth);
-  expect(maxScroll).toBeGreaterThan(0);
-  await canvas.evaluate(el => { el.scrollLeft = 50; });
-  const sl = await canvas.evaluate(el => el.scrollLeft);
-  expect(sl).toBeGreaterThan(0);
+  expect(maxScroll).toBeLessThanOrEqual(1);
+
+  // Full Width keeps the print page width; only the display zoom changes.
+  await page.getByRole('button', { name: /View:/ }).click();
+  await page.locator('.ui-menu').getByText('Full Width', { exact: true }).click();
+  const full = await read();
+  expect(full.width).toBe('1016px');
+  expect(full.zoom).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: /View:/ }).click();
-  await page.getByText('Full Width', { exact: true }).click();
-    const w2 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
-  const cw = await sheet.evaluate(el => (el.parentElement as HTMLElement).clientWidth);
-  expect(w2).toBe(cw - 64);
+  await page.locator('.ui-menu').getByText('A4 Portrait', { exact: true }).click();
+  expect((await read()).width).toBe('753px');
+});
 
-  await page.getByRole('button', { name: /View:/ }).click();
-  await page.getByText('A4 Portrait', { exact: true }).click();
-    const w3 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
-  expect(w3).toBe(730);
+test('image block resize stores imageWidth (aspect-locked) and persists', async ({ page }) => {
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+
+  const ids = await page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    const project = b.getState().present;
+    const stored = localStorage.getItem('lemon_schedule_report_active_design');
+    const design = project.reportDesigns.find((d: any) => d.id === stored)
+      || project.reportDesigns.find((d: any) => d.id === project.activeReportId)
+      || project.reportDesigns[0];
+    const block = {
+      id: 'e2e-image-block',
+      type: 'image',
+      imageDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      imageWidth: 50,
+    };
+    b.dispatch({ type: 'UPDATE_REPORT_DESIGN', payload: { id: design.id, blocks: [...design.blocks, block] } });
+    return { designId: design.id, blockId: block.id };
+  });
+
+  const image = page.locator('[data-image-block]').first();
+  await expect(image).toBeVisible();
+  await image.click();
+  const handle = page.locator('[data-image-resize-handle]').first();
+  await expect(handle).toBeVisible();
+
+  const hb = await handle.boundingBox();
+  expect(hb).not.toBeNull();
+  await page.mouse.move(hb!.x + hb!.width / 2, hb!.y + hb!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb!.x + hb!.width / 2 + 60, hb!.y + hb!.height / 2, { steps: 5 });
+  await page.mouse.up();
+
+  const resized = await page.evaluate((blockId) => {
+    const b = (window as any).__lemonSchedule;
+    const design = b.getState().present.reportDesigns.find((d: any) =>
+      (d.blocks || []).some((x: any) => x.id === blockId));
+    const block = design?.blocks.find((x: any) => x.id === blockId);
+    return block ? { width: block.imageWidth, height: block.imageHeight } : null;
+  }, ids.blockId);
+  expect(resized).not.toBeNull();
+  expect(resized!.width).toBeGreaterThan(50);
+  expect(resized!.width).toBeLessThanOrEqual(100);
+  // Aspect-locked drag on a natural-height image stays natural (no px box).
+  expect(resized!.height).toBeUndefined();
+
+  await waitForPersistedProject(page, `p.reportDesigns.some(d => (d.blocks || []).some(b => b.id === '${ids.blockId}' && typeof b.imageWidth === 'number' && b.imageWidth > 50))`);
 });
 
 test('keys/values toggle switches text blocks and table cells', async ({ page }) => {

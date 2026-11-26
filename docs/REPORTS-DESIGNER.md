@@ -128,3 +128,11 @@ signals `onReady` and only then `window.print()` fires.
 - `npm run lint` after every change (tsc --noEmit).
 - `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "IT'S A WONDERFUL LIFE" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
 - Manual: Design → Reports Designer → Print (toolbar) or File → Print → Custom Reports → the modal MUST open first — never a direct print.
+
+- **Image blocks (roadmap 214)**: `imageWidth` is a PERCENT of the content width (unset = 100), so
+  the same design renders at the same proportions on any page geometry. `reports/ImageBlockView.tsx`
+  renders the image and the designer-only bottom-right resize handle (aspect-locked; Shift = free
+  stretch; one `onPatchBlock` on release, live DOM during the drag). The designer's grey page now
+  renders at `REPORT_PAGE_METRICS[page].contentWidth` (+28px gutters) — the SAME metrics as preview,
+  print and the paginator — with a display-only CSS `zoom` fit; View modes never change layout units.
+  Pure drag math: `lib/reportImageResize.ts` (`resizeImageBlock`) + unit.

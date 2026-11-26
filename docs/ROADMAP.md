@@ -722,44 +722,6 @@ the same "person beyond one project" idea for cast); overlaps **146** (crew
 roster/template model) and the Crew Manager items **89-91**; may interact with
 **145** (desktop app hosting) and **97** (API store) for where the DB is kept.
 
-## 214. Image block — bottom-right drag to scale; editor renders at true print scale (`[ ]`)
-
-**Request** (user, 2026-10-08): image blocks must scale by dragging the
-bottom-right corner — aspect-locked, Shift = free stretch (user decision) — and
-the designer must stop the guessing game: sizes in the editor should BE the
-printed sizes ("print matches the editor").
-
-**Current state**:
-- Image renders `width: 100%` of its container + optional `imageHeight` px
-  (`ReportBlockView.tsx:331`; fields `imageDataUrl`/`imageHeight`/`imageFit`,
-  `types.ts:780-782`); only a height number input (`blockControls.tsx:1117-1175`).
-- Designer canvas page = view-mode width (730/1060/full) grey card
-  (`ReportDesignerCanvas.tsx:904`; `VIEW_WIDTHS`, `lib/persist.ts:28`) while
-  preview/print/paginator measure `REPORT_PAGE_METRICS` (697px portrait / 960
-  landscape — `reportStyle.ts:49`, `ReportPrint.tsx:61`,
-  `useReportPaginator.tsx:548`) → text wraps and images scale differently than
-  print. `CallSheetCanvas.tsx:127` already uses the true metrics.
-
-**Approach**:
-- Persist `imageWidth` alongside `imageHeight` (store % of content width so the
-  size survives a page-geometry change; `imageFit` stays the legacy stretch
-  control) and add a selection-gated bottom-right handle on the canvas — reuse
-  the pointer-resize recipe (`src/components/columnResize.tsx`, roadmap 188
-  precedent); aspect-locked by default, Shift = free; show a px size badge while
-  dragging; keep the Content controls in sync with the handle.
-- Render the designer page at `REPORT_PAGE_METRICS[page].contentWidth` — ONE
-  metrics source shared with print/preview/paginator — with a display-only
-  fit/zoom so landscape still fits the viewport (zoom never changes layout units).
-
-**Verify**: `e2e/report-page-breaks.spec.ts` stays green (pagination math);
-targeted e2e only if the resize persistence is silently losable; rule-7 manual —
-drag the corner (aspect lock + Shift), editor vs preview/print side-by-side
-equality, reload keeps the size, Fit modes unchanged.
-
-**Relations**: overlaps **160** (page geometry/scale — the single metrics source;
-its scale control must compose with this, not fork it); reuses **188**'s resize
-recipe; touches **212** (call-sheet editor inherits the same canvas).
-
 ## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated, parked)
 
 **Parked (user, 2026-10-09):** keep the gate closed — do not flip until the
@@ -1300,23 +1262,6 @@ numeric cast rates are data/bridge-editable.
 
 **Relations:** `supersedes` 358's Day Manager-section placement and its post-to-expenses model (engine, policy and report fields stay); `relates to` 334, 146, 99, 157, 315.
 
-
-## 364. Glide — flash cells changed by paste/fill and by peers (`[ ]`, P2 — polish)
-
-**Asked 2026-11-17 (user):** after the Glide feature catalogue, "the last updated on paste and peer edits is great" — build it.
-
-**Why:** Glide's native update underlay (`BaseGridCell.lastUpdated`, a 500 ms fade in `theme.bgSearchResult`) shows exactly what changed with no custom drawing. Storybook `rapid-updates` / docs `streaming-data`; catalogue §3/§7.
-
-**Work:**
-- **ONE helper** `src/lib/glideFlash.ts`: stable key `rowKey:colKey` → `performance.now()`; `mark`, `active(key, now)`, `prune`; TTL ≈ 550 ms (the grid fades for 500 ms). Unit `src/lib/__tests__/glideFlash.test.ts`.
-- **Local commits:** in `BreakdownTabGlide` (paste/fill/cut/clear, add-row paste), `InlineGlideTable` (`onCellsEdited`/`applyEdits`) and `GlideShell` (paste/delete) mark every cell the batch wrote and call `updateCells` for those cells (the wrappers already hold `gridRef`); one extra repaint after the TTL clears the stamp. Undo/redo stay full-repaint (no flash).
-- **Peer edits:** mark from the change, not a guess. Rooms: map the incoming action's target (scene/row id) to visible row keys and flash its editable cells. S3.5 save ping (whole baseline): diff only the currently rendered row keys before/after the reload via a shared pure `diffGlideRows`, never the whole project. Unmapped/unknown actions → no flash (fail quiet).
-- **Cell builders:** attach `lastUpdated` only while `active()`; keep the cell's own `themeOverride` intact and set a soft `bgSearchResult` (built-in search is unused, so a grid-level override is safe) so it reads "changed", not "found". Check the colour against the 328 scene row bands.
-- Applies to the three wrappers; the kit `GlideSheet` is out of scope.
-
-**Verify:** unit for the stamp map + row diff; `npm run lint`; `npm run test:unit`; `npm run test:smart`; manual (rule 7): paste a 3x3 block → exactly those cells flash once; fill → the filled range flashes; a peer edits a cell in a room → the same cell flashes in the other window; no flash on load/scroll/undo; touch/iPad pass.
-
-**Relations:** `relates to` 229 (room/action seam + S3.5), 234 (peer selection — highlight and commit flash are complementary), 172 (jump-and-flash precedent), 328 (row colour bands — the flash must read on top), 330 (Element Manager inherits the helper later), 349 (view state unaffected).
 
 ## 365. Radix bump experiment — take 1.2's nested-layer fix, then try deleting our two guards (`[ ]`, parked — unpark on the trigger)
 

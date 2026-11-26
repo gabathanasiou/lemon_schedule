@@ -13,6 +13,7 @@ import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
 import ReportGridBlock from './ReportGridBlock';
 import ReportBudgetTable from './ReportBudgetTable';
+import { ImageBlockView } from './ImageBlockView';
 import ReportBlockTitle from './ReportBlockTitle';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
@@ -310,18 +311,15 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (!block.imageDataUrl) {
           return hint ? emptyHint('Attach an image…', baseStyle) : null;
         }
-        const height = block.imageHeight;
-        const fit = block.imageFit ?? 'contain';
+        // Width is a percent of the content width (roadmap 214), so the editor
+        // and print agree; the resize handle lives in the shared image view.
         return (
           <>
-            <img
-              src={block.imageDataUrl}
-              alt=""
-              style={{
-                display: 'block',
-                width: '100%',
-                ...(height ? { height, objectFit: fit } : { height: 'auto' }),
-              }}
+            <ImageBlockView
+              block={block}
+              hint={hint}
+              selected={selected}
+              onPatchBlock={onPatchBlock}
             />
             {renderTitle(block)}
           </>

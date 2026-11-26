@@ -13,6 +13,7 @@ import { hasCalculatedContent, CALCULATED_CONTENT_TIP } from '../../lib/reportTi
 import { getLabel } from '../../lib/categories';
 import { ReportBlockView } from './ReportBlockView';
 import ReportBlockTitle from './ReportBlockTitle';
+import { REPORT_PAGE_METRICS } from './reportStyle';
 import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
 import { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
@@ -310,6 +311,22 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
   const performRef = useRef<(id: string, pos: 'before' | 'after', payload: PaletteDropPayload) => void>(() => {});
   const containerRef = useRef<HTMLDivElement>(null);
+  // Roadmap 214: the designer page renders at the TRUE print content width
+  // (REPORT_PAGE_METRICS — the same source as preview/print/paginator). The
+  // View modes are a display-only fit: A4 modes fit the page to the canvas
+  // (never upscaled), Full Width fills it. CSS zoom changes what you see,
+  // never the layout units, so text wraps exactly as it prints.
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (bare) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setCanvasWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [bare]);
 
   // Floating editors live in FloatingChrome (portal to the current window's
   // body, positioned by Floating UI with flip/shift/size middleware) so they
@@ -965,6 +982,16 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     );
   }
 
+  // True print page: the canonical content width plus the 28px designer gutter
+  // each side. Portrait/landscape fit inside their View width and never
+  // upscale; Full Width fills the available canvas (display zoom only).
+  const pageMetrics = REPORT_PAGE_METRICS[pageSize ?? 'portrait'];
+  const pageOuterWidth = pageMetrics.contentWidth + 56;
+  const availableWidth = Math.max(0, canvasWidth - 64); // the scroller's p-8
+  const pageZoom = availableWidth > 0
+    ? (viewWidth != null ? Math.min(1, availableWidth / pageOuterWidth) : availableWidth / pageOuterWidth)
+    : 1;
+
   return (
     <div
       ref={containerRef}
@@ -981,7 +1008,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       }}
     >
       <ReportTextStyleRules project={ctx.project} />
-      <div data-testid={TEST_IDS.reportPage} className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
+      <div data-testid={TEST_IDS.reportPage} className="mx-auto" style={{ width: pageOuterWidth, ...(pageZoom !== 1 ? { zoom: pageZoom } : {}), minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
         <ReportZone
           label="Header"
           hint="Appears at the top of every page"
