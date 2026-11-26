@@ -31,6 +31,7 @@ import { useGlideColumnWidths } from './glideColumns';
 import { useDedupeCellCommit } from './glideEditGuard';
 import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from './glidePaste';
 import { useGlideFill } from './glideFill';
+import { useGlideFlash } from './useGlideFlash';
 import { useGlidePeerSelection } from './useGlidePeerSelection';
 import { usePresenceScrollSurface } from './supabase/usePresenceScrollSurface';
 import { GlidePeerSelectionTags } from '../components/GlidePeerSelectionTags';
@@ -260,6 +261,26 @@ export const GlideGridShell: React.FC<{
   const [cellEditing, setCellEditing] = useState(false);
   const headerH = Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT);
   const gridRef = useRef<DataEditorRef>(null);
+  /** Roadmap 364 — changed-cell flash: local batch edits mark the cells they
+   *  wrote; peer edits diff the visible rows. */
+  const flashColKeys = useMemo(
+    () => COLUMNS.filter(c => c.key !== 'actions').map(c => c.key),
+    [COLUMNS],
+  );
+  const { mark: markFlash, stamp: flashStamp } = useGlideFlash({
+    version: rows,
+    snapshot: () => rowsRef.current.map(row => ({
+      key: row.key,
+      values: Object.fromEntries(flashColKeys.map(key => [key, String(row[key] ?? '')])),
+    })),
+    colKeys: flashColKeys,
+    repaint: cells => gridRef.current?.updateCells(cells),
+    toItem: (rowKey, colKey) => {
+      const row = rowsRef.current.findIndex(r => r.key === rowKey);
+      const col = COLUMNS.findIndex(c => c.key === colKey);
+      return row >= 0 && col >= 0 ? [col, row] as Item : null;
+    },
+  });
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
 
@@ -457,12 +478,14 @@ export const GlideGridShell: React.FC<{
     const r = rowsRef.current[row];
     if (!r) return textCell('', { readonly: true, allowOverlay: false });
     const raw = String(r[colDef.key] ?? '');
-    return textCell(raw, {
+    const cell = textCell(raw, {
       displayData: colDef.kind === 'category' ? r.categoryLabel : raw,
       readonly: kbLocked,
       align: colDef.align,
     });
-  }, [kbLocked, config, dispatch]);
+    const stamp = flashStamp(r.key, colDef.key);
+    return stamp === undefined ? cell : { ...cell, lastUpdated: stamp };
+  }, [kbLocked, config, dispatch, flashStamp]);
 
   const commitEdit = useCallback((rowIdx: number, colKey: string, newVal: string) => {
     const r = rowsRef.current[rowIdx];
@@ -500,6 +523,10 @@ export const GlideGridShell: React.FC<{
           dispatch({ type: 'BATCH_START' });
           for (const r of fillRows) commitEdit(r, colDef.key, newValue.data);
           dispatch({ type: 'BATCH_COMMIT' });
+          markFlash(
+            fillRows.map(r => ({ rowKey: rowsRef.current[r].key, colKey: colDef.key })),
+            fillRows.map(r => ({ cell: [COLUMNS.findIndex(c => c.key === colDef.key), r] as Item })),
+          );
         };
         // A comma-list column replaces every selected row's list — confirm
         // before nuking them. Cancel keeps the edit on just the edited row.
@@ -516,7 +543,7 @@ export const GlideGridShell: React.FC<{
       }
     }
     commitEdit(row, colDef.key, newValue.data);
-  }, [COLUMNS, commitEdit, dedupeCellCommit, dispatch, dialog]);
+  }, [COLUMNS, commitEdit, dedupeCellCommit, dispatch, dialog, markFlash]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
     if (readOnlyRef.current) return;
@@ -524,11 +551,14 @@ export const GlideGridShell: React.FC<{
     const plan = config.planPaste(target, values, rowsRef.current, COLUMNS, selection, projectRef.current);
     if (plan.editRows.length === 0 && plan.newRows.length === 0) return;
     config.commitPaste(dispatch, plan, rowsRef.current, projectRef.current);
-    gridRef.current?.updateCells(plan.editRows.map(e => {
-      const colIndex = COLUMNS.findIndex(c => c.key === e.colKey);
-      return { cell: [Math.max(0, colIndex), e.row] as Item };
-    }));
-  }, [COLUMNS, config, dispatch]);
+    markFlash(
+      plan.editRows.map(e => ({ rowKey: rowsRef.current[e.row].key, colKey: e.colKey })),
+      plan.editRows.map(e => {
+        const colIndex = COLUMNS.findIndex(c => c.key === e.colKey);
+        return { cell: [Math.max(0, colIndex), e.row] as Item };
+      }),
+    );
+  }, [COLUMNS, config, dispatch, markFlash]);
 
   const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null =>
     effectiveGridRange(gridSelection, rows.length, COLUMNS.length),
@@ -555,13 +585,16 @@ export const GlideGridShell: React.FC<{
         commitEdit(c.row, c.colKey, '');
       }
       dispatch({ type: 'BATCH_COMMIT' });
-      gridRef.current?.updateCells(committers.map(c => {
-        const colIndex = COLUMNS.findIndex(col => col.key === c.colKey);
-        return { cell: [Math.max(0, colIndex), c.row] as Item };
-      }));
+      markFlash(
+        committers.map(c => ({ rowKey: rows[c.row].key, colKey: c.colKey })),
+        committers.map(c => {
+          const colIndex = COLUMNS.findIndex(col => col.key === c.colKey);
+          return { cell: [Math.max(0, colIndex), c.row] as Item };
+        }),
+      );
     }
     setContextMenu(null);
-  }, [rows, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
+  }, [rows, COLUMNS, commitEdit, dispatch, getEffectiveRange, markFlash]);
 
   const getPasteTarget = useCallback((): Item | null => {
     const sel = gridSelectionRef.current;
@@ -597,6 +630,7 @@ export const GlideGridShell: React.FC<{
     dispatch({ type: 'BATCH_START' });
     const { x, y, width, height } = range;
     const damageList: { cell: Item }[] = [];
+    const flashCells: { rowKey: string; colKey: string }[] = [];
     for (let r = y; r < y + height; r++) {
       if (r >= rows.length) continue;
       for (let c = x; c < x + width; c++) {
@@ -604,12 +638,13 @@ export const GlideGridShell: React.FC<{
         if (!colDef || colDef.key === 'actions' || colDef.kind === 'category' || colDef.clearable === false) continue;
         commitEdit(r, colDef.key, '');
         damageList.push({ cell: [c, r] });
+        flashCells.push({ rowKey: rows[r].key, colKey: colDef.key });
       }
     }
     dispatch({ type: 'BATCH_COMMIT' });
-    setTimeout(() => gridRef.current?.updateCells(damageList), 0);
+    setTimeout(() => markFlash(flashCells, damageList), 0);
     setContextMenu(null);
-  }, [rows, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
+  }, [rows, COLUMNS, commitEdit, dispatch, getEffectiveRange, markFlash]);
 
   const deleteSelectedRows = useCallback(() => {
     const rowsToDelete: number[] = [];

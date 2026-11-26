@@ -67,6 +67,7 @@ import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions 
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
 import { useDedupeCellCommit } from '../lib/glideEditGuard';
+import { useGlideFlash } from '../lib/useGlideFlash';
 import { createBlankScene, getNextSceneNumber } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
@@ -458,6 +459,23 @@ export function GlideBreakdownTab({
   scenesRef.current = scenes;
   const allScenesRef = useRef(allScenes);
   allScenesRef.current = allScenes;
+  /** Roadmap 364 — changed-cell flash. Local commits mark the exact cells they
+   *  wrote; peer edits (room actions / S3.5 reloads) diff the visible rows. */
+  const flashColKeys = useMemo(() => COLUMNS.filter(c => c.key !== 'actions').map(c => c.key), [COLUMNS]);
+  const { mark: markFlash, stamp: flashStamp } = useGlideFlash({
+    version: scenes,
+    snapshot: () => scenesRef.current.map(s => ({
+      key: s.id,
+      values: Object.fromEntries(flashColKeys.map(key => [key, String((s as any)[key] ?? '')])),
+    })),
+    colKeys: flashColKeys,
+    repaint: cells => gridRef.current?.updateCells(cells),
+    toItem: (rowKey, colKey) => {
+      const row = scenesRef.current.findIndex(s => s.id === rowKey);
+      const col = COLUMNS.findIndex(c => c.key === colKey);
+      return row >= 0 && col >= 0 ? [col, row] as Item : null;
+    },
+  });
   /** A grid row → the scene's index in the project (SceneSheet / pop-outs take
    *  the project index, never the filtered one). */
   const actualSceneIndex = useCallback((sceneId: string) =>
@@ -635,6 +653,12 @@ export function GlideBreakdownTab({
       });
     }
     const val = getSceneValue(scene, colKey);
+    // Roadmap 364: a freshly changed cell carries Glide's `lastUpdated` stamp
+    // while the fade runs; the cell's own theme/flags stay untouched.
+    const withFlash = (cell: GridCell): GridCell => {
+      const stamp = flashStamp(scene.id, colKey);
+      return stamp === undefined ? cell : { ...cell, lastUpdated: stamp };
+    };
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
       const displayValue = val
@@ -645,10 +669,10 @@ export function GlideBreakdownTab({
             return member ? `${member.id}. ${member.name || trimmed}` : trimmed;
           }).filter(Boolean).join(', ')
         : '';
-      return textCell(val, selectLock || locked ? { displayData: displayValue, readonly: true, allowOverlay: false } : { displayData: displayValue });
+      return withFlash(textCell(val, selectLock || locked ? { displayData: displayValue, readonly: true, allowOverlay: false } : { displayData: displayValue }));
     }
-    return textCell(val, selectLock || locked || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
-  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode, locked]);
+    return withFlash(textCell(val, selectLock || locked || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined));
+  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode, locked, flashStamp]);
 
   const dedupeCellCommit = useDedupeCellCommit();
   const dialog = useDialog();
@@ -690,6 +714,10 @@ export function GlideBreakdownTab({
               commitEdit(scenesRef.current[r].id, colDef.key, newValue.data, cascadeRemovals ? { cascadeRemovals: true } : undefined);
             }
             dispatch({ type: 'BATCH_COMMIT' });
+            markFlash(
+              fillRows.map(r => ({ rowKey: scenesRef.current[r].id, colKey: colDef.key })),
+              fillRows.map(r => ({ cell: [col, r] as Item })),
+            );
           };
           // A multi-value column (a comma list per scene) replaces every
           // selected scene's list — confirm before nuking them. Cancel keeps the
@@ -727,7 +755,7 @@ export function GlideBreakdownTab({
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard, ensureElements]);
+  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard, ensureElements, markFlash]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -777,6 +805,7 @@ export function GlideBreakdownTab({
     dispatch({ type: 'BATCH_START' });
     const { range } = sel.current;
     const damageList: { cell: Item }[] = [];
+    const flashCells: { rowKey: string; colKey: string }[] = [];
     for (let r = range.y; r < range.y + range.height; r++) {
       if (r >= scenesRef.current.length) continue;
       for (let c = range.x; c < range.x + range.width; c++) {
@@ -785,12 +814,13 @@ export function GlideBreakdownTab({
         if (colDef.key === 'actions') continue;
         commitEdit(scenesRef.current[r].id, colDef.key, '');
         damageList.push({ cell: [c, r] });
+        flashCells.push({ rowKey: scenesRef.current[r].id, colKey: colDef.key });
       }
     }
     dispatch({ type: 'BATCH_COMMIT' });
-    setTimeout(() => gridRef.current?.updateCells(damageList), 0);
+    setTimeout(() => markFlash(flashCells, damageList), 0);
     return false;
-  }, [COLUMNS, commitEdit, dispatch]);
+  }, [COLUMNS, commitEdit, dispatch, markFlash]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]): boolean => {
     // Select mode claims the paste but does nothing — selection only.
@@ -816,14 +846,31 @@ export function GlideBreakdownTab({
     }
     dispatch({ type: 'BATCH_COMMIT' });
     const damageList: { cell: Item }[] = [];
+    const flashCells: { rowKey: string; colKey: string }[] = [];
     for (const edit of editRows) {
       for (let c = 0; c < COLUMNS.length; c++) {
-        if (COLUMNS[c].key === edit.colKey) { damageList.push({ cell: [c, edit.row] }); break; }
+        if (COLUMNS[c].key === edit.colKey) {
+          damageList.push({ cell: [c, edit.row] });
+          flashCells.push({ rowKey: currentScenes[edit.row].id, colKey: edit.colKey });
+          break;
+        }
       }
     }
-    gridRef.current?.updateCells(damageList);
+    // New rows are appended: flash every pasted cell on them too (skip while a
+    // row filter is active — the new row may not be on screen and the visible
+    // index would point at a different scene).
+    if (scenesRef.current.length === allScenesRef.current.length) {
+      for (let i = 0; i < newScenes.length; i++) {
+        for (let c = 0; c < COLUMNS.length; c++) {
+          if (COLUMNS[c].key === 'actions') continue;
+          damageList.push({ cell: [c, currentScenes.length + i] });
+          flashCells.push({ rowKey: newScenes[i].id, colKey: COLUMNS[c].key });
+        }
+      }
+    }
+    markFlash(flashCells, damageList);
     return false;
-  }, [COLUMNS, dispatch, commitEdit, ensureElements]);
+  }, [COLUMNS, dispatch, commitEdit, ensureElements, markFlash]);
 
   const addScene = useCallback(() => {
     const all = allScenesRef.current;
@@ -887,13 +934,14 @@ export function GlideBreakdownTab({
       dispatch({ type: 'BATCH_START' });
       for (const c of committers) commitEdit(scenes[c.row].id, c.colKey, '');
       dispatch({ type: 'BATCH_COMMIT' });
-      gridRef.current?.updateCells(committers.map(c => {
+      const items = committers.map(c => {
         const colIndex = COLUMNS.findIndex(col => col.key === c.colKey);
         return { cell: [Math.max(0, colIndex), c.row] as Item };
-      }));
+      });
+      markFlash(committers.map(c => ({ rowKey: scenes[c.row].id, colKey: c.colKey })), items);
     }
     setContextMenu(null);
-  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
+  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange, markFlash]);
 
   const getPasteTarget = useCallback((): Item | null => {
     const sel = gridSelectionRef.current;
@@ -944,6 +992,7 @@ export function GlideBreakdownTab({
     dispatch({ type: 'BATCH_START' });
     const { x, y, width, height } = range;
     const damageList: { cell: Item }[] = [];
+    const flashCells: { rowKey: string; colKey: string }[] = [];
     for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) continue;
       for (let c = x; c < x + width; c++) {
@@ -951,12 +1000,13 @@ export function GlideBreakdownTab({
         if (!key || key === 'actions') continue;
         commitEdit(scenes[r].id, key, '');
         damageList.push({ cell: [c, r] });
+        flashCells.push({ rowKey: scenes[r].id, colKey: key });
       }
     }
     dispatch({ type: 'BATCH_COMMIT' });
-    setTimeout(() => gridRef.current?.updateCells(damageList), 0);
+    setTimeout(() => markFlash(flashCells, damageList), 0);
     setContextMenu(null);
-  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
+  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange, markFlash]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isImeConfirm(e) && !selectModeRef.current) {

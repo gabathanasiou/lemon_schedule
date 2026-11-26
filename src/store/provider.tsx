@@ -39,6 +39,7 @@ import {
 } from './storage';
 import { Action, State, reducer, makeBlankProject } from './reducer';
 import { installAgentBridge, notifyAgentBridge } from '../lib/debugBridge';
+import { notifyGlidePeerChange } from '../lib/glideFlash';
 
 // Friendly message + the raw error text (diagnostic gold for sync failures —
 // e.g. Safari's "Load failed" vs a Drive 429 vs an expired token).
@@ -305,7 +306,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       // counting it as a local change (it is never pushed back; the room owns
       // the log). Everything else folds through the plain dispatch path.
       if (remote.action.type === 'LOAD') loadBaseline(remote.action.payload);
-      else dispatch(remote.action);
+      else {
+        dispatch(remote.action);
+        // Glide grids flash the cells a peer actually changed (roadmap 364).
+        // A peer undo arrives as LOAD (rebaseline) — structural, no flash.
+        notifyGlidePeerChange();
+      }
       notifyAgentBridge(remote.action);
     },
     onError: (message) => {
@@ -380,6 +386,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (changeCounterRef.current === persistedAtCounterRef.current && !hasInFlightEdits()) {
         onlineRevisionRef.current = fresh.revision;
         setOnlineChangesAvailable(false);
+        // Grids diff their visible rows after the reload and flash the changes.
+        notifyGlidePeerChange();
         loadBaseline(fresh.project);
       } else {
         setOnlineChangesAvailable(true);
@@ -400,6 +408,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const fresh = await readOnlineProject(meta.onlineId);
       onlineRevisionRef.current = fresh.revision;
       setOnlineChangesAvailable(false);
+      notifyGlidePeerChange();
       loadBaseline(fresh.project);
     } catch (e: any) {
       console.warn('[presence] reload failed:', e);

@@ -306,3 +306,24 @@ copies:
   renderer (`PeerItemOutlines`, `src/lib/itemSelection.ts`); this hook owns the grid rectangle half
   only — see docs/PRESENCE.md §Peer selection highlights (DOM surfaces).
 
+
+## Change flash — what just changed (roadmap 364)
+
+Every grid with editable cells flashes the cells a commit wrote and the cells a PEER actually
+changed, using Glide's native `lastUpdated` fade (the theme's `bgSearchResult` underlay, 500 ms).
+
+- **ONE pure module** `src/lib/glideFlash.ts`: a stamp map keyed by stable `rowKey:colKey`
+  (`markGlideFlash` / `glideFlashStamp` / `pruneGlideFlash`, TTL 550 ms) plus `diffGlideRows`
+  (visible rows only). Unit `src/lib/__tests__/glideFlash.test.ts`.
+- **ONE React seam** `src/lib/useGlideFlash.ts`: local paths call `mark(cells, damage?)` with the
+  exact cells they wrote; peer edits arrive through `notifyGlidePeerChange()` (the store emits it
+  for remote room actions and S3.5 baseline reloads) and the hook diffs the rendered rows on the
+  next data change. Undo/redo, initial loads and room welcomes never flash.
+- **Wrappers:** `BreakdownTabGlide` (paste/fill/cut/clear/delete-range + add-row paste),
+  `InlineGlideTable` (`applyEdits` — paste/fill/cut/clear, including multi-cell paste) and
+  `GlideShell` (paste/fill/cut/clear). Single-cell typing stays unmarked — your own keystroke needs
+  no echo.
+- **Cells keep their own `themeOverride`/band**; `lastUpdated` is added only while the stamp is
+  live, and a second repaint ~60 ms after the TTL clears it (Glide's fade is paint-time only).
+- The kit `GlideSheet` is out of scope; roadmap 330 inherits this helper when the Element Manager
+  moves onto the kit runtime.

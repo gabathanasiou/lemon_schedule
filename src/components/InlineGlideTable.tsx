@@ -33,6 +33,7 @@ import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { useGlideFlash } from '../lib/useGlideFlash';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
 import { GlidePeerSelectionTags } from './GlidePeerSelectionTags';
@@ -238,6 +239,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  /** Stable row identity — ONE key for presence, flash diffs and peer marks. */
+  const rowKeyFor = useCallback((row: Record<string, string>, index: number) =>
+    presenceRowKey?.(row, index) ?? row.key ?? String(index), [presenceRowKey]);
   const readOnlyRef = useRef(!!readOnly);
   readOnlyRef.current = !!readOnly;
   const onAddRowRef = useRef(onAddRow);
@@ -428,6 +432,26 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const escapeCancel = useGlideEscapeCancel();
 
   const gridRef = useRef<DataEditorRef>(null);
+  /** Roadmap 364 — changed-cell flash: local batch edits mark the cells they
+   *  wrote; peer edits diff the visible rows. */
+  const flashColKeys = useMemo(
+    () => COLUMNS.filter(c => c.key !== 'info' && c.key !== 'actions').map(c => c.key),
+    [COLUMNS],
+  );
+  const { mark: markFlash, stamp: flashStamp } = useGlideFlash({
+    version: rows,
+    snapshot: () => rowsRef.current.map((row, index) => ({
+      key: rowKeyFor(row, index),
+      values: Object.fromEntries(flashColKeys.map(key => [key, String(row[key] ?? '')])),
+    })),
+    colKeys: flashColKeys,
+    repaint: cells => gridRef.current?.updateCells(cells),
+    toItem: (rowKey, colKey) => {
+      const row = rowsRef.current.findIndex((r, i) => rowKeyFor(r, i) === rowKey);
+      const col = COLUMNS.findIndex(c => c.key === colKey);
+      return row >= 0 && col >= 0 ? [col, row] as Item : null;
+    },
+  });
   const selectionKey = presenceScope || dataAttr || '';
   const [gridSelection, setGridSelection] = useState<GridSelection>(() =>
     (selectionKey ? SELECTION_CACHE.get(selectionKey) : undefined) ?? EMPTY_SELECTION);
@@ -460,8 +484,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   // scroll event to hook reliably (Glide owns the canvas scroller), so the
   // DataEditor's `onVisibleRegionChanged` below is the notify seam.
   const visibleRegionRef = useRef<{ x: number; y: number } | null>(null);
-  const presenceKeyFor = (row: Record<string, string>, index: number) =>
-    presenceRowKey?.(row, index) ?? row.key ?? String(index);
   const presenceScroll = usePresenceScrollSurface({
     surface: presenceScope ?? 'glide',
     enabled: !!presenceScope,
@@ -474,12 +496,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       const rowIndex = Math.max(0, Math.min(list.length - 1, vr?.y ?? Math.floor(scrollTop / rowHeight)));
       const colIndex = Math.max(0, Math.min(columnsRef.current.length - 1, vr?.x ?? 0));
       const row = list[rowIndex];
-      return { key: `${presenceKeyFor(row, rowIndex)}|${columnsRef.current[colIndex]?.key ?? ''}`, off: 0 };
+      return { key: `${rowKeyFor(row, rowIndex)}|${columnsRef.current[colIndex]?.key ?? ''}`, off: 0 };
     },
     apply: (sample) => {
       const [rowKey, colKey] = sample.key.split('|');
       const list = rowsRef.current;
-      const rowIndex = list.findIndex((row, index) => presenceKeyFor(row, index) === rowKey);
+      const rowIndex = list.findIndex((row, index) => rowKeyFor(row, index) === rowKey);
       if (rowIndex < 0 || !gridRef.current) return;
       const colIndex = Math.max(0, columnsRef.current.findIndex(c => c.key === colKey));
       gridRef.current.scrollTo(colIndex, rowIndex, 'both', 0, 0, { vAlign: 'start', hAlign: 'start' });
@@ -770,6 +792,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         : kitGlyphCell({ lane: 'full', ...buttons[0] }));
     }
     const cell = withBand(getCellContent(colDef, r, row));
+    // Roadmap 364: a changed cell carries Glide's fade stamp; theme/bands and
+    // the cell's own flags stay untouched.
+    const flash = (c: GridCell): GridCell => {
+      const stamp = flashStamp(rowKeyFor(r, row), colDef.key);
+      return stamp === undefined ? c : { ...c, lastUpdated: stamp };
+    };
     const hovered = row === hoveredRowRef.current;
     const isReadonly = readOnlyRef.current || !!(cell as any).readonly;
     if (!isReadonly) {
@@ -791,17 +819,17 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       // A caller-tinted editable cell (the status cells, roadmap 345) is the
       // explicit exception and keeps its tint at rest AND on hover.
       const editable = picker ?? cell;
-      if ((editable as any).themeOverride?.bgCell) return editable;
-      if (!hovered) return editable;
-      return { ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: EDITABLE_HOVER_BG, bgCellMedium: EDITABLE_HOVER_BG } };
+      if ((editable as any).themeOverride?.bgCell) return flash(editable);
+      if (!hovered) return flash(editable);
+      return flash({ ...editable, themeOverride: { ...((editable as any).themeOverride || {}), bgCell: EDITABLE_HOVER_BG, bgCellMedium: EDITABLE_HOVER_BG } });
     }
     // Read-only = disabled: neutral grey at rest, a touch deeper on hover,
     // unless the caller supplied its own band colour (which never gets a hole
     // punched by the hover tint).
     const own = (cell as any).themeOverride?.bgCell as string | undefined;
     const bg = own ?? (hovered ? READONLY_HOVER_BG : READONLY_BG);
-    return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
-  }, [COLUMNS, getCellContent, getEditor, editors, rowActions, rowInfo, EDITABLE_HOVER_BG, READONLY_BG, READONLY_HOVER_BG]);
+    return flash({ ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } });
+  }, [COLUMNS, getCellContent, getEditor, editors, rowActions, rowInfo, EDITABLE_HOVER_BG, READONLY_BG, READONLY_HOVER_BG, flashStamp, rowKeyFor]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
    *  each title lines up with its (centered) cells. `wrapHeaders` wraps the
@@ -899,8 +927,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }, [getCell, escapeCancel]);
 
   /** Applies a set of edits as ONE commit — a whole paste/fill/clear is one
-   *  undo entry for the caller. */
-  const applyEdits = useCallback((edits: PasteEdit[]) => {
+   *  undo entry for the caller. `flash` marks the exact cells the batch wrote
+   *  (single-cell typing stays unmarked — your own keystroke needs no echo). */
+  const applyEdits = useCallback((edits: PasteEdit[], flash = false) => {
     if (readOnlyRef.current) return;
     const out: InlineGlideEdit[] = [];
     for (const edit of edits) {
@@ -909,7 +938,18 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       out.push({ row: edit.row, colKey: edit.colKey, value: edit.val });
     }
     if (out.length > 0) onCommit(out);
-  }, [editableKeys, onCommit]);
+    if (flash && out.length > 0) {
+      const items: { cell: Item }[] = [];
+      const cells: { rowKey: string; colKey: string }[] = [];
+      for (const edit of out) {
+        const col = COLUMNS.findIndex(c => c.key === edit.colKey);
+        if (col < 0) continue;
+        items.push({ cell: [col, edit.row] });
+        cells.push({ rowKey: rowKeyFor(rowsRef.current[edit.row], edit.row), colKey: edit.colKey });
+      }
+      markFlash(cells, items);
+    }
+  }, [COLUMNS, editableKeys, onCommit, markFlash, rowKeyFor]);
 
   const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null =>
     effectiveGridRange(gridSelectionRef.current, rows.length, COLUMNS.length),
@@ -926,7 +966,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       if (range && range.width * range.height > 1) {
         const spread = expandRangeFill(range, COLUMNS, edits[0].value.data);
         if (spread.length > 1) {
-          applyEdits(spread);
+          applyEdits(spread, true);
           return true;
         }
       }
@@ -939,7 +979,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         : e.value.kind === GridCellKind.Boolean
           ? String(e.value.data)
           : '',
-    })));
+    })), edits.length > 1);
     return true;
   }, [COLUMNS, applyEdits, getEffectiveRange]);
 
@@ -953,7 +993,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       gridSelectionRef.current?.current?.range,
       () => null,
     );
-    applyEdits(plan.editRows);
+    applyEdits(plan.editRows, true);
     // Returning false stops Glide from also applying the paste itself.
     return false;
   }, [COLUMNS, applyEdits]);
@@ -973,7 +1013,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const { text, committers } = buildCutPlan(rows, COLUMNS, range);
     if (text.length > 0) {
       await clipboardWrite(text);
-      applyEdits(committers.map(c => ({ ...c, val: '' })));
+      applyEdits(committers.map(c => ({ ...c, val: '' })), true);
     }
     setContextMenu(null);
   }, [rows, COLUMNS, applyEdits, getEffectiveRange]);
@@ -989,7 +1029,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
         if (key && editableKeys.has(key)) edits.push({ row: r, colKey: key, val: '' });
       }
     }
-    applyEdits(edits);
+    applyEdits(edits, true);
     setContextMenu(null);
   }, [COLUMNS, editableKeys, applyEdits, getEffectiveRange]);
 
