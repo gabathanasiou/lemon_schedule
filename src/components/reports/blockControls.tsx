@@ -1305,6 +1305,17 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               />
               <span>px</span>
             </label>
+            {block.imageHeight != null && (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onPatch({ imageHeight: undefined })}
+                title="Reset height to Auto (natural aspect ratio)"
+                className="h-5 shrink-0 rounded px-1 text-[9px] font-medium text-[color:var(--ui-text-faint)] transition-colors hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text-strong)] disabled:opacity-40"
+              >
+                Auto
+              </button>
+            )}
           </div>
         </ContentRow>,
         <ContentRow key="fit" label="Fit">

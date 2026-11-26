@@ -165,6 +165,10 @@ test('image block resize stores imageWidth (aspect-locked) and persists', async 
   await expect(page.locator('[data-image-resize-handle="left"]')).toBeVisible();
 
   await waitForPersistedProject(page, `p.reportDesigns.some(d => (d.blocks || []).some(b => b.id === '${ids.blockId}' && typeof b.imageWidth === 'number' && b.imageWidth > 50 && b.imageAlign === 'right' && b.imageAnchorY === 'bottom' && b.imageHeight === 160))`);
+
+  // Roadmap 369 — the Auto reset clears a frozen height.
+  await chrome.getByRole('button', { name: 'Auto', exact: true }).click();
+  await waitForPersistedProject(page, `p.reportDesigns.some(d => (d.blocks || []).some(b => b.id === '${ids.blockId}' && b.imageHeight === undefined))`);
 });
 
 test('report table column drag to the floor never yields negative widths', async ({ page }) => {

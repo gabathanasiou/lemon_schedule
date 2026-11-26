@@ -142,8 +142,8 @@ signals `onReady` and only then `window.print()` fires.
   (`ReportDesignerCanvas` sizes it to `imageWidth`/`imageAlign`, padding 0; `ImageBlockView` fills it
   100% and the caption follows the box). Width/Height share one line and use the kit `LiveNumberInput`
   (drag-to-scrub); Width clamps to 100% (never past the content column), choosing Cover/Fill with
-  Height Auto freezes the current rendered height into a box once so the mode has something to fill,
-  and the resize handle is inset inside the box. The docked rail defaults to 300 (480 cap, one-time
+  Height Auto freezes the current rendered height into a box once so the mode has something to fill
+  (the Height row's **Auto** button clears it), and the resize handle is inset inside the box. The docked rail defaults to 300 (480 cap, one-time
   360→300 migration). The designer's grey page renders at `REPORT_PAGE_METRICS[page].contentWidth`
   (+28px gutters) — the SAME metrics as preview, print and the paginator — with a display-only CSS
   `zoom` fit; View modes never change layout units. Pure math: `lib/reportImageResize.ts` (drag) +
