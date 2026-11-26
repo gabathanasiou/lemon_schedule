@@ -1335,3 +1335,28 @@ one-off row styles remain in the migrated files.
 **Relations:** `supersedes` the INTERIM inspector layout of 371/372 (features stay); `relates to`
 205/324/344 (chrome/editor/control faces), 56 (promote primitives to the kit once stable), 302 (kit
 theming in flight); `blocks` the batch migrations.
+
+## 374. Modal & dialog studio — DEV-only preview, MCP-connected (`[ ]`)
+
+**Asked 2026-11-26 (user):** after the Element View pilot (373 batch d), potentially apply the
+inspector design language to more modals. Decide it in a DEV-only **Modals Studio**: arrows to
+preview EVERY modal in the app (and every dialog), connected to MCP so the agent knows exactly which
+surface the user is clicking; the user can then make design or functionality changes from there. The
+studio itself must feel polished and stay complete as new modals are added — an all-modal preview
+studio, dialogs included.
+
+**Shape:** a hash route (e.g. `#/lab/modals`) dynamically imported in DEV only (the `#/lab/inspector`
+pattern; no studio chunk in production). One registry of every modal/dialog surface + its props
+fixture + live preview host; prev/next arrows, width/theme/text-scale controls, and the existing
+debug bridge/local MCP naming the active surface + selected element (so “this one” is unambiguous).
+Library modals render against the active project; confirm/prompt/danger dialogs get their own
+gallery section with real variant previews (not screenshots). Completeness is enforced: a source scan
+or registry test fails `npm run lint`/unit when a modal/dialog file is unmapped, so a new modal cannot
+ship outside the studio.
+
+**Verify:** the DEV route previews every registered modal and dialog; arrows cover the full list; MCP
+reads the active surface + element; production build contains no studio chunk; the completeness check
+fails on an unmapped fixture; manual pass at 240/300/360/400 + 150% text; `npm run lint` + unit.
+
+**Relations:** `relates to` 373 (inspector grammar being applied), 97 (MCP bridge), 176 (hash
+navigation), 322/333 (picker/theme faces); `depends on` the debug bridge.
