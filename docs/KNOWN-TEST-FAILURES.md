@@ -375,3 +375,15 @@ chip field, but the chip input no longer carries `cursor-pointer`. The spec's
 helper should target the shared chip input (e.g. `[data-picker-field] input`)
 or a stable data hook instead of that class. Not caused by the touch audit;
 left for the iPad-spec owner (the two other iPad touch cases pass).
+
+## N. report-table-resize — multi-row resize dies in `waitForPersistedProject` (2026-11-26, pre-existing)
+
+**Symptom:** `e2e/report-table-resize.spec.ts:75` ("multi-row table — header +
+all rows track live…") fails both attempts at `waitForPersistedProject`
+(`e2e/helpers.ts:295`); the single-row case passes.
+
+**Evidence:** `npm run test:baseline -- e2e/report-table-resize.spec.ts` fails
+identically on clean HEAD (two separate baseline runs), and again alone with
+`--workers=1`. Nothing in roadmap 374 (the DEV Modals Studio) touches report
+tables, resizing or persistence; treat this as pre-existing spec/helper drift,
+not a regression from a feature branch.
