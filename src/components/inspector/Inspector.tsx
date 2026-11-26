@@ -87,12 +87,15 @@ export interface InspectorRowProps {
   /** Span both grid columns (big composites). Default rows keep the control
    *  column even when they have no label, so controls never jump left. */
   full?: boolean;
+  /** Wide-surface override for the label column (e.g. a modal property panel
+   *  where the 42px rail column would truncate "Character"). Never below 42px. */
+  labelWidth?: string;
   className?: string;
 }
 
 /** One concept: fixed 42px label column + wrapping control column. A group
  *  wraps between its sub-groups; a sub-group never splits. */
-export const InspectorRow: React.FC<InspectorRowProps> = ({ label, children, controls, tall, full, className = '' }) => {
+export const InspectorRow: React.FC<InspectorRowProps> = ({ label, children, controls, tall, full, labelWidth, className = '' }) => {
   const surface = useInspectorSurface();
   const body = (
     <>
@@ -111,10 +114,11 @@ export const InspectorRow: React.FC<InspectorRowProps> = ({ label, children, con
   return (
     <div
       className={`grid grid-cols-[calc(42px*var(--inspector-text-scale,1))_minmax(0,1fr)] items-start gap-x-2 min-h-7 min-w-0 ${className}`}
+      style={labelWidth ? { gridTemplateColumns: `calc(${labelWidth} * var(--inspector-text-scale,1)) minmax(0,1fr)` } : undefined}
     >
       {full ? null : label ? (
         <span
-          className={`${INSPECTOR_LABEL_CLS} ${tall ? 'leading-relaxed' : 'leading-7'}`}
+          className={`${INSPECTOR_LABEL_CLS} text-right ${tall ? 'leading-relaxed' : 'leading-7'}`}
           title={label}
         >
           {label}

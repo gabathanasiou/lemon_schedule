@@ -17,6 +17,7 @@ export type CastDetailKey =
   | 'email'
   | 'agent'
   | 'agentPhone'
+  | 'agentEmail'
   | 'address'
   | 'rate'
   | 'per'
@@ -38,6 +39,7 @@ export const CAST_DETAIL_FIELDS: CastDetailField[] = [
   { key: 'email', label: 'Email', width: 170 },
   { key: 'agent', label: 'Agent', width: 160 },
   { key: 'agentPhone', label: 'Agent Ph', width: 120 },
+  { key: 'agentEmail', label: 'Agent Email', width: 170 },
   { key: 'address', label: 'Address', width: 200 },
   { key: 'rate', label: 'Rate', width: 70 },
   { key: 'per', label: 'Per', width: 56 },

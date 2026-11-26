@@ -303,7 +303,7 @@ modal editors, manager property panels. Code: **`src/components/inspector/`**
 
 | Level | What it is | Recipe |
 |---|---|---|
-| **Row** | One concept | Panel: `grid grid-cols-[calc(42px*var(--inspector-text-scale,1))_minmax(0,1fr)]`, `min-w-0`, 28px min-height (24 compact), gap 8. Label `10px` sentence case `--ui-text-muted`, baseline-aligned with the control text (`leading-7`); a tall row uses `leading-relaxed` so the label sits on the FIRST line. Truncate with the full name in `title`. The control column wraps. Bar: inline label + control, no column. |
+| **Row** | One concept | Panel: `grid grid-cols-[calc(42px*var(--inspector-text-scale,1))_minmax(0,1fr)]`, `min-w-0`, 28px min-height (24 compact), gap 8. Label `10px` sentence case `--ui-text-muted`, **right-aligned in its column** so every label sits the same 8px from its control, baseline-aligned with the control text (`leading-7`); a tall row uses `leading-relaxed` so the label sits on the FIRST line. A wide surface (modal property panel) may pass `labelWidth` — never below 42px. Truncate with the full name in `title`. The control column wraps. Bar: inline label + control, no column. |
 | **Group** | Related controls | `flex flex-wrap items-center gap-x-1.5 gap-y-2` — wraps BETWEEN its sub-groups when the row is narrow (the W + R pair drops together below the swatch); never splits inside a sub-group. |
 | **Sub-group** | Atomic pair (toggle + swatch, W + R) | `inline-flex flex-nowrap items-center gap-0.5` — never splits. `wrap` is the opt-in for sentence-length content. |
 
@@ -312,10 +312,18 @@ re-exports it as `BlockEditorPanelContext`):
 
 - **Panel** (docked rail): fixed 42px label column (it grows with `--inspector-text-scale`);
   row height 28 (compact 24); panel padding 16; **section gap 16, row gap 8, group gap 4–6**;
-  spacing only from **2/4/6/8/12/16/24/32**. A long concept belongs in the SECTION label
-  (`InspectorSection`), never squeezed into the 42px column. An unlabelled row keeps the control
-  column (empty 42px spacer) so controls never jump left; `full` is the opt-in for a big composite
-  (image size) or a checklist.
+  spacing only from **2/4/6/8/12/16/24/32**. Labels are **right-aligned in the column** and sit a
+  constant **8px** from their control — a left-aligned label in a wide column reads as a big stray
+  gap next to a tight inline label. A long concept belongs in the SECTION label (`InspectorSection`),
+  never squeezed into the 42px column. An unlabelled row keeps the control column (empty 42px spacer)
+  so controls never jump left; `full` is the opt-in for a big composite (image size) or a checklist.
+- **Wide surfaces** (modal property panels) may pass `labelWidth` (e.g. `4.5rem`) so names like
+  “Character” fit — never below the 42px rail column. The Element View Properties panel is the
+  reference (`373` batch d).
+- **Paired fields** share a row: the row label names the FIRST control; a second related field sits in
+  an `InspectorSubGroup` with a fixed 36px right-aligned mini-label (`Email`, `Ph`, `Per`) so its
+  input lines up down the panel and its text sits the same 8px from the box. All free-text boxes in
+  one panel share ONE width; numbers keep their range widths; a note field is the only `w-full`.
 - **Bar** (floating chrome): inline `9px` section labels + 1px group separators
   (`bg-[var(--ui-border)]`), groups wrap as units, controls keep their kit height. A bar may stack
   its sections; it does not grow a label column.

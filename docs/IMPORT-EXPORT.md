@@ -37,8 +37,8 @@ Status: read this before touching any import/export work.
   `<Property Name="…">` children: `Full Name`→`performer`, `Phone`, `Agent`,
   `Agent Ph`→`agentPhone`, `Address`, `Rate`, `Per`, `Notes`. The DOM-free
   mapper is `castDetailsFromMmsProperties` (`src/lib/castDetails.ts`,
-  unit-tested); blank properties and unknown names are dropped, and MMS has no
-  email — Lemon's `email` stays blank on import.
+  unit-tested); blank properties and unknown names are dropped. MMS has no
+  email, so Lemon's `email` and `agentEmail` stay blank on import.
 - `pageCount` = `formatPageCount(total)` + total `pageCountDecimal`;
   `scriptPageNumbers` (script start page — MSD attr / FDX `<Page>` break
   markers, first-class Scene field for future full-FDX render).

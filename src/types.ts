@@ -466,6 +466,8 @@ export interface CastMember {
   email?: string;
   agent?: string;
   agentPhone?: string;
+  /** Agent email — the agent block mirrors the performer contact block. */
+  agentEmail?: string;
   address?: string;
   rate?: string;
   per?: string;
