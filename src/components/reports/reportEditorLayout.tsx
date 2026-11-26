@@ -42,9 +42,12 @@ export const EditorGroup: React.FC<{ children: React.ReactNode; className?: stri
   <InspectorGroup className={className}>{children}</InspectorGroup>
 );
 
-/** Control row: wrapping groups on the panel, one nowrap line on a bar. */
+/** Control row: wrapping groups on the panel AND on a bar. The floating chrome
+ *  is clamped to the viewport, so its rows must reflow instead of scrolling
+ *  sideways (a bar only ever wraps BETWEEN groups — the groups themselves are
+ *  atomic units). */
 export const editorRowCls = (panel?: boolean) =>
-  panel ? 'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2' : 'flex items-center gap-1.5 flex-nowrap min-w-max';
+  panel ? 'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2' : 'flex min-w-0 flex-wrap items-center gap-1.5';
 
 /** Checkbox sized for the editor surfaces: plain inline, 10px muted label. */
 export const EditorCheckbox: React.FC<React.ComponentProps<typeof InspectorCheckbox>> = ({ className = '', ...props }) => (

@@ -103,7 +103,7 @@ export const TableColumnEditorContent: React.FC<{
   const disabled = readOnly;
   const patchCol = (p: Partial<ReportTableColumn>) => onPatch({ columns: columns.map((c, i) => i === colIndex ? { ...c, ...p } : c) });
   return (
-    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex min-w-0 flex-col gap-1.5'}>
       <ColumnHeader colIndex={colIndex} colsCount={columns.length} readOnly={readOnly} onDelete={onDelete} orientation={axis} headerTrailing={headerTrailing} />
       <InspectorGroupCard label={rows ? 'Row settings' : 'Column settings'}>
         <ContentRow label="Field">
@@ -175,7 +175,7 @@ export const ColumnsColumnEditorContent: React.FC<{
 }> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, onDelete, headerTrailing }) => {
   const panel = useBlockEditorPanel();
   return (
-    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex min-w-0 flex-col gap-1.5'}>
       <ColumnHeader colIndex={colIndex} colsCount={colsCount} readOnly={readOnly} onDelete={onDelete} headerTrailing={headerTrailing} />
       <InspectorGroupCard label="Column settings">
         <ColumnStructureControls

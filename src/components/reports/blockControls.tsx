@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Seg, SectionHeader, ChromeHeader, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
+import { Seg, ChromeHeader, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_INPUT, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportBlockStyle } from '../../types';
 import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
@@ -335,7 +335,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   ) : null;
   return (
     <BlockEditorPanelContext.Provider value={panel ? 'panel' : 'bar'}>
-    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-2 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex min-w-0 flex-col gap-2'}>
       {/* Header bar: block type (or attribute name) + quick controls — always
           full panel width on top; everything else stacks under it */}
       <ChromeHeader
@@ -428,8 +428,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       {/* Content — only block types that actually have content controls. */}
       {block.type !== 'pageBreak' && block.type !== 'callSheetEdit' && (
         <>
-          <div className={`flex flex-col ${panel ? 'gap-4' : 'gap-2'} rounded-[var(--ui-radius-btn)] border border-[var(--ui-border)] bg-[var(--ui-card-bg)] p-2`}>
-            <SectionHeader>Content</SectionHeader>
+          <InspectorGroupCard label="Content">
             <ContentControls {...ctx} />
             {block.type === 'text' && chipKey && chipIsList && (
               <ChipAffixSection
@@ -443,7 +442,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
                 }}
               />
             )}
-          </div>
+          </InspectorGroupCard>
           <BlockTitleSection {...ctx} />
         </>
       )}
@@ -644,7 +643,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
     { key: 'ribbonBreaks', icon: <Coffee className="w-3 h-3" />, title: 'Break rows', on: block.ribbonBreaks === true },
   ];
   return (
-    <div className={panel ? 'flex flex-wrap items-center gap-1 min-w-0' : 'flex items-center gap-1 flex-nowrap min-w-max'}>
+    <div className={panel ? 'flex flex-wrap items-center gap-1 min-w-0' : 'flex min-w-0 flex-wrap items-center gap-1'}>
       <EditorGroup>
         {toggles.slice(0, 1).map(t => (
           <InspectorToggle
@@ -1428,7 +1427,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   return (
-    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-2 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex min-w-0 flex-col gap-2'}>
       {sections.map((s, i) => (
         s.title ? (
           <EditorSection key={s.title} label={s.title}>
@@ -1677,29 +1676,35 @@ export const OutlineSection: React.FC<OutlineSectionProps> = (props) => {
       clearTitle="Remove background"
     />
   );
+  const borderToggle = (
+    <InspectorSubGroup>
+      <InspectorToggle
+        label={block.border ? 'Border on — click to remove' : 'Border off — click to add'}
+        pressed={!!block.border}
+        onChange={on => onPatch({ border: on })}
+        icon={<span className="h-3 w-3 border border-current" />}
+        disabled={disabled}
+      />
+      <InspectorColor
+        label="Border colour"
+        value={styleSurface.borderColor}
+        onChange={v => onPatch({ borderColor: v, border: true })}
+        disabled={disabled}
+      />
+    </InspectorSubGroup>
+  );
+  const borderSize = (
+    <InspectorSubGroup>
+      <span className="text-[10px] text-[color:var(--ui-text-muted)]">W</span>
+      <InspectorNumber label="Border width" unit="px" value={block.borderWidth ?? 1} min={0} max={12} fallback={1} onCommit={v => onPatch({ borderWidth: v })} disabled={disabled} readOnly={readOnly} />
+      <span className="ml-1 text-[10px] text-[color:var(--ui-text-muted)]">R</span>
+      <InspectorNumber label="Corner radius" unit="px" value={block.borderRadius ?? 0} min={0} max={40} fallback={0} onCommit={v => onPatch({ borderRadius: v })} disabled={disabled} readOnly={readOnly} />
+    </InspectorSubGroup>
+  );
   const border = (
     <InspectorGroup>
-      <InspectorSubGroup>
-        <InspectorToggle
-          label={block.border ? 'Border on — click to remove' : 'Border off — click to add'}
-          pressed={!!block.border}
-          onChange={on => onPatch({ border: on })}
-          icon={<span className="h-3 w-3 border border-current" />}
-          disabled={disabled}
-        />
-        <InspectorColor
-          label="Border colour"
-          value={styleSurface.borderColor}
-          onChange={v => onPatch({ borderColor: v, border: true })}
-          disabled={disabled}
-        />
-      </InspectorSubGroup>
-      <InspectorSubGroup>
-        <span className="text-[10px] text-[color:var(--ui-text-muted)]">W</span>
-        <InspectorNumber label="Border width" unit="px" value={block.borderWidth ?? 1} min={0} max={12} fallback={1} onCommit={v => onPatch({ borderWidth: v })} disabled={disabled} readOnly={readOnly} />
-        <span className="ml-1 text-[10px] text-[color:var(--ui-text-muted)]">R</span>
-        <InspectorNumber label="Corner radius" unit="px" value={block.borderRadius ?? 0} min={0} max={40} fallback={0} onCommit={v => onPatch({ borderRadius: v })} disabled={disabled} readOnly={readOnly} />
-      </InspectorSubGroup>
+      {borderToggle}
+      {borderSize}
     </InspectorGroup>
   );
   const resetStyle = () => onPatch({
@@ -1734,15 +1739,24 @@ export const OutlineSection: React.FC<OutlineSectionProps> = (props) => {
     );
   }
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <BlockStyleMenu {...props} />
-      {reset}
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <InspectorGroup>
+        <BlockStyleMenu {...props} />
+        {reset}
+      </InspectorGroup>
       <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
-      <span className="text-[10px] text-[color:var(--ui-text-faint)]">Fill</span>
-      {fill}
+      <InspectorSubGroup>
+        <span className="text-[10px] text-[color:var(--ui-text-faint)]">Fill</span>
+        {fill}
+      </InspectorSubGroup>
       <span className="h-4 w-px shrink-0 bg-[var(--ui-border)]" />
-      <span className="text-[10px] text-[color:var(--ui-text-faint)]">Border</span>
-      {border}
+      <InspectorGroup>
+        <InspectorSubGroup>
+          <span className="text-[10px] text-[color:var(--ui-text-faint)]">Border</span>
+          {borderToggle}
+        </InspectorSubGroup>
+        {borderSize}
+      </InspectorGroup>
     </div>
   );
 };

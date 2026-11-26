@@ -90,7 +90,7 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
   const disabled = !!readOnly || !hasSelection;
 
   return (
-    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
+    <div className={panel ? 'flex flex-col gap-4 min-w-0 w-full' : 'flex min-w-0 flex-col gap-1.5'}>
       <ChromeHeader
         className="w-full"
         leading={
