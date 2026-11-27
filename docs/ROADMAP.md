@@ -1389,3 +1389,72 @@ no console errors; the checklist signed off by the user.
 
 **Relations:** `depends on` 374 (studio); `relates to` 375 (dummy scenarios /
 light-theme cleanup), 302 (component theming), 333 (modal theme).
+
+## 377. Reports — summary tables survive pagination and Columns wrappers (`[ ]`)
+
+**Found 2026-11-27 (Lego bug-hunt swarm):**
+- A summary table (`onceTable` — the `elementsOfCategory` table that renders once per category) disappears when the LAST repeat item splits across a page. `renderOnce` requires `partChildren[last] === null`; a split last item is never “whole” on any chunk, including the final fragment chunk where its height was reserved — the table is dropped on every page and leaves a gap.
+- A summary table wrapped in a `columns` block is not detected (only DIRECT children are scanned): it is not marked `onceTable`, becomes per-item, and renders one table per element instead of once per category.
+
+**Approach:** give the paginator an explicit “last item complete” signal on the final fragment chunk (or emit the summary tables as their own body chunk after the repeat) so measurement and rendering agree; detect summary tables through transparent `columns` wrappers with one shared helper (`ReportRepeatView` + `ReportDesignerCanvas`). Keep `onceTable` the only summary case (`docs/REPORTS-LEGO-CONTEXT.md` §4). Files: `src/components/reports/ReportBlockView.tsx` (`onceTables`/`renderOnce`), `src/components/reports/useReportPaginator.tsx` (`rm-once` height), `src/lib/reportPagination.ts` (chunk parts).
+
+**Verify:** unit/render repros for both cases; `e2e/report-pagination.spec.ts` + `e2e/report-page-breaks.spec.ts`; `npm run lint`; manual print of a Category Breakdown whose last element splits.
+
+**Relations:** read `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §2-3; `relates to` 201/215 (designer collections/chains) and the 2026-11-27 scoping fix.
+
+## 378. Reports — element-list scoping semantics decisions (`[ ]`, NEEDS DECISION)
+
+**Found 2026-11-27 (Lego bug-hunt swarm).** These are product decisions, not crashes:
+
+1. **Day-type ancestors are a no-op.** `dayTypes`/`dayTypesOfElement` show the “Only … in this …” checkbox, but `ruleBearingAncestor`/`parentScenesOf` have no day-type branch — nested days/scenes show everything. Decide: implement the rule (type days → scenes/days) or add both to `NON_SCOPABLE_COLLECTIONS` and hide the checkbox.
+2. **Category counters stay global.** `categoryElementCount`/`categorySceneCount`/`categoryOccurrences` keep production-wide numbers inside a scene/day chain while `categoryItems` is scoped. Decide whether they scope (and label them) or stay global (`smartElementCount` is the scoped count today).
+3. **Order and labels differ.** Top-level `categoryItems` uses catalogue order, a scoped list uses Board ID order; a lookup ref prints raw scene values while the field prints “N. NAME”. Decide one convention.
+4. **Outer category ancestors.** Under `categories → categories → elementsOfCategory` only the nearest category is exempt from the scene intersection; an explicit `elements` table under a categories repeat still intersects. Decide the membership rule.
+5. **Commas in element names** cannot be represented in comma-separated scene fields (the value splits into phantom elements). Decide escaping/validation or document the limitation.
+
+Name-typed cast is already 228 — referenced, not duplicated.
+
+**Approach:** settle the decisions first, then code + docs (`docs/REPORTS-LEGO-CONTEXT.md` §2/§7, `docs/REPORTS-DESIGNER.md` §2) + tests per decision.
+
+**Verify:** unit cases for each chosen rule; `npm run lint` + `test:smart`; manual Category/Scene Breakdown.
+
+**Relations:** `relates to` 201 (fold day-contextual collections), 228 (name-typed cast), 305/321 (Board IDs/labels), 195/196 (lookup context).
+
+## 379. Reports — print scope vs tables contract (`[ ]`, NEEDS DECISION)
+
+**Contradiction:** `ReportPrintDialog`/`docs/REPORTS-DESIGNER.md` §2 say **tables always print all items**, but `ReportTableView` applies `filterItemsByScope` (we now skip it only for per-item rows); `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §6 documents that it is applied. Decide one contract: tables ignore the print scope, tables honour it, or a per-block toggle. Align the dialog copy, docs and tests.
+
+**Files:** `src/components/reports/ReportBlockView.tsx` (`ReportTableView` scoped), `src/components/reports/ReportPrintDialog.tsx`, `filterItemsByScope` (`src/lib/reportData.ts`). Check `budgetTable` too.
+
+**Verify:** `e2e/report-collections.spec.ts` + a print-dialog case with a scoped repeat and a sibling table; manual.
+
+**Relations:** `relates to` 377 (table pagination), 195/196.
+
+## 380. Reports — residual canvas/print context parity (`[ ]`)
+
+**Found 2026-11-27 (Lego bug-hunt swarm).**
+
+- **Call Sheet header/footer zones:** print/preview resolves `aux.callSheetBlocks` with no day item (`ReportBlockView` `pageAux`), while Edit passes `dayItem` — day tokens blank in print unless the zone sits inside a `days` repeat. Thread the day item for single-day prints (or define the zone as day-scoped everywhere).
+- **Designer repeat titles** pass `aux={{ index: 0, pageSize }}` without `sceneScope`/`outerSceneScope`/`dayDate`/`counterStart` — scoped tokens can differ from preview/print.
+- **Columns children on the designer** drop `parentItems`/`itemIndex`, so a `relative` inside columns inside a repeat uses the approximate fallback.
+- **`skipEmpty` / per-column `skipEmpty`** are evaluated with no aux, so a scoped Element List can render blank without being skipped.
+
+**Approach:** share the blockAux builder between the canvas and the renderer; thread `parentItems`/`itemIndex` through `columns`; evaluate skip-empty with the row aux; pass the selected day into `callSheetBlocks` at print/preview.
+
+**Verify:** unit/render checks (designer vs preview values), `e2e/call-sheet-day.spec.ts`, manual title/relative parity.
+
+**Relations:** `relates to` 142/212/213/222 (Call Sheet), 27 (relative), 377.
+
+## 381. Reports — scheduled-only element lists (`[ ]`)
+
+**Asked 2026-11-27 (user):** restore the pre-fix “used elements” behavior *on demand*: list only elements that are actually scheduled (≥1 scene row on the stripboard). Per-category lists are enough; no flat all-categories collection. Label: **“Only scheduled elements.”**
+
+**Approach:**
+- `ReportBlock.scheduledOnly?: boolean`; in `resolveCollectionItems`, for `elements` / `elementsOfCategory` / `cast`, keep only items with `sceneIds.length > 0` (after resolution, before `itemFilter`/print scope). Default **off** (all elements stays today’s default).
+- Inspector: a **Filters → “Only scheduled elements”** checkbox for element tables/repeats (effective collection is one of the three). Hint: “Has at least one scene row on the stripboard.”
+- Text/list path: new category field **Element List (scheduled)** (`categoryScheduledItems`) — token `{{categoryScheduledItems}}`, lookup chip `@Props.Element List (scheduled)`. No new token grammar; it respects `outerSceneScope` and prints Board-ID-ordered labels.
+- Docs `docs/REPORTS-LEGO-CONTEXT.md` §2; tests (top level drops unused; scene/day still narrows; field matches the old behavior; table toggle).
+
+**Verify:** unit for both paths; `npm run lint` + `test:smart`; manual Category Breakdown + Scene Breakdown with a deliberately unused element.
+
+**Relations:** explicitly restores the pre-2026-11-27 behavior (the membership fix made “all” the default); `relates to` 228 (name-typed cast), 305/321 (labels), 201 (collections), 377/378 (element-list semantics).
