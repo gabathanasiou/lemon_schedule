@@ -1,5 +1,5 @@
 import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation, Budget, BudgetCategory, BudgetAccount, BudgetLine, BudgetSettings, BudgetLineSource, Expense, PurchaseOrder } from '../types';
-import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
+import { generateUUID, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { DEFAULT_LOCATION_TYPES, LOCATION_BUILTIN_KEYS } from '../lib/locations';
@@ -41,7 +41,6 @@ import {
 import { getDefaultReportDesigns } from '../lib/reportTemplates';
 import { DEFAULT_CREW_ROLES, reorderCrewRoles } from '../lib/crewCatalog';
 import { DEFAULT_DAY_TYPES, DAY_TYPE_BUILTIN_KEYS } from '../lib/dayTypes';
-import { isMultiValue, getFieldItems } from '../lib/categories';
 import {
   caseSetScriptDocument, caseUpdateScriptDocument,
   caseAddScriptAnnotation, caseUpdateScriptAnnotation, caseRemoveScriptAnnotation,
@@ -703,23 +702,7 @@ export function reducer(state: State, action: Action): State {
   }
 }
 
-export function getElementsFromScenes(scenes: Scene[], category: string): { id: string; name: string }[] {
-  if (!isMultiValue(category)) {
-    const map = new Map<string, string>();
-    const isSet = category === 'set';
-    for (const s of scenes) {
-      const raw = ((s as any)[category] as string || '').trim();
-      if (!raw) continue;
-      const val = isSet ? normalizePunctuation(raw).toUpperCase() : raw;
-      if (!map.has(val)) map.set(val, val);
-    }
-    return [...map.values()].sort().map(v => ({ id: v, name: v }));
-  }
-  const set = new Set<string>();
-  for (const s of scenes) {
-    const val = (s as any)[category] as string;
-    if (!val) continue;
-    for (const id of val.split(',').map(x => x.trim()).filter(Boolean)) set.add(id);
-  }
-  return [...set].sort().map(id => ({ id, name: id }));
-}
+/* Re-exported for the store's public API; the implementation is a pure leaf
+   (elements.ts must not import the store barrel — that cycle can TDZ). */
+export { getElementsFromScenes } from '../lib/sceneElements';
+

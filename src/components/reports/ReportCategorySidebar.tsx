@@ -42,7 +42,7 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
       // manager sidebar uses).
       const merged = new Set<string>();
       for (const e of (project.breakdownElements || {})[key] || []) merged.add((e.id || e.name).toLowerCase());
-      for (const e of getElementsFromScenes(project.scenes, key)) merged.add((e.id || e.name).toLowerCase());
+      for (const e of getElementsFromScenes(project.scenes, key, project.customCategories)) merged.add((e.id || e.name).toLowerCase());
       out.set(key, merged.size);
     }
     return out;

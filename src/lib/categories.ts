@@ -31,10 +31,11 @@ export function isMultiValue(category: string, customCategories?: CustomCategory
   return true;
 }
 
-export function getFieldItems(field: string, value: string): string[] {
-  if (!value || !value.trim()) return [];
-  if (!isMultiValue(field)) return [value.trim()];
-  return value.split(',').map(x => x.trim()).filter(Boolean);
+export function getFieldItems(field: string, value: string, customCategories?: CustomCategoryDef[]): string[] {
+  const raw = value == null ? '' : String(value);
+  if (!raw.trim()) return [];
+  if (!isMultiValue(field, customCategories)) return [raw.trim()];
+  return raw.split(',').map(x => x.trim()).filter(Boolean);
 }
 
 export const CAT_ICONS: Record<string, React.ElementType> = {

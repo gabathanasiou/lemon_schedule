@@ -1,8 +1,8 @@
 import { ProjectElement } from '../types';
-import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
 import { canonicalBoardId } from './boardIds';
 import { getBoardIdDisplay } from './persist';
+import { getElementsFromScenes } from './sceneElements';
 
 /**
  * Single source of truth for breakdown elements:
@@ -32,24 +32,24 @@ export function elementMatchId(e: { id: string; name: string }, category: string
 /** Merges stored elements with scene-derived values for a category (cast special-cases by id). */
 export function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {
-    const sceneIds = getElementsFromScenes(project.scenes, 'cast');
+    const sceneIds = getElementsFromScenes(project.scenes, 'cast', project.customCategories);
     const merged = new Map<string, ProjectElement>();
     for (const e of sceneIds) merged.set(e.id, { id: e.id, name: '' });
-    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name.toUpperCase() });
+    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: String(m.name ?? '').toUpperCase() });
     return [...merged.values()];
   }
   const stored: ProjectElement[] = (project.breakdownElements || {})[category] || [];
-  const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
+  const nameMap = new Map(stored.map(e => [String(e.name ?? e.id ?? '').toLowerCase(), e]));
   const seen = new Set<string>();
   const items: ProjectElement[] = [];
   for (const e of stored) {
     const key = (e.id || e.name);
     if (!seen.has(key)) { items.push(e); seen.add(key); }
   }
-  const sceneElems = getElementsFromScenes(project.scenes, category);
+  const sceneElems = getElementsFromScenes(project.scenes, category, project.customCategories);
   for (const e of sceneElems) {
-    const key = (e.id || e.name).toLowerCase();
-    if (!seen.has(key) && !nameMap.has(e.name.toLowerCase())) { items.push(e); seen.add(key); }
+    const key = (e.id || e.name || '').toLowerCase();
+    if (!seen.has(key) && !nameMap.has(String(e.name ?? '').toLowerCase())) { items.push(e); seen.add(key); }
   }
   return items;
 }

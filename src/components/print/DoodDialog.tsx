@@ -136,7 +136,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
       }));
     }
     const stored: { id: string; name: string; boardId?: string }[] = (project.breakdownElements || {})[category] || [];
-    const sceneElems = getElementsFromScenes(project.scenes, category);
+    const sceneElems = getElementsFromScenes(project.scenes, category, project.customCategories);
     const merged = new Map<string, { name: string; boardId?: string }>();
     for (const e of stored) {
       const key = (e.id || e.name).toLowerCase();
