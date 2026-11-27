@@ -60,6 +60,36 @@ So `Cast → Days → Scenes` gives "this person's scenes on this day". Shallow
 chains (one ancestor) behave exactly as before. Unchecking "Only … in this …"
 disables ALL ancestor scoping for that block (opt-out).
 
+**Typed-parent children are membership, not an intersection.** A `categories`
+repeat's `elementsOfCategory` rows are that category's elements: the category's
+OWN scene union never filters them (elements not placed on the board must still
+list — intersecting them with the category's scenes used to drop every unused
+element). Outer day/scene/element ancestors still intersect normally. The
+category **Element List** field (`categoryItems`) follows the same rule through
+`aux.outerSceneScope` (the scope ABOVE the current item): top level = the full
+catalog; inside a scene/day chain = only that scene's/day's elements. An EMPTY
+scope set is an empty chain (renders nothing) — never "unscoped".
+
+**A table row is an ITEM of the block**, not the block's own item. Row reads use
+the block's full ancestor scope (`rowScopeAux`), so a Categories table inside a
+Scenes/Days repeat narrows each row's Element List to that scene/day. Per-item
+tables are only those whose effective collection IS the parent item type; an
+explicit different collection under a contextual-less parent resolves normally.
+
+**An Advance replaces its parent's current item** in the chain
+(`[target, ...ancestors.slice(1)]`): the target is a sibling, not a descendant.
+Lookup targets are read with the containing block's outer membership scope
+cleared (`lookupTargetAux`) — `scopeLookupTarget`/`chainSceneScope` already
+reduced them. An EMPTY scope (an empty day, an unused element) reduces to an
+empty union, never the global item. The Call Sheet's dissolved `days` repeat
+passes the day as an ancestor, so nested containers see the same chain as print.
+
+**Crew under a day ancestor is the day's assigned crew**, resolved through
+`crewOfDay` — a global `crew` table inside a Days repeat lists the people on
+that day, not a position→category guess (category-less roles such as producer,
+ADs and camera used to vanish). `crewOfDay` itself is NON_SCOPABLE and is never
+re-scoped; without a day ancestor, `crew` keeps its roadmap-11 scene rule.
+
 ## 3. Contextual collections (defaults)
 
 `contextualCollectionsFor(parent)` picks a smart DEFAULT when a new table/repeat
