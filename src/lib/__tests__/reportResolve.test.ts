@@ -249,6 +249,82 @@ describe('resolveCollectionItems — day-scoped categories', () => {
   });
 });
 
+describe('resolveCollectionItems — element lists under LEGO', () => {
+  it('a category lists ALL its elements at the top level, including unused catalog entries', () => {
+    const project = seedProject((p) => {
+      p.breakdownElements = p.breakdownElements || {};
+      p.breakdownElements.props = [...(p.breakdownElements.props || []), { id: 'el-unused-prop', name: 'NEVER PLACED PROP', boardId: '999' }];
+    });
+    const ctx = buildCtx(project);
+    const props = (resolveCollectionItems(ctx, 'categories', undefined, undefined, undefined) as any[]).find(c => c.key === 'props');
+    expect(props).toBeTruthy();
+    const rows = resolveCollectionItems(ctx, 'elementsOfCategory', undefined, props, undefined, { collection: 'elementsOfCategory' } as any, [props]) as any[];
+    expect(rows.map(e => e.name)).toContain('NEVER PLACED PROP');
+    expect(rows.length).toBe(props.elementCount);
+  });
+
+  it('still intersects an outer scene ancestor (Lego context)', () => {
+    const ctx = buildCtx(seedProject());
+    const scenes = resolveCollection(ctx, 'scenes', undefined, undefined) as any[];
+    const scene = scenes.find(s => ctx.sceneFieldItems(s.scene, 'props').length > 1);
+    expect(scene).toBeTruthy();
+    const props = (resolveCollectionItems(ctx, 'categories', undefined, undefined, undefined) as any[]).find(c => c.key === 'props');
+    const rows = resolveCollectionItems(ctx, 'elementsOfCategory', undefined, props, undefined, { collection: 'elementsOfCategory' } as any, [props, scene]) as any[];
+    const sceneProps = new Set(ctx.sceneFieldItems(scene!.scene, 'props').map(v => v.toLowerCase()));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(props.elementCount);
+    for (const e of rows) expect(sceneProps.has(String(e.name).toLowerCase())).toBe(true);
+  });
+});
+
+describe('categoryItems — Element List follows the outer Lego context', () => {
+  const project = seedProject();
+  const ctx = buildCtx(project);
+  const fieldMap = getReportFieldMap(project);
+  const props = (resolveCollectionItems(ctx, 'categories', undefined, undefined, undefined) as any[]).find(c => c.key === 'props');
+
+  it('lists the whole category at the top level', () => {
+    expect(reportFieldValueByKey(ctx, fieldMap, 'categoryItems', props)).toBe(props.items.join(', '));
+  });
+
+  it("lists only the current scene's elements inside scenes → categories", () => {
+    const scenes = resolveCollection(ctx, 'scenes', undefined, undefined) as any[];
+    const scene = scenes.find(s => ctx.sceneFieldItems(s.scene, 'props').length > 1);
+    expect(scene).toBeTruthy();
+    const value = reportFieldValueByKey(ctx, fieldMap, 'categoryItems', props, {
+      outerSceneScope: ancestorSceneScope(ctx, [scene]),
+    });
+    const labels = value.split(',').map(x => x.trim()).filter(Boolean);
+    const names = new Set(ctx.sceneFieldItems(scene!.scene, 'props').map(v => v.toLowerCase()));
+    expect(labels.length).toBe(names.size);
+    for (const label of labels) {
+      const name = label.replace(/^\d+\.\s*/, '');
+      expect(names.has(name.toLowerCase())).toBe(true);
+    }
+  });
+});
+
+describe('crew day scoping', () => {
+  const ctx = buildCtx(seedProject());
+  const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+  const day = days[0];
+
+  it('crewOfDay is not re-filtered by role categories', () => {
+    const raw = resolveCollection(ctx, 'crewOfDay', undefined, day) as any[];
+    expect(raw.length).toBeGreaterThan(0);
+    const scoped = resolveCollectionItems(ctx, 'crewOfDay', undefined, day, undefined, { collection: 'crewOfDay' } as any, [day]) as any[];
+    expect(scoped.length).toBe(raw.length);
+  });
+
+  it("a global crew table inside a day repeat lists that day's assigned crew", () => {
+    const raw = resolveCollection(ctx, 'crewOfDay', undefined, day) as any[];
+    const dayIds = new Set(raw.map((c: any) => c.id));
+    const crew = resolveCollectionItems(ctx, 'crew', undefined, day, undefined, { collection: 'crew' } as any, [day]) as any[];
+    expect(crew.length).toBeGreaterThan(0);
+    for (const c of crew) expect(dayIds.has(c.id)).toBe(true);
+  });
+});
+
 describe('ancestorSceneScope', () => {
   const ctx = buildCtx(seedProject());
 
