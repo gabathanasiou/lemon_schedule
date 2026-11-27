@@ -670,6 +670,10 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
     );
   }
 
+  // Any other item context (element/cast/crew/category/department/…) has no
+  // schedule slice of its own — render nothing (docs §5).
+  if (item) return null;
+
   // Top level — the full schedule.
   if (ctx.dayInfos.length === 0) {
     // Empty project: keep the design visible on canvas/preview by rendering

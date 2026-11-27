@@ -628,7 +628,7 @@ export function scopeLookupTarget(
   item: ReportCollectionItem,
   scope: Set<string> | null | undefined,
 ): ReportCollectionItem {
-  if (!scope || scope.size === 0) return item;
+  if (!scope) return item;
   if (collection === 'categories') {
     const cat = item as ReportCategoryInfo;
     const def = fieldMap[cat.key];

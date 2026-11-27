@@ -608,6 +608,13 @@ export function flaggedIdsOf(v: RuleViolation): string[] {
   return v.sceneIds || (v.sceneId ? [v.sceneId] : []);
 }
 
+/** A `categories` repeat item (typed-parent shape). Label is display-only —
+ *  classify on the membership shape so a category without one still resolves. */
+function isCategoryItem(item: ReportCollectionItem | undefined): boolean {
+  const any = item as any;
+  return !!any && typeof any.key === 'string' && Array.isArray(any.items);
+}
+
 export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem | undefined): ReportSceneInfo[] {
   if (!parentItem) return [];
   const any = parentItem as any;
@@ -620,7 +627,7 @@ export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem 
     for (const v of any.violations as RuleViolation[]) for (const id of flaggedIdsOf(v)) ids.add(id);
     return ctx.sceneInfos.filter(si => ids.has(si.scene.id));
   }
-  if (typeof any.key === 'string' && any.label !== undefined && Array.isArray(any.items)) { // category
+  if (isCategoryItem(parentItem)) {                                             // category
     return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, any.key).length > 0);
   }
   if (typeof any.roleKey === 'string') {                                        // crew member (position → categories)
@@ -890,8 +897,10 @@ export function buildReportCtx(
   // here — per-block skipEmptyCategories decides that at resolve time.
   const hidden = new Set(project.hiddenCategories || []);
   const categoryInfos: ReportCategoryInfo[] = [];
+  const seenCategoryKeys = new Set<string>();
   for (const c of ELEMENT_CATEGORIES) {
-    if (!hidden.has(c.key)) {
+    if (!hidden.has(c.key) && !seenCategoryKeys.has(c.key)) {
+      seenCategoryKeys.add(c.key);
       categoryInfos.push({
         key: c.key,
         label: getLabel(c.key, c.label, project.categoryLabels),
@@ -900,7 +909,8 @@ export function buildReportCtx(
     }
   }
   for (const c of project.customCategories || []) {
-    if (!hidden.has(c.key)) {
+    if (!hidden.has(c.key) && !seenCategoryKeys.has(c.key)) {
+      seenCategoryKeys.add(c.key);
       categoryInfos.push({ key: c.key, label: c.label, elementCount: 0, sceneCount: 0, occurrences: 0, items: [] });
     }
   }
@@ -909,7 +919,7 @@ export function buildReportCtx(
     info.elementCount = elements.length;
     info.items = elements.map(e => boardLabel(boardIdOf(e, info.key), info.key === 'cast' ? (castNames.get(e.id) || e.name || e.id) : (e.name || e.id)));
     for (const si of sceneInfos) {
-      const items = getFieldItems(info.key, String((si.scene as any)[info.key] ?? ''));
+      const items = getFieldItems(info.key, String((si.scene as any)[info.key] ?? ''), project.customCategories);
       if (items.length > 0) info.sceneCount++;
       info.occurrences += items.length;
     }
@@ -1004,7 +1014,7 @@ export function buildReportCtx(
     sectionViolations,
     sceneViolations,
     totalViolations,
-    sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
+    sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? ''), project.customCategories),
     computedByRowId,
     budget,
     budgetForVersion,
@@ -1596,7 +1606,16 @@ export function resolveCollectionItems(
         items = items.filter((l: any) => l.category?.id === (budgetAncestor as any).category?.id);
       }
     }
+    /* Typed-parent membership is a direct relation, not a scene intersection:
+       a category's `elementsOfCategory` rows are its elements — including the
+       ones not placed on the board yet. Intersecting them with the category's
+       OWN scene union dropped every unused element from element lists. Outer
+       ancestors (day/scene) still scope normally. */
+    const typedParent = collection === 'elementsOfCategory'
+      ? ancestors.find(a => isCategoryItem(a))
+      : undefined;
     const sceneSets = ancestors
+      .filter(a => a !== typedParent)
       .filter(a => ruleBearingAncestor(a))
       .map(a => parentScenesOf(ctx, a));
     if (sceneSets.length > 0) {
@@ -1634,15 +1653,26 @@ export function resolveCollectionItems(
           items = items.filter((t: any) => sceneSets.every(set => (t.days as string[] || []).some(d => set.some(si => si.date === d))));
           break;
         }
-        case 'crew': case 'crewOfDay': {
-          // "Only crew in this day": keep a crew member when their position's
-          // categories have a scene in EVERY ancestor set (roadmap 11).
-          items = items.filter((c: any) => {
-            const scenes = parentScenesOf(ctx, c);
-            return scenes.length > 0 && sceneSets.every(set => scenes.some(si => set.some(s => s.scene.id === si.scene.id)));
-          });
+        case 'crew': {
+          /* Day context = the day's assigned crew (crewOfDay), not a
+             position→category guess — category-less roles (producer, ADs,
+             camera…) used to vanish from every call sheet. Without a day
+             ancestor, crew keeps its roadmap-11 scene rule. */
+          const dayAncestor = ancestors.find(a => typeof (a as any).section?.index === 'number') as ReportDayInfo | undefined;
+          if (dayAncestor) {
+            const dayIds = new Set((resolveCollection(ctx, 'crewOfDay', undefined, dayAncestor, undefined) as ReportCrewItem[]).map(c => c.id));
+            items = items.filter((c: any) => dayIds.has(c.id));
+          } else {
+            items = items.filter((c: any) => {
+              const scenes = parentScenesOf(ctx, c);
+              return scenes.length > 0 && sceneSets.every(set => scenes.some(si => set.some(s => s.scene.id === si.scene.id)));
+            });
+          }
           break;
         }
+        /* crewOfDay is already day-scoped (NON_SCOPABLE) — ancestor scoping
+           would re-filter it by role categories and empty the table. */
+        case 'crewOfDay': break;
         default: break; // locations etc. — no scoping rule
       }
     }

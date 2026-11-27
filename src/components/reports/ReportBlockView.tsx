@@ -16,7 +16,7 @@ import ReportBudgetTable from './ReportBudgetTable';
 import { ImageBlockView } from './ImageBlockView';
 import ReportBlockTitle from './ReportBlockTitle';
 import { ReportLocationLink } from './ReportLocationLink';
-import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
+import { defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { CellRef } from '../../lib/reportTableMerges';
 import { PageChunk, FragmentPartUnit, splittableKind } from '../../lib/reportPagination';
 import { imageAlignStyle } from '../../lib/reportImageLayout';
@@ -116,6 +116,13 @@ export interface ReportRenderProps {
   onTextFocusChange?: (focused: boolean) => void;
 }
 
+/** Table rows are ITEMS of the iterating block, not the block's own item: a
+ *  category row's Element List narrows to the block's Lego scene scope (the
+ *  block's outerSceneScope excludes the block item, which is not the row). */
+function rowScopeAux(aux?: FieldAux): FieldAux | undefined {
+  return aux ? { ...aux, outerSceneScope: aux.sceneScope } : aux;
+}
+
 /** Field value as a React node: plain text, or a clickable anchor when the
  *  field is a link field (map links, emails, phones) or its value is itself a
  *  URL. Shared by field blocks and table cells so links work everywhere.
@@ -170,6 +177,10 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       counterStart: block.counterStart ?? aux?.counterStart,
       dayFormat: block.dayFormat ?? aux?.dayFormat,
       sceneScope: ancestorSceneScope(ctx, ancestors),
+      // Lego scope ABOVE the item itself — membership fields (a category's
+      // Element List) narrow to the outer day/scene chain, not the item's
+      // own scene union.
+      outerSceneScope: ancestorSceneScope(ctx, ancestors?.filter(a => a !== item)),
       locationChoice: block.locationChoice ?? aux?.locationChoice,
       dayDate: aux?.dayDate ?? (ancestors?.find(a => typeof (a as any).section?.index === 'number') as any)?.date,
     };
@@ -591,7 +602,7 @@ export const ReportChunkPage: React.FC<{
 const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, mode, showUnresolved, aux, ancestors, ribbonOverrides, itemRange, partChildren, previewLimit, parentItems, itemIndex, title }) => {
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
   const scoped = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
-  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
+  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, rowScopeAux(aux)) ?? ''));
   if (filtered.length === 0) {
     if (hint) return <>{title}{emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project))}</>;
     return null;
@@ -726,7 +737,7 @@ const ReportRelativeView: React.FC<Omit<ReportRenderProps, 'block'> & { block: R
               mode={mode}
               showUnresolved={showUnresolved}
               aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }}
-              ancestors={[it, ...(ancestors || [])]}
+              ancestors={[it, ...(ancestors || []).slice(1)]}
               parentCategory={parentCategory}
               parentCollection={parentCollection}
               parentItems={items}
@@ -751,7 +762,10 @@ const TABLE_PREVIEW_LIMIT = 6;
 const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell, onEnterTableEdit, title }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
-  const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
+  // Per-item only when the effective collection IS the parent item type
+  // (crew parents, same-collection tables). An EXPLICIT different collection
+  // under a contextual-less parent must resolve normally.
+  const isPerItem = nested && itemCollection === parentCollection && !onceTable;
   // Element tables filter by element category; location tables by location
   // type (the flat DB's `block.category`). Same key, two registries.
   const categoryFilter = itemCollection === 'elements' || itemCollection === 'elementsOfScene' || itemCollection === 'locations'
@@ -760,8 +774,10 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const items = isPerItem
     ? (item ? [item] : [])
     : (resolveCollectionItems(ctx, itemCollection, categoryFilter, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
-  const scoped = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
-  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
+  // Per-item rows were already scoped by the parent repeat — the print
+  // inclusion list must not re-filter the one-item array by position.
+  const scoped = isPerItem ? items : filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
+  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, rowScopeAux(aux)) ?? ''));
 
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
@@ -807,10 +823,15 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     );
   }
 
+  // Per-item tables (one row per parent item, e.g. a table inside an element
+  // repeater) keep the parent repeat's index so the Counter numbers the
+  // repetitions — not the single row. Declared BEFORE renderTable: the empty
+  // skeleton path calls renderTable early.
+  const perItemIndex = isPerItem ? (aux?.index ?? 0) : undefined;
   const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
     (block.axis ?? 'columns') === 'rows'
-      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} selectedColumn={selectedColumn} />
-      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
+      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} rowOffset={rowRange?.[0]} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} selectedColumn={selectedColumn} />
+      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
 
   // Designer canvas: an empty collection still shows the table skeleton
   // (header + field-key row) so the layout is visible without data.
@@ -819,10 +840,6 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project));
     return null;
   }
-  // Per-item tables (one row per parent item, e.g. a table inside an element
-  // repeater) keep the parent repeat's index so the Counter numbers the
-  // repetitions — not the single row.
-  const perItemIndex = isPerItem ? (aux?.index ?? 0) : undefined;
 
   // Per-column skip: hide items whose cell is empty in a column marked
   // skipEmpty (document fields like the counter always count as filled).
@@ -930,7 +947,7 @@ const TableColumnsGrid: React.FC<{
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, minWidth: 0, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {showKeys
                 ? keyCell(c.field)
-                : (fieldValueNode(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                : (fieldValueNode(ctx, fieldMap, c.field, it, { ...rowScopeAux(aux), index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
             </div>
           ))}
         </div>
@@ -1030,7 +1047,7 @@ const TableRowsMatrix: React.FC<{
                   <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
                     {showKeys
                       ? keySpan(identityField)
-                      : (fieldValueNode(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                      : (fieldValueNode(ctx, fieldMap, identityField, it, { ...rowScopeAux(aux), index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}
@@ -1047,7 +1064,7 @@ const TableRowsMatrix: React.FC<{
                   <div key={ii} {...cellHandlers(ai)} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                     {showKeys
                       ? keySpan(a.field)
-                      : (fieldValueNode(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                      : (fieldValueNode(ctx, fieldMap, a.field, it, { ...rowScopeAux(aux), index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}

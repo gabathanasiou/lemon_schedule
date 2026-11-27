@@ -125,7 +125,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
 
   const readOnlyView = (b: ReportBlock, i: number, item?: any, parentCollection?: string) => (
     <div key={`${b.id}:${weatherTick}`} style={{ marginTop: i === 0 ? 0 : 6 }}>
-      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
+      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} ancestors={item ? [item] : undefined} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
     </div>
   );
 

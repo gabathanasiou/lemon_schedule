@@ -6,9 +6,10 @@ import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportDepartmentInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
-  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
+  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay, getElementsFor,
   ReportBudgetAccountItem, ReportBudgetCategoryItem,
 } from './reportData';
+import { boardLabel, elementMatchId } from './elements';
 import type { ComputedBudgetLine } from './budget/calc';
 import { expenseAccountLabel, summarizeExpenses, expensesOfDay as expensesForDay, type CostRow } from './budget/costReport';
 import { formatMoney, formatPercent } from './budget/format';
@@ -66,6 +67,10 @@ export interface FieldAux {
   pageSize?: 'portrait' | 'landscape';
   dayFormat?: DayFormatMode;       // from the block's day-list display mode
   sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields AND scoped lookup targets resolve within it
+  /** The ancestor intersection WITHOUT the current item itself. Fields that
+   *  describe the item's own membership (a category's Element List) narrow to
+   *  the outer day/scene context instead of the item's whole scene union. */
+  outerSceneScope?: Set<string> | null;
   locationChoice?: string;         // block-level "Show location" pick: a location TYPE key
   dayDate?: string;                // nearest in-scope DAY's date (location rows inside a day repeat)
   /** Per-day call-sheet content overriding every `callSheetEdit` zone in the
@@ -155,7 +160,27 @@ const CAST_FIELDS: ReportFieldDef[] = [
 
 const CATEGORY_FIELDS: ReportFieldDef[] = [
   { key: 'categoryLabel', label: 'Category Name', group: 'Categories', scope: 'categories', defaultWidth: 20, get: (_c, it: ReportCategoryInfo) => s(it.label) },
-  { key: 'categoryItems', label: 'Element List', group: 'Categories', scope: 'categories', multiValue: true, defaultWidth: 30, separator: true, get: (_c, it: ReportCategoryInfo) => it.items.join(', ') },
+  { key: 'categoryItems', label: 'Element List', group: 'Categories', scope: 'categories', multiValue: true, defaultWidth: 30, separator: true, get: (ctx, it: ReportCategoryInfo, aux) => {
+    /* In a day/scene chain list only the elements present there (a scene's
+       props, not the whole category catalog). The category's OWN scenes are its
+       membership, not a Lego constraint — top level stays the full list. */
+    const scope = aux?.outerSceneScope;
+    if (scope == null) return it.items.join(', ');
+    const present = new Set<string>();
+    for (const si of ctx.sceneInfos) {
+      if (!scope.has(si.scene.id)) continue;
+      for (const v of ctx.sceneFieldItems(si.scene, it.key)) present.add(v.trim().toLowerCase());
+    }
+    const labels: string[] = [];
+    const seen = new Set<string>();
+    for (const e of getElementsFor(ctx, it.key)) {
+      const match = elementMatchId(e, it.key).toLowerCase();
+      if (!present.has(match) || seen.has(match)) continue;
+      seen.add(match);
+      labels.push(boardLabel(e.boardId, e.name));
+    }
+    return labels.join(', ');
+  } },
   { key: 'categoryElementCount', label: 'Element Count', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportCategoryInfo) => s(it.elementCount) },
   { key: 'categorySceneCount', label: 'Scene Count', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 10, get: (_c, it: ReportCategoryInfo) => s(it.sceneCount) },
   { key: 'categoryOccurrences', label: 'Total Occurrences', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 12, get: (_c, it: ReportCategoryInfo) => s(it.occurrences) },

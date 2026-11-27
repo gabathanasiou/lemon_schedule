@@ -179,6 +179,17 @@ type CellRefResolution =
 /** Resolve one ref against its formula cell: mirror descriptor, pinned value,
  *  empty target or an Excel-style error. `seen` carries the cells already
  *  entered on this token's chain (reference cycles → #REF!). */
+/**
+ * A lookup target was already reduced by `scopeLookupTarget` (its `items` are
+ * the scoped union). Read it with the containing block's OUTER membership scope
+ * cleared — that scope describes the block's own item, not the referenced one
+ * (a category's Element List would otherwise re-filter the reduced list).
+ */
+function lookupTargetAux(aux: FieldAux | undefined, scope?: Set<string> | null): FieldAux | undefined {
+  if (!aux) return aux;
+  return { ...aux, ...(scope ? { sceneScope: scope } : null), outerSceneScope: null };
+}
+
 function resolveCellRefAtom(
   ctx: ReportCtx,
   fieldMap: Record<string, ReportFieldDef>,
@@ -213,7 +224,7 @@ function resolveCellRefAtom(
   // scene-derived fields read the chain's chain, not wherever the ref sits.
   const scope = lookup.path ? chainSceneScope(ctx, lookup.path) : aux?.sceneScope;
   const scoped = scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, scope);
-  return { kind: 'pinned', value: fieldValueSafe(def, ctx, scoped, lookup.path ? { ...aux, sceneScope: scope } : aux), def, ref: lookup };
+  return { kind: 'pinned', value: fieldValueSafe(def, ctx, scoped, lookupTargetAux(aux, lookup.path ? scope : undefined)), def, ref: lookup };
 }
 
 
@@ -373,7 +384,7 @@ function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, 
     // path's ancestor intersection, never the containing chain's aux.
     const scope = lookup.path ? chainSceneScope(ctx, lookup.path) : aux?.sceneScope;
     const target = scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, scope);
-    return fieldValueSafe(def, ctx, target, lookup.path ? { ...aux, sceneScope: scope } : aux);
+    return fieldValueSafe(def, ctx, target, lookupTargetAux(aux, lookup.path ? scope : undefined));
   }
   const { field, opts } = parseToken(raw);
   const [base, sub] = field.split('.');

@@ -792,7 +792,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     {(() => {
                       const relChildren = b.children || [];
                       const childItem = relItems && relItems.length > 0 ? relItems[0] : undefined;
-                      return renderBlocks(relChildren, depth + 1, parentCollection, childItem, parentCategory, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined, relItems || [], 0);
+                      return renderBlocks(relChildren, depth + 1, parentCollection, childItem, parentCategory, undefined, childItem ? [childItem, ...(ancestors || []).slice(1)] : undefined, relItems || [], 0);
                     })()}
                   </div>
                 ) : b.type === 'repeat' || b.type === 'relative' ? (
