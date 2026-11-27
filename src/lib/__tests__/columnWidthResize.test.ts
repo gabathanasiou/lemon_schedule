@@ -56,6 +56,23 @@ describe('scaleRightWidths (Shift)', () => {
     expect(out.every(w => Number.isFinite(w) && w > 0)).toBe(true);
     expect(sum(out)).toBe(100);
   });
+
+  it('keeps every column LEFT of the boundary (row length never changes)', () => {
+    const out = scaleRightWidths([10, 20, 30, 40], 1, 5);
+    expect(out).toHaveLength(4);
+    expect(out[0]).toBe(10);
+    expect(out[1]).toBeGreaterThan(20);
+    expect(sum(out)).toBe(100);
+
+    const mid = scaleRightWidths([10, 20, 30, 40], 2, 8);
+    expect(mid).toHaveLength(4);
+    expect(mid.slice(0, 2)).toEqual([10, 20]);
+    expect(sum(mid)).toBe(100);
+  });
+
+  it('is a no-op on the last boundary', () => {
+    expect(scaleRightWidths([10, 20, 30, 40], 3, 5)).toEqual([10, 20, 30, 40]);
+  });
 });
 
 describe('normalizeColWidths hardening', () => {

@@ -43,18 +43,22 @@ export function scaleRightWidths(
   minPct: number = MIN_PCT,
 ): number[] {
   if (ci < 0 || ci + 1 >= sizes.length) return [...sizes];
+  const left = sizes.slice(0, ci);
+  const leftSum = left.reduce((s, w) => s + w, 0);
   const curA = sizes[ci];
   const right = sizes.slice(ci + 1);
   const rightSum = right.reduce((s, w) => s + w, 0);
-  const total = curA + rightSum;
+  const total = leftSum + curA + rightSum;
   if (!Number.isFinite(total) || total <= 0 || !(rightSum > 0)) return [...sizes];
   const maxA = curA + rightSum - minPct * right.length;
   // Already below the floors: fall back to the pair rule’s safe split.
   if (maxA < minPct) return resizeAdjacentWidths(sizes, ci, deltaPct, minPct);
   const newA = Math.max(minPct, Math.min(maxA, curA + deltaPct));
-  const remaining = total - newA;
+  const remaining = total - leftSum - newA;
   const scale = remaining / rightSum;
-  const out = [newA, ...right.map(w => Math.max(minPct, w * scale))];
+  // Columns LEFT of the boundary are untouched — only the boundary and the
+  // right tail scale (the row length must never change).
+  const out = [...left, newA, ...right.map(w => Math.max(minPct, w * scale))];
   // Floor clamping can leave the right side heavier than `remaining`; normalize
   // the WHOLE row to its original total, keeping every value positive.
   const sum = out.reduce((s, w) => s + w, 0);
